@@ -1,0 +1,56 @@
+[
+	{
+		"image": "/assets/farms/farm1.jpg",
+		"farmName": "Green Valley Farm",
+		"location": "Quezon City, Philippines",
+		"miles": 2.4
+	},
+	{
+		"image": "/assets/farms/farm2.jpg",
+		"farmName": "Sunny Harvest Farm",
+		"location": "Antipolo, Rizal",
+		"miles": 5.8
+	},
+	{
+		"image": "/assets/farms/farm3.jpg",
+		"farmName": "Golden Fields Farm",
+		"location": "San Mateo, Rizal",
+		"miles": 7.1
+	},
+	{
+		"image": "/assets/farms/farm4.jpg",
+		"farmName": "Fresh Roots Farm",
+		"location": "Marikina City",
+		"miles": 3.9
+	},
+	{
+		"image": "/assets/farms/farm5.jpg",
+		"farmName": "Nature's Basket Farm",
+		"location": "Taytay, Rizal",
+		"miles": 10.5
+	},
+	{
+		"image": "/assets/farms/farm6.jpg",
+		"farmName": "Harvest Bloom Farm",
+		"location": "Pasig City",
+		"miles": 4.6
+	},
+	{
+		"image": "/assets/farms/farm7.jpg",
+		"farmName": "Evergreen Farm",
+		"location": "Cainta, Rizal",
+		"miles": 8.2
+	},
+	{
+		"image": "/assets/farms/farm8.jpg",
+		"farmName": "Blue Sky Farm",
+		"location": "Montalban, Rizal",
+		"miles": 12.7
+	},
+	{
+		"image": "/assets/farms/farm9.jpg",
+		"farmName": "Bee Haven Farm",
+		"location": "Taguig City",
+		"miles": 6.3
+	}
+]

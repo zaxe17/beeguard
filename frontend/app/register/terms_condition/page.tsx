@@ -17,40 +17,8 @@ import {
 	RegistrationDraft,
 } from "@/lib/validation";
 
-const termCondContent = [
-	{
-		title: "1. Purpose",
-		content: [
-			"BeeConnect is a platform that brings together\n beekeepers and citizens to promote bee health, share\n knowledge, and build a more sustainable\n environment.",
-		],
-		listStyle: false,
-	},
-	{
-		title: "2. For Beekeepers",
-		content: [
-			"You agree to provide accurate information about\n your hives.",
-			"You are responsible for the health and safety of\n your bees.",
-			"You agree to follow best practices and local\n regulations.",
-		],
-		listStyle: true,
-	},
-	{
-		title: "3. For Citizen",
-		content: [
-			"You agree to use the platform to learn, engage,\n and support bee conservation.",
-			"You may report bee sightings or environmental\n concerns honestly.",
-			"You agree to respect beekeepers and their work.",
-		],
-		listStyle: true,
-	},
-	{
-		title: "4. General",
-		content: [
-			"We reserve the right to update these terms. Continued\n use of the platform means you accept the updated\n terms.",
-		],
-		listStyle: false,
-	},
-];
+// TERMS AND CONDITION CONTENT
+import termCondContent from "@/data/termsCondition.json";
 
 const TermsCondition = () => {
 	const router = useRouter();
@@ -103,7 +71,8 @@ const TermsCondition = () => {
 
 		if (draft.role === "beekeeper") {
 			payload.farm_name = draft.farm_name || null;
-			payload.apiary_type = draft.apiary_type as RegisterPayload["apiary_type"];
+			payload.apiary_type =
+				draft.apiary_type as RegisterPayload["apiary_type"];
 		}
 
 		const res = await authService.register(payload);
@@ -166,9 +135,7 @@ const TermsCondition = () => {
 					}
 				/>
 
-				{errorMsg && (
-					<p className="text-xs text-red-600">{errorMsg}</p>
-				)}
+				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 
 				<Button
 					buttonType="button"

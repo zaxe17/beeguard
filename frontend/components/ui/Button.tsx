@@ -36,18 +36,33 @@ export const Button = ({
 	};
 
 	return (
-		<div className="flex justify-center">
-			<button
-				onClick={handleClick}
-				type={buttonType}
-				disabled={disabled}
-				className="flex justify-center items-center p-1.5 bg-[#ffdb4f] rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-				style={{
-					boxShadow: shadow["shadow-18"],
-					width: width || "100%",
-				}}>
-				{label}
-			</button>
-		</div>
+		<button
+			onClick={handleClick}
+			type={buttonType}
+			disabled={disabled}
+			className="flex justify-center items-center py-1.5 px-3 bg-[#ffdb4f] rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+			style={{
+				boxShadow: shadow["shadow-18"],
+				width: width || "100%",
+			}}>
+			{label}
+		</button>
+	);
+};
+
+// CANCEL BUTTON
+export const CancelButton = ({ onClick, width, disabled }: ButtonProps) => {
+	return (
+		<button
+			onClick={onClick}
+			type="button"
+			disabled={disabled}
+			className="flex justify-center items-center py-1.5 px-3 bg-transparent rounded-xl border border-[#a6a3a3] border-solid text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+			style={{
+				boxShadow: shadow["shadow-18"],
+				width: width || "100%",
+			}}>
+			Cancel
+		</button>
 	);
 };

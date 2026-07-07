@@ -14,11 +14,16 @@ type InputProps = {
 	onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
 	checked?: boolean;
 	onCheckedChange?: (checked: boolean) => void;
+	error?: boolean;
+	capitalize?: boolean;
 };
 
 type SelectProps = InputProps & {
 	onSelectChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
 };
+
+const capitalizeWords = (value: string) =>
+	value.replace(/\b\w/g, (char) => char.toUpperCase());
 
 export const Input = ({
 	name,
@@ -30,10 +35,16 @@ export const Input = ({
 	value,
 	onChange,
 	type,
+	error,
+	capitalize,
 }: InputProps) => {
 	return (
 		<div className="flex flex-col w-full">
-			<label htmlFor="" className="text-base">
+			<label
+				htmlFor=""
+				className={`lg:text-base text-xs ${
+					error ? "text-red-600" : "text-black"
+				}`}>
 				{label}
 			</label>
 			<input
@@ -43,7 +54,18 @@ export const Input = ({
 				placeholder={placeholder}
 				value={value}
 				onChange={onChange}
-				className="text-sm w-full h-10 p-2.5 border-2 border-[#a6a3a3] outline-0 rounded-lg bg-white/70"
+				onInput={(e) => {
+					if (capitalize) {
+						e.currentTarget.value = capitalizeWords(
+							e.currentTarget.value,
+						);
+					}
+				}}
+				className={`text-sm w-full h-10 p-2.5 border ${
+					error ? "border-red-600" : "border-[#a6a3a3]"
+				} outline-0 rounded-lg bg-white/70 [appearance:textfield]
+    				[&::-webkit-outer-spin-button]:appearance-none
+   					[&::-webkit-inner-spin-button]:appearance-none`}
 				style={{ width: `${width}px`, height: `${height}px` }}
 			/>
 		</div>
@@ -58,10 +80,15 @@ export const Select = ({
 	height,
 	value,
 	onSelectChange,
+	error,
 }: SelectProps) => {
 	return (
 		<div className="flex flex-col w-full">
-			<label htmlFor="" className="text-base">
+			<label
+				htmlFor=""
+				className={`lg:text-base text-xs ${
+					error ? "text-red-600" : "text-black"
+				}`}>
 				{label}
 			</label>
 			<select
@@ -69,9 +96,11 @@ export const Select = ({
 				id=""
 				value={value}
 				onChange={onSelectChange}
-				className="w-full h-10 border-2 border-[#a6a3a3] outline-0 rounded-lg bg-white/70"
+				className={`w-full h-10 border-2 ${
+					error ? "border-red-600" : "border-[#a6a3a3]"
+				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs`}
 				style={{ width: `${width}px`, height: `${height}px` }}>
-				<option value="">Please select</option>
+				<option value=""></option>
 
 				{options
 					?.filter(
@@ -108,7 +137,7 @@ export const CheckBox = ({
 				/>
 				<span></span>
 			</label>
-			<label htmlFor="" className="text-lg">
+			<label htmlFor="" className="lg:text-lg text-sm">
 				{label}
 			</label>
 		</div>

@@ -7,10 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { FormContainer } from "@/components/ui/Container";
 import { Input, Select } from "@/components/ui/Input";
 import { useFetch } from "@/hooks/useFetch";
-import {
-	RegistrationDraft,
-	validateRegistrationDraft,
-} from "@/lib/validation";
+import { RegistrationDraft, validateRegistrationDraft } from "@/lib/validation";
 
 const APIARY_TYPES = [
 	{ label: "Commercial Farm", value: "Commercial Farm" },
@@ -78,7 +75,7 @@ const RegistrationForm = () => {
 	};
 
 	return (
-		<FormContainer width="85%">
+		<FormContainer width="lg:w-4/5">
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}
@@ -98,12 +95,15 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.first_name}
 						onChange={(e) => update("first_name", e.target.value)}
+						error={errors.length > 0 && !form.first_name.trim()}
+						capitalize
 					/>
 					<Input
 						label={<>Middle Name</>}
 						height={30}
 						value={form.middle_name}
 						onChange={(e) => update("middle_name", e.target.value)}
+						capitalize
 					/>
 					<Input
 						label={
@@ -115,6 +115,8 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.last_name}
 						onChange={(e) => update("last_name", e.target.value)}
+						error={errors.length > 0 && !form.last_name.trim()}
+						capitalize
 					/>
 				</div>
 
@@ -129,6 +131,8 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.citizenship}
 						onChange={(e) => update("citizenship", e.target.value)}
+						error={errors.length > 0 && !form.citizenship.trim()}
+						capitalize
 					/>
 					<Input
 						label={
@@ -140,6 +144,7 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.username}
 						onChange={(e) => update("username", e.target.value)}
+						error={errors.length > 0 && !form.username.trim()}
 					/>
 				</div>
 
@@ -148,23 +153,25 @@ const RegistrationForm = () => {
 					<Select
 						label={
 							<>
-								Region{" "}
-								<span className="text-[#ff0000]">*</span>
+								Region <span className="text-[#ff0000]">*</span>
 							</>
 						}
-						options={region?.map((r: { name: string; code: string }) => ({
-							label: r.name,
-							value: r.code,
-						}))}
+						options={region?.map(
+							(r: { name: string; code: string }) => ({
+								label: r.name,
+								value: r.code,
+							}),
+						)}
 						height={30}
 						value={form.region}
 						onSelectChange={(e) => update("region", e.target.value)}
+						error={errors.length > 0 && !form.region.trim()}
+						capitalize
 					/>
 					<Select
 						label={
 							<>
-								City / Municipality{" "}
-								<span className="text-[#ff0000]">*</span>
+								City <span className="text-[#ff0000]">*</span>
 							</>
 						}
 						options={citiesMunicipalities?.map(
@@ -176,6 +183,7 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.city}
 						onSelectChange={(e) => update("city", e.target.value)}
+						error={errors.length > 0 && !form.city.trim()}
 					/>
 					<Input
 						label={
@@ -187,6 +195,8 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.barangay}
 						onChange={(e) => update("barangay", e.target.value)}
+						error={errors.length > 0 && !form.barangay.trim()}
+						capitalize
 					/>
 				</div>
 
@@ -200,6 +210,7 @@ const RegistrationForm = () => {
 					height={30}
 					value={form.street}
 					onChange={(e) => update("street", e.target.value)}
+					capitalize
 				/>
 
 				{/* CONTACTS */}
@@ -211,9 +222,11 @@ const RegistrationForm = () => {
 								<span className="text-[#ff0000]">*</span>
 							</>
 						}
+						type="number"
 						height={30}
 						value={form.contact_no}
 						onChange={(e) => update("contact_no", e.target.value)}
+						error={errors.length > 0 && !form.contact_no.trim()}
 					/>
 					<Input
 						label={
@@ -222,9 +235,16 @@ const RegistrationForm = () => {
 								<span className="text-[#ff0000]">*</span>
 							</>
 						}
+						type="email"
 						height={30}
 						value={form.email}
 						onChange={(e) => update("email", e.target.value)}
+						error={
+							(errors.length > 0 && !form.email.trim()) ||
+							errors.some((e) =>
+								e.toLowerCase().includes("email"),
+							)
+						}
 					/>
 				</div>
 
@@ -241,6 +261,12 @@ const RegistrationForm = () => {
 						type="password"
 						value={form.password}
 						onChange={(e) => update("password", e.target.value)}
+						error={
+							(errors.length > 0 && !form.password.trim()) ||
+							errors.some((e) =>
+								e.toLowerCase().includes("password"),
+							)
+						}
 					/>
 					<Input
 						label={
@@ -255,6 +281,12 @@ const RegistrationForm = () => {
 						onChange={(e) =>
 							update("confirm_password", e.target.value)
 						}
+						error={
+							(errors.length > 0 && !form.confirm_password.trim()) ||
+							errors.some((e) =>
+								e.toLowerCase().includes("confirm_password"),
+							)
+						}
 					/>
 				</div>
 
@@ -262,12 +294,18 @@ const RegistrationForm = () => {
 				{role === "beekeeper" && (
 					<div className="flex flex-row gap-2.5">
 						<Input
-							label={<>Farm Name (Optional)</>}
+							label={
+								<>
+									Farm Name{" "}
+									<span className="text-[#ff0000]">*</span>
+								</>
+							}
 							height={30}
 							value={form.farm_name || ""}
 							onChange={(e) =>
 								update("farm_name", e.target.value)
 							}
+							error={errors.length > 0 && !form.farm_name?.trim()}
 						/>
 						<Select
 							label={
@@ -282,6 +320,9 @@ const RegistrationForm = () => {
 							onSelectChange={(e) =>
 								update("apiary_type", e.target.value)
 							}
+							error={
+								errors.length > 0 && !form.apiary_type?.trim()
+							}
 						/>
 					</div>
 				)}
@@ -295,12 +336,14 @@ const RegistrationForm = () => {
 				</ul>
 			)}
 
-			<Button
-				buttonType="button"
-				width="50%"
-				label="Next"
-				onClick={handleNext}
-			/>
+			<div className="flex justify-center">
+				<Button
+					buttonType="button"
+					width="50%"
+					label="Next"
+					onClick={handleNext}
+				/>
+			</div>
 		</FormContainer>
 	);
 };

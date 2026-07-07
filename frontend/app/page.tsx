@@ -11,6 +11,7 @@ import { FormContainer } from "@/components/ui/Container";
 import { CheckBox, Input } from "@/components/ui/Input";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
+import { Modal } from "@/components/modal/Modal";
 
 const Login = () => {
 	const router = useRouter();
@@ -49,7 +50,8 @@ const Login = () => {
 			if (res.success) {
 				await refresh();
 				if (role === "citizen") router.push("/citizen");
-				else if (role === "beekeeper") router.push("/citizen"); // TODO: replace when beekeeper dashboard exists
+				else if (role === "beekeeper")
+					router.push("/citizen"); // TODO: replace when beekeeper dashboard exists
 				else router.push("/citizen"); // TODO: admin dashboard route
 				setSubmitting(false);
 				return;
@@ -67,32 +69,30 @@ const Login = () => {
 			<Background />
 
 			{/* CONTAINER */}
-			<div className="relative h-full flex justify-center z-10 p-5">
+			<div className="relative h-full flex flex-wrap justify-center items-center z-10 p-5">
 				{/* LOGO */}
 				<Logo />
 
 				{/* LOGIN FORM */}
-				<div className="w-1/2 flex flex-col justify-center items-center">
-					<FormContainer>
+				<div className="relative lg:w-1/2 w-full flex flex-col justify-center items-center">
+					<FormContainer width="lg:w-130">
 						{/* FORM HEADER */}
-						<h1 className="Poppins-Bold text-[46px]">
-							Welcome Back
+						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl">
+							Welcome Back!
 						</h1>
 
-						<h2 className="Poppins-SemiBold text-3xl mb-12">
-							Log In
+						<h2 className="Poppins-SemiBold text-[#7A6A58] lg:text-2xl text-base lg:mb-12 mb-8">
+							Glad to see you again.
 						</h2>
 
 						{/* LOG IN INPUT */}
-						<div className="flex flex-col gap-7">
+						<div className="flex flex-col lg:gap-6 gap-3">
 							<Input
-								width={460}
 								label="Username"
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 							/>
 							<Input
-								width={460}
 								label="Password"
 								type="password"
 								value={password}
@@ -106,7 +106,7 @@ const Login = () => {
 								/>
 								<Link
 									href=""
-									className="hover:underline text-[#ff9a00] font-extrabold text-lg">
+									className="hover:underline text-[#ff9a00] font-extrabold lg:text-lg text-sm">
 									Forgot Password?
 								</Link>
 							</div>
@@ -122,7 +122,7 @@ const Login = () => {
 							{/* SUBMIT BUTTON */}
 							<Button
 								buttonType="button"
-								label={submitting ? "Signing in..." : "Next"}
+								label={submitting ? "Signing in..." : "Sign In"}
 								onClick={() => handleSubmit()}
 								disabled={submitting}
 							/>

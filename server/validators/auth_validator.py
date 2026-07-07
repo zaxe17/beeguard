@@ -31,7 +31,7 @@ def _valid_email(v: str) -> str | None:
         return info.normalized
     except EmailNotValidError:
         return None
-
+ 
 
 def validate_register_payload(payload: dict) -> tuple[dict, list[str]]:
     """Return (cleaned_payload, errors)."""

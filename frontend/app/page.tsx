@@ -1,18 +1,65 @@
-// "use client"
+"use client";
+
 import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import Background from "@/components/Background";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/Button";
 import { FormContainer } from "@/components/ui/Container";
 import { CheckBox, Input } from "@/components/ui/Input";
-
-// import { useFetch } from "@/hooks/useFetch";
+import { authService } from "@/services/auth";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
-	// const provinces = useFetch("https://psgc.cloud/api/provinces")
+	const router = useRouter();
+	const { refresh } = useAuth();
 
-	// return <div>{message?.message}</div>;
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [remember, setRemember] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	const handleSubmit = async (e?: FormEvent) => {
+		e?.preventDefault();
+		setErrorMsg(null);
+
+		if (!username.trim() || !password) {
+			setErrorMsg("Please enter your username and password.");
+			return;
+		}
+
+		setSubmitting(true);
+
+		// Try citizen first, then beekeeper, then admin — matches the schema's role tables.
+		const roles: ("citizen" | "beekeeper" | "admin")[] = [
+			"citizen",
+			"beekeeper",
+			"admin",
+		];
+		let lastError = "Invalid credentials.";
+		for (const role of roles) {
+			const res = await authService.login({
+				role,
+				identifier: username.trim(),
+				password,
+			});
+			if (res.success) {
+				await refresh();
+				if (role === "citizen") router.push("/citizen");
+				else if (role === "beekeeper") router.push("/citizen"); // TODO: replace when beekeeper dashboard exists
+				else router.push("/citizen"); // TODO: admin dashboard route
+				setSubmitting(false);
+				return;
+			}
+			lastError = res.message || lastError;
+		}
+
+		setErrorMsg(lastError);
+		setSubmitting(false);
+	};
 
 	return (
 		<div className="relative bg-white h-screen overflow-hidden">
@@ -28,22 +75,35 @@ const Login = () => {
 				<div className="w-1/2 flex flex-col justify-center items-center">
 					<FormContainer>
 						{/* FORM HEADER */}
-						<h1
-							className="Poppins-Bold text-[46px]">
+						<h1 className="Poppins-Bold text-[46px]">
 							Welcome Back
 						</h1>
 
-						<h2
-							className="Poppins-SemiBold text-3xl mb-12">
+						<h2 className="Poppins-SemiBold text-3xl mb-12">
 							Log In
 						</h2>
 
 						{/* LOG IN INPUT */}
 						<div className="flex flex-col gap-7">
-							<Input width={460} label="Username" />
-							<Input width={460} label="Password" />
+							<Input
+								width={460}
+								label="Username"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
+							/>
+							<Input
+								width={460}
+								label="Password"
+								type="password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+							/>
 							<div className="flex justify-between">
-								<CheckBox label="Remember me" />
+								<CheckBox
+									label="Remember me"
+									checked={remember}
+									onCheckedChange={setRemember}
+								/>
 								<Link
 									href=""
 									className="hover:underline text-[#ff9a00] font-extrabold text-lg">
@@ -52,16 +112,24 @@ const Login = () => {
 							</div>
 						</div>
 
+						{errorMsg && (
+							<p className="text-sm text-red-600 mt-4">
+								{errorMsg}
+							</p>
+						)}
+
 						<div className="flex flex-col gap-4 mt-10 text-center">
 							{/* SUBMIT BUTTON */}
 							<Button
 								buttonType="button"
-								label="Next"
+								label={submitting ? "Signing in..." : "Next"}
+								onClick={() => handleSubmit()}
+								disabled={submitting}
 							/>
 
 							{/* SIGN UP ROUTE */}
 							<span className="">
-								Don't have an account?{" "}
+								Don&apos;t have an account?{" "}
 								<Link
 									href="/register"
 									className="hover:underline text-[#ff9a00] font-bold">

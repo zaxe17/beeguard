@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react";
-import { ReactNode } from "react";
+import { ChangeEvent, ReactNode } from "react";
 
 type InputProps = {
 	name?: string;
@@ -10,6 +10,14 @@ type InputProps = {
 	width?: number;
 	height?: number;
 	options?: { label: string; value: string }[];
+	type?: string;
+	onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+	checked?: boolean;
+	onCheckedChange?: (checked: boolean) => void;
+};
+
+type SelectProps = InputProps & {
+	onSelectChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
 };
 
 export const Input = ({
@@ -19,6 +27,9 @@ export const Input = ({
 	placeholder,
 	width,
 	height,
+	value,
+	onChange,
+	type,
 }: InputProps) => {
 	return (
 		<div className="flex flex-col w-full">
@@ -26,10 +37,12 @@ export const Input = ({
 				{label}
 			</label>
 			<input
-				type="text"
+				type={type || "text"}
 				name={name}
 				id={id}
 				placeholder={placeholder}
+				value={value}
+				onChange={onChange}
 				className="text-sm w-full h-10 p-2.5 border-2 border-[#a6a3a3] outline-0 rounded-lg bg-white/70"
 				style={{ width: `${width}px`, height: `${height}px` }}
 			/>
@@ -37,7 +50,15 @@ export const Input = ({
 	);
 };
 
-export const Select = ({ name, label, options, width, height }: InputProps) => {
+export const Select = ({
+	name,
+	label,
+	options,
+	width,
+	height,
+	value,
+	onSelectChange,
+}: SelectProps) => {
 	return (
 		<div className="flex flex-col w-full">
 			<label htmlFor="" className="text-base">
@@ -46,6 +67,8 @@ export const Select = ({ name, label, options, width, height }: InputProps) => {
 			<select
 				name={name}
 				id=""
+				value={value}
+				onChange={onSelectChange}
 				className="w-full h-10 border-2 border-[#a6a3a3] outline-0 rounded-lg bg-white/70"
 				style={{ width: `${width}px`, height: `${height}px` }}>
 				<option value="">Please select</option>
@@ -68,11 +91,21 @@ export const Select = ({ name, label, options, width, height }: InputProps) => {
 	);
 };
 
-export const CheckBox = ({ label }: InputProps) => {
+export const CheckBox = ({
+	label,
+	checked,
+	onCheckedChange,
+	name,
+}: InputProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			<label className="checkbox">
-				<input type="checkbox" />
+				<input
+					type="checkbox"
+					name={name}
+					checked={checked}
+					onChange={(e) => onCheckedChange?.(e.target.checked)}
+				/>
 				<span></span>
 			</label>
 			<label htmlFor="" className="text-lg">

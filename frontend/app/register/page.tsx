@@ -1,4 +1,7 @@
-import { ReactNode } from "react";
+"use client";
+
+import { ReactNode, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
 
 import { FormContainer } from "@/components/ui/Container";
@@ -8,10 +11,19 @@ interface ChoicesProps {
 	icon: string | StaticImageData;
 	role?: string;
 	desc?: ReactNode;
+	value: "citizen" | "beekeeper";
+	checked: boolean;
+	onSelect: (v: "citizen" | "beekeeper") => void;
 }
 
-// CHOSE ROLE
-const Choices = ({ icon, role, desc }: ChoicesProps) => {
+const Choices = ({
+	icon,
+	role,
+	desc,
+	value,
+	checked,
+	onSelect,
+}: ChoicesProps) => {
 	return (
 		<label
 			className="w-120 flex justify-between items-center gap-5 bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer"
@@ -19,10 +31,14 @@ const Choices = ({ icon, role, desc }: ChoicesProps) => {
 				boxShadow:
 					"rgba(0, 0, 0, 0.07) 0px 1px 2px, rgba(0, 0, 0, 0.07) 0px 2px 4px, rgba(0, 0, 0, 0.07) 0px 4px 8px, rgba(0, 0, 0, 0.07) 0px 8px 16px, rgba(0, 0, 0, 0.07) 0px 16px 32px, rgba(0, 0, 0, 0.07) 0px 32px 64px",
 			}}>
-			{/* RADIO */}
-			<input type="radio" name="role" className="hidden" />
+			<input
+				type="radio"
+				name="role"
+				className="hidden"
+				checked={checked}
+				onChange={() => onSelect(value)}
+			/>
 
-			{/* ICON */}
 			<Image
 				src={icon}
 				alt="role"
@@ -32,16 +48,11 @@ const Choices = ({ icon, role, desc }: ChoicesProps) => {
 				priority
 			/>
 
-			{/* ROLE & DESC */}
-			<div className="">
-				<h2
-					className="Poppins-Bold text-3xl">
-					{role}
-				</h2>
+			<div>
+				<h2 className="Poppins-Bold text-3xl">{role}</h2>
 				<p className="text-[#a6a3a3] text-sm">{desc}</p>
 			</div>
 
-			{/* RADIO BUTTON */}
 			<div className="w-7 h-7 rounded-full border-2 border-[#a6a3a3] flex items-center justify-center group-has-[input:checked]:border-[#ffc95f]">
 				<div className="w-7 h-7 rounded-full bg-[#ffc95f] scale-0 group-has-[input:checked]:scale-100 transition-all flex justify-center items-center">
 					<div className="radio-checked"></div>
@@ -52,23 +63,32 @@ const Choices = ({ icon, role, desc }: ChoicesProps) => {
 };
 
 const Register = () => {
+	const router = useRouter();
+	const [role, setRole] = useState<"citizen" | "beekeeper">("citizen");
+
+	const goNext = () => {
+		if (typeof window !== "undefined") {
+			sessionStorage.setItem("beeguard_role", role);
+		}
+		router.push("/register/form");
+	};
+
 	return (
 		<FormContainer>
 			<div className="text-center mb-12">
-				<h1
-					className="Poppins-Bold text-4xl">
-					I am a
-				</h1>
+				<h1 className="Poppins-Bold text-4xl">I am a</h1>
 				<span className="text-[#a6a3a3] text-xl">
 					Please select how you want to continue
 				</span>
 			</div>
 
-			{/* CHOICES */}
 			<div className="flex flex-col gap-6 mb-12">
 				<Choices
 					icon="/assets/citizen.png"
 					role="Citizen"
+					value="citizen"
+					checked={role === "citizen"}
+					onSelect={setRole}
 					desc={
 						<>
 							A community member who helps protect bees by
@@ -81,6 +101,9 @@ const Register = () => {
 				<Choices
 					icon="/assets/bee.png"
 					role="Beekeeper"
+					value="beekeeper"
+					checked={role === "beekeeper"}
+					onSelect={setRole}
 					desc={
 						<>
 							A person who manages and cares for bee colonies,
@@ -91,7 +114,7 @@ const Register = () => {
 				/>
 			</div>
 
-			<Button buttonType="button" label="Next" route="/register/form" />
+			<Button buttonType="button" label="Next" onClick={goNext} />
 		</FormContainer>
 	);
 };

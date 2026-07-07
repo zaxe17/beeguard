@@ -21,10 +21,9 @@ export const FormContainer = ({ children, width }: ContainerProps) => {
 	return (
 		<form
 			action=""
-			className="p-4.75 bg-[#fbf9ee]/60 rounded-3xl backdrop-blur-xs flex flex-col min-h-0"
+			className={`${width} lg:p-4.75 bg-[#fbf9ee]/60 rounded-3xl backdrop-blur-xs flex flex-col min-h-0`}
 			style={{
 				boxShadow: "rgba(0, 0, 0, 0.35) 0px 5px 15px",
-				width: width,
 			}}>
 			<div className="p-4.75 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 				{children}

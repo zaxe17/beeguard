@@ -1,0 +1,34 @@
+[
+	{
+		"title": "1. Purpose",
+		"content": [
+			"BeeConnect is a platform that brings together\n beekeepers and citizens to promote bee health, share\n knowledge, and build a more sustainable\n environment."
+		],
+		"listStyle": false
+	},
+	{
+		"title": "2. For Beekeepers",
+		"content": [
+			"You agree to provide accurate information about\n your hives.",
+			"You are responsible for the health and safety of\n your bees.",
+			"You agree to follow best practices and local\n regulations."
+		],
+		"listStyle": true
+	},
+	{
+		"title": "3. For Citizen",
+		"content": [
+			"You agree to use the platform to learn, engage,\n and support bee conservation.",
+			"You may report bee sightings or environmental\n concerns honestly.",
+			"You agree to respect beekeepers and their work."
+		],
+		"listStyle": true
+	},
+	{
+		"title": "4. General",
+		"content": [
+			"We reserve the right to update these terms. Continued\n use of the platform means you accept the updated\n terms."
+		],
+		"listStyle": false
+	}
+]

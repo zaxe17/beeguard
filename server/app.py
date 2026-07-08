@@ -13,7 +13,7 @@ def create_app() -> Flask:
     # CORS — restrict to the Next.js dev origin (configurable via .env)
     CORS(
         app,
-        resources={r"/api/*": {"origins": [Config.FRONTEND_ORIGIN]}},
+        resources={r"/api/*": {"origins": [Config.FRONTEND_ORIGIN, "http://localhost:3000"]}},
         supports_credentials=False,
     )
 

@@ -9,7 +9,7 @@ export type ApiEnvelope<T = unknown> = {
 };
 
 const BASE_URL =
-	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const TOKEN_KEY = "beeguard_token";
 
@@ -43,7 +43,7 @@ async function request<T>(
 
 	let res: Response;
 	try {
-		res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+		res = await fetch(`${BASE_URL}/api${path}`, { ...options, headers });
 	} catch (err) {
 		return {
 			success: false,

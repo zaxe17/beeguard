@@ -44,7 +44,7 @@ export const Container = ({
 		<div
 			className={`p-1.5 flex flex-col min-h-0 ${borderNone ? "" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
 			style={{
-				boxShadow: `rgba(50, 50, 93, 0.25) ${borderNone ? "2px" : "0px"} 2px 5px -1px, rgba(0, 0, 0, 0.3) ${borderNone ? "2px" : "0px"} 1px 3px -1px`,
+				boxShadow: `rgba(0, 0, 0, 0.35) ${borderNone ? "2px" : "0px"} 5px 15px`,
 				width: width,
 				height: height,
 			}}>
@@ -64,7 +64,12 @@ export const BeefarmContainer = ({
 	miles,
 }: BeeFarmProps) => {
 	return (
-		<Container>
+		<div
+			className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad] transition-all duration-100 ease-in hover:scale-103"
+			style={{
+				boxShadow:
+					"rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px",
+			}}>
 			<div className="w-full flex gap-3 cursor-pointer">
 				{/* BEEFARM PICTURE */}
 				<div className="bg-red-600 border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">
@@ -94,6 +99,6 @@ export const BeefarmContainer = ({
 					</span>
 				</div>
 			</div>
-		</Container>
+		</div>
 	);
 };

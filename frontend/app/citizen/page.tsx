@@ -34,11 +34,13 @@ const Home = () => {
 						/>
 					</div>
 
-					<Button
-						label="Report Now!"
-						buttonType="button"
-						width="35%"
-					/>
+					<div className="flex justify-center">
+						<Button
+							label="Report Now!"
+							buttonType="button"
+							width="35%"
+						/>
+					</div>
 				</div>
 
 				<div className="w-full flex flex-col items-start">

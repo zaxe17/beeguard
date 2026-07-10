@@ -8,8 +8,7 @@ export type ApiEnvelope<T = unknown> = {
 	errors?: string[];
 };
 
-const BASE_URL =
-	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const TOKEN_KEY = "beeguard_token";
 

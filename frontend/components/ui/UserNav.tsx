@@ -25,13 +25,8 @@ export const UserNav = () => {
 				</div>
 			</div>
 
-			{/* 3 ACTION BUTTON [SCAN, NOTIFICATION, MESSAGES] */}
+			{/* 3 ACTION BUTTON [NOTIFICATION, MESSAGES] */}
 			<div className="flex items-center gap-3">
-				<Icon
-					icon="mdi:qrcode-scan"
-					className="w-10 h-10 text-[#ffdb4f] cursor-pointer"
-				/>
-
 				<div className="relative">
                     <span className="absolute right-0 bg-red-500 border-2 border-white w-4 h-4 rounded-full text-[8px] text-white flex justify-center items-center">4</span>
 					<Icon

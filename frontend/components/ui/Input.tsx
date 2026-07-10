@@ -96,7 +96,7 @@ export const Select = ({
 				id=""
 				value={value}
 				onChange={onSelectChange}
-				className={`w-full h-10 border-2 ${
+				className={`w-full h-10 border ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
 				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs`}
 				style={{ width: `${width}px`, height: `${height}px` }}>

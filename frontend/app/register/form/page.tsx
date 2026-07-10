@@ -9,6 +9,8 @@ import { Input, Select } from "@/components/ui/Input";
 import { useFetch } from "@/hooks/useFetch";
 import { RegistrationDraft, validateRegistrationDraft } from "@/lib/validation";
 
+import citizenship from "@/data/citizenship.json";
+
 const APIARY_TYPES = [
 	{ label: "Commercial Farm", value: "Commercial Farm" },
 	{ label: "Backyard", value: "Backyard" },
@@ -121,7 +123,7 @@ const RegistrationForm = () => {
 				</div>
 
 				<div className="flex flex-row gap-2.5">
-					<Input
+					{/* <Input
 						label={
 							<>
 								Citizenship{" "}
@@ -131,6 +133,28 @@ const RegistrationForm = () => {
 						height={30}
 						value={form.citizenship}
 						onChange={(e) => update("citizenship", e.target.value)}
+						error={errors.length > 0 && !form.citizenship.trim()}
+						capitalize
+					/> */}
+
+					<Select
+						label={
+							<>
+								Citizenship{" "}
+								<span className="text-[#ff0000]">*</span>
+							</>
+						}
+						options={citizenship?.map(
+							(cs: { name: string; code: string }) => ({
+								label: cs.name,
+								value: cs.code,
+							}),
+						)}
+						height={30}
+						value={form.citizenship}
+						onSelectChange={(e) =>
+							update("citizenship", e.target.value)
+						}
 						error={errors.length > 0 && !form.citizenship.trim()}
 						capitalize
 					/>
@@ -282,7 +306,8 @@ const RegistrationForm = () => {
 							update("confirm_password", e.target.value)
 						}
 						error={
-							(errors.length > 0 && !form.confirm_password.trim()) ||
+							(errors.length > 0 &&
+								!form.confirm_password.trim()) ||
 							errors.some((e) =>
 								e.toLowerCase().includes("confirm_password"),
 							)

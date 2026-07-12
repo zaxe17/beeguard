@@ -24,3 +24,16 @@ class Config:
 
     # CORS
     FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+
+    # SMTP (email verification)
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM = os.getenv("SMTP_FROM", "BeeGuard <no-reply@beeguard.local>")
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "1") == "1"
+
+    # OTP
+    OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
+    OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
+    OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))

@@ -1,6 +1,5 @@
 import Background from "@/components/Background";
 import Logo from "@/components/Logo";
-import { Modal } from "@/components/modal/Modal";
 
 /**
  * Layout for every page under /register/*
@@ -11,6 +10,10 @@ import { Modal } from "@/components/modal/Modal";
  * Renders the shared Background + Logo so child pages only need to render
  * their form content. Do NOT render <Background /> or <Logo /> inside child
  * pages — they inherit them from this layout.
+ *
+ * NOTE: The confirmation Modal for account creation lives inside
+ * terms_condition/page.tsx (it needs its own open/onConfirm state),
+ * NOT here.
  */
 const RegisterLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
@@ -18,15 +21,6 @@ const RegisterLayout = ({ children }: { children: React.ReactNode }) => {
 			{/* BACKGROUND */}
 			<Background />
 
-			{/* MODAL FOR CONTINUE TO CREATE ACCOUNT */}
-			<Modal
-				title="Create Your Account?"
-				content="Are you sure you want to create your account? Please
-						confirm that all the information you entered is correct
-						before proceeding."
-				labelButton="Create Account"
-			/>
-			
 			{/* CONTAINER */}
 			<main className="relative h-full flex justify-center items-center z-10 p-5">
 				{/* LEFT CONTAINER — LOGO */}

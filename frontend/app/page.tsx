@@ -11,7 +11,6 @@ import { FormContainer } from "@/components/ui/Container";
 import { CheckBox, Input } from "@/components/ui/Input";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
-import { Modal } from "@/components/modal/Modal";
 
 const Login = () => {
 	const router = useRouter();
@@ -47,6 +46,25 @@ const Login = () => {
 				identifier: username.trim(),
 				password,
 			});
+
+			// Backend returns success:true (with status 403) even when the
+			// account exists but email isn't verified yet — it's not a
+			// "wrong credentials" case, so it must be checked BEFORE we
+			// treat res.success as a real login success.
+			const data = res.data as
+				| { requires_verification?: boolean; email?: string }
+				| undefined;
+
+			if (data?.requires_verification) {
+				sessionStorage.setItem(
+					"beeguard_pending_verification",
+					JSON.stringify({ email: data.email, role }),
+				);
+				setSubmitting(false);
+				router.push("/register/verification");
+				return;
+			}
+
 			if (res.success) {
 				await refresh();
 				if (role === "citizen") router.push("/citizen");
@@ -56,6 +74,7 @@ const Login = () => {
 				setSubmitting(false);
 				return;
 			}
+
 			lastError = res.message || lastError;
 		}
 

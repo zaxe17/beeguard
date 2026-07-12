@@ -16,6 +16,7 @@ type InputProps = {
 	onCheckedChange?: (checked: boolean) => void;
 	error?: boolean;
 	capitalize?: boolean;
+	disabled?: boolean; // NEW
 };
 
 type SelectProps = InputProps & {
@@ -37,6 +38,7 @@ export const Input = ({
 	type,
 	error,
 	capitalize,
+	disabled, // NEW
 }: InputProps) => {
 	return (
 		<div className="flex flex-col w-full">
@@ -54,6 +56,7 @@ export const Input = ({
 				placeholder={placeholder}
 				value={value}
 				onChange={onChange}
+				disabled={disabled}
 				onInput={(e) => {
 					if (capitalize) {
 						e.currentTarget.value = capitalizeWords(
@@ -63,7 +66,9 @@ export const Input = ({
 				}}
 				className={`text-sm w-full h-10 p-2.5 border ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
-				} outline-0 rounded-lg bg-white/70 [appearance:textfield]
+				} outline-0 rounded-lg bg-white/70 ${
+					disabled ? "opacity-60 cursor-not-allowed" : ""
+				} [appearance:textfield]
     				[&::-webkit-outer-spin-button]:appearance-none
    					[&::-webkit-inner-spin-button]:appearance-none`}
 				style={{ width: `${width}px`, height: `${height}px` }}
@@ -81,6 +86,7 @@ export const Select = ({
 	value,
 	onSelectChange,
 	error,
+	disabled, // NEW
 }: SelectProps) => {
 	return (
 		<div className="flex flex-col w-full">
@@ -96,9 +102,12 @@ export const Select = ({
 				id=""
 				value={value}
 				onChange={onSelectChange}
+				disabled={disabled}
 				className={`w-full h-10 border ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
-				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs`}
+				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs ${
+					disabled ? "opacity-60 cursor-not-allowed" : ""
+				}`}
 				style={{ width: `${width}px`, height: `${height}px` }}>
 				<option value=""></option>
 
@@ -106,12 +115,12 @@ export const Select = ({
 					?.filter(
 						(opt, index, self) =>
 							index ===
-							self.findIndex((o) => o.label === opt.label),
+							self.findIndex((o) => o.value === opt.value),
 					)
 					.slice()
 					.sort((a, b) => a.label.localeCompare(b.label))
 					.map((opt) => (
-						<option key={opt.value} value={opt.label}>
+						<option key={opt.value} value={opt.value}>
 							{opt.label}
 						</option>
 					))}

@@ -1,5 +1,7 @@
+"use client";
+
 import { Icon } from "@iconify/react";
-import { ChangeEvent, ReactNode } from "react";
+import { ChangeEvent, ReactNode, useState } from "react";
 
 type InputProps = {
 	name?: string;
@@ -21,6 +23,13 @@ type InputProps = {
 
 type SelectProps = InputProps & {
 	onSelectChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
+};
+
+type RangeInputProps = {
+	label?: string;
+	min?: number;
+	max?: number;
+	unit?: string;
 };
 
 const capitalizeWords = (value: string) =>
@@ -163,6 +172,57 @@ export const SearchBar = ({ placeholder }: InputProps) => {
 				className="w-full px-1.5 text-sm bg-transparent outline-0"
 				placeholder={placeholder}
 			/>
+		</div>
+	);
+};
+
+export const RangeInput = ({
+	label,
+	min = 0,
+	max = 5,
+	unit = "km",
+}: RangeInputProps) => {
+	const [value, setValue] = useState(min);
+
+	const percentage = ((value - min) / (max - min)) * 100;
+	const midValue = Math.round((min + max) / 2);
+
+	return (
+		<div className="w-full flex flex-col gap-2">
+			{label && (
+				<div className="flex items-center text-sm text-[#0F172A]">
+					<p className="Poppins-SemiBold font-medium">{label}</p>
+					<p className="ml-auto font-bold">
+						{value} {unit}
+					</p>
+				</div>
+			)}
+
+			<input
+				type="range"
+				min={min}
+				max={max}
+				step="1"
+				value={value}
+				onChange={(e) => setValue(Number(e.target.value))}
+				className="w-full h-1.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#ffce1c] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#ffce1c] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-md"
+				style={{
+					background: `linear-gradient(to right, #ffce1c 0%, #ffce1c ${percentage}%, #d1d1d1 ${percentage}%, #d1d1d1 100%)`,
+				}}
+			/>
+
+			{/* TICK LABELS */}
+			<div className="w-full flex justify-between text-xs text-[#817b70]">
+				<span>
+					{min} {unit}
+				</span>
+				<span>
+					{midValue} {unit}
+				</span>
+				<span>
+					{max} {unit}
+				</span>
+			</div>
 		</div>
 	);
 };

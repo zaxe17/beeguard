@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Icon } from "@iconify/react";
 import { usePathname } from "next/navigation";
@@ -7,14 +7,8 @@ import Link from "next/link";
 
 import user_profile from "../public/assets/user_profile.png";
 
-type Tabs = {
-	icon?: string;
-	tabName?: string;
-	route?: string;
-};
-
 // CITIZEN TABS
-const tabContent = [
+const citizenTabs = [
 	{
 		icon: "material-symbols:home",
 		tabName: "home",
@@ -42,8 +36,40 @@ const tabContent = [
 	},
 ];
 
+const beekeeperTabs = [
+	{
+		icon: "mdi:view-dashboard",
+		tabName: "dashboard",
+		route: "/beekeeper",
+	},
+	{
+		icon: "ic:round-hive",
+		tabName: "hives",
+		route: "/beekeeper/hives",
+	},
+	{
+		icon: "mdi:alert",
+		tabName: "alert",
+		route: "/beekeeper/alert",
+	},
+	{
+		icon: "mdi:folder-open",
+		tabName: "reports",
+		route: "/",
+	},
+	{
+		icon: "iconamoon:profile-fill",
+		tabName: "profile",
+		route: "/",
+	},
+];
+
 const Sidebar = () => {
 	const pathName = usePathname();
+
+	const isBeekeeper = pathName.startsWith("/beekeeper");
+	const activeTab = isBeekeeper ? beekeeperTabs : citizenTabs;
+
 	return (
 		<nav className="bg-[#ffdb4f] h-full shrink-0">
 			{/* NAV HEADER */}
@@ -53,6 +79,7 @@ const Sidebar = () => {
 						src={user_profile}
 						alt="user_profile"
 						className="w-full h-full"
+						priority
 					/>
 				</div>
 				<span
@@ -66,7 +93,7 @@ const Sidebar = () => {
 
 			{/* NAV TABS */}
 			<ul className="flex flex-col gap-1">
-				{tabContent.map((tab, i) => {
+				{activeTab.map((tab, i) => {
 					const activeTab = pathName === tab.route;
 
 					return (
@@ -78,7 +105,8 @@ const Sidebar = () => {
 									icon={tab.icon}
 									className={`w-8 h-8 mb-1 group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}
 								/>
-								<span className={`capitalize text-xl group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
+								<span
+									className={`capitalize text-xl group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
 									{tab.tabName}
 								</span>
 							</Link>

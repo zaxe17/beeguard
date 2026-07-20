@@ -1,0 +1,20 @@
+[
+	{
+		"location": "Atok, Benguet",
+        "date": "May 16, 2026",
+        "time": "8:00 AM",
+        "status": "high"
+	},
+	{
+		"location": "muzon, taytay rizal",
+        "date": "June 8, 2026",
+        "time": "11:14 AM",
+        "status": "medium"
+	},
+	{
+		"location": "the grass, quezon city",
+        "date": "June 12, 2026",
+        "time": "3:28 PM",
+        "status": "low"
+	}
+]

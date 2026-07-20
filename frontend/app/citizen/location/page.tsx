@@ -3,7 +3,7 @@ import Map from "@/components/ui/google-maps/Map";
 import { SearchBar } from "@/components/ui/Input";
 
 // NEARBY FARM EXAMPLE DATA
-import nearbyFarms from "@/data/nearbyFarms.json";
+import nearbyFarms from "@/data/beefarms.json";
 
 const Location = () => {
 	return (

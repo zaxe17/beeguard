@@ -1,0 +1,29 @@
+[
+	{
+		"hiveId": "Hive #001",
+		"hive": "duolingo",
+		"location": "Baguio City",
+		"lastCheck": "May 15, 2026",
+		"status": "healthy",
+		"yieldThisMonth": "5.2kg",
+		"hiveState": "Active"
+	},
+	{
+		"hiveId": "Hive #002",
+		"hive": "apis mellifera",
+		"location": "La Trinidad, Benguet",
+		"lastCheck": "May 20, 2026",
+		"status": "weak",
+		"yieldThisMonth": "3.1kg",
+		"hiveState": "Active"
+	},
+	{
+		"hiveId": "Hive #003",
+		"hive": "jollibee",
+		"location": "Atok, Benguet",
+		"lastCheck": "May 18, 2026",
+		"status": "need attention",
+		"yieldThisMonth": "2.4kg",
+		"hiveState": "Inactive"
+	}
+]

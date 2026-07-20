@@ -6,7 +6,7 @@ import { UserNav } from "@/components/ui/UserNav";
 import bee_report from "@/public/assets/bee_report.png";
 
 // NEARBY FARM EXAMPLE DATA
-import nearbyFarms from "@/data/nearbyFarms.json";
+import nearbyFarms from "@/data/beefarms.json";
 
 const Home = () => {
 	return (

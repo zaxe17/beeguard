@@ -3,7 +3,10 @@
 import { ModalContainer } from "./Modal";
 import Map from "../ui/google-maps/Map";
 import { Button, CancelButton } from "../ui/Button";
-import { Input, RangeInput } from "../ui/Input";
+import { Input, RangeInput, Select } from "../ui/Input";
+import { useState } from "react";
+
+import pesticides from "@/data/typesOfPesticide.json";
 
 type AddAlertProps = {
 	open: boolean;
@@ -11,7 +14,20 @@ type AddAlertProps = {
 	onConfirm?: () => void;
 };
 
+const OTHERS_VALUE = "others";
+
 export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
+	const [selectedPesticide, setSelectedPesticide] = useState("");
+	const [otherPesticide, setOtherPesticide] = useState("");
+
+	const pesticideOptions = [
+		...pesticides.map((cs: { name: string; code: string }) => ({
+			label: cs.name,
+			value: cs.code,
+		})),
+		{ label: "Others", value: OTHERS_VALUE },
+	];
+
 	return (
 		<ModalContainer
 			open={open}
@@ -19,7 +35,7 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 			header="Add New Hive"
 			onClose={onClose}>
 			{/* MAP */}
-			<div className="w-full h-80">
+			<div className="w-full h-80 rounded-xl relative overflow-hidden">
 				<Map />
 			</div>
 
@@ -28,7 +44,21 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 					Alert Information
 				</h2>
 
-				<RangeInput label="Danger Radius" min={1} max={25} unit="km" />
+				{/* <RangeInput label="Danger Radius" min={1} max={25} unit="km" /> */}
+				<Select
+					label="Select Pesticide"
+					options={pesticideOptions}
+					value={selectedPesticide}
+					onSelectChange={(e) => setSelectedPesticide(e.target.value)}
+				/>
+
+				{selectedPesticide === OTHERS_VALUE && (
+					<Input
+						placeholder="Enter pesticide name"
+						value={otherPesticide}
+						onChange={(e) => setOtherPesticide(e.target.value)}
+					/>
+				)}
 
 				<Input label="Scheduled Date & Time" type="date" />
 

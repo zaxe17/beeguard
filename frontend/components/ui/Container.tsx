@@ -43,9 +43,9 @@ export const Container = ({
 }: ContainerProps) => {
 	return (
 		<div
-			className={`p-1.5 flex flex-col min-h-0 ${borderNone ? "" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
+			className={`p-1.5 flex flex-col min-h-0 ${borderNone ? "border-r-2 border-r-[#817b70]/50" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
 			style={{
-				boxShadow: `rgba(0, 0, 0, 0.35) ${borderNone ? "2px" : "0px"} 5px 15px`,
+				boxShadow: `${borderNone ? "" : "rgba(0, 0, 0, 0.35) 0px 5px 15px"}`,
 				width: width,
 				height: height,
 			}}>

@@ -1,0 +1,14 @@
+[
+	{
+		"name": "Insecticide",
+		"code": "Insecticide"
+	},
+	{
+		"name": "Herbicide",
+		"code": "Herbicide"
+	},
+	{
+		"name": "Fungicide",
+		"code": "Fungicide"
+	}
+]

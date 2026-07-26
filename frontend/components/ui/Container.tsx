@@ -21,9 +21,10 @@ export const FormContainer = ({ children, width }: ContainerProps) => {
 	return (
 		<form
 			action=""
-			className={`${width} lg:p-4.75 bg-[#fbf9ee]/60 rounded-3xl backdrop-blur-xs flex flex-col min-h-0`}
+			className={`${width} lg:p-4.75 bg-white/20 rounded-3xl backdrop-blur-md border border-white/30 flex flex-col min-h-0`}
 			style={{
-				boxShadow: "rgba(0, 0, 0, 0.35) 0px 5px 15px",
+				boxShadow:
+					"0 8px 32px 0 rgba(31, 38, 135, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.4)",
 			}}>
 			<div className="p-4.75 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 				{children}

@@ -40,7 +40,7 @@ export const Button = ({
 			onClick={handleClick}
 			type={buttonType}
 			disabled={disabled}
-			className="flex justify-center items-center py-1.5 px-3 bg-[#ffdb4f] rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+			className="flex justify-center items-center py-1.5 px-3 bg-linear-to-r from-[#ffdb4f] to-[#eec572] rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
 			style={{
 				boxShadow: shadow["shadow-18"],
 				width: width || "100%",

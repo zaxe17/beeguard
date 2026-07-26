@@ -112,7 +112,7 @@ export const Select = ({
 				value={value}
 				onChange={onSelectChange}
 				disabled={disabled}
-				className={`w-full h-10 border ${
+				className={`w-full h-10 border capitalize ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
 				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs ${
 					disabled ? "opacity-60 cursor-not-allowed" : ""

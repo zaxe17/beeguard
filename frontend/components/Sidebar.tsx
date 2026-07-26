@@ -71,7 +71,7 @@ const Sidebar = () => {
 	const activeTab = isBeekeeper ? beekeeperTabs : citizenTabs;
 
 	return (
-		<nav className="bg-[#ffdb4f] h-full shrink-0">
+		<nav className="bg-linear-to-b from-[#ffdb4f] to-[#d9a441] h-full shrink-0">
 			{/* NAV HEADER */}
 			<div className="px-3 pt-5 mb-10 flex items-center gap-2">
 				<div className="border border-amber-100 w-13 h-13 rounded-full overflow-hidden">

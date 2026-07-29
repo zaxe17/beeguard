@@ -30,6 +30,10 @@ type RangeInputProps = {
 	min?: number;
 	max?: number;
 	unit?: string;
+	// Optional controlled mode. If both are omitted, RangeInput falls
+	// back to its original uncontrolled internal state.
+	value?: number;
+	onChange?: (value: number) => void;
 };
 
 const capitalizeWords = (value: string) =>
@@ -162,8 +166,14 @@ export const CheckBox = ({
 	);
 };
 
-// SEARCHBAR
-export const SearchBar = ({ placeholder }: InputProps) => {
+// SEARCHBAR — now supports controlled value/onChange, same pattern
+// as RangeInput: falls back to plain uncontrolled behavior if the
+// parent doesn't pass them, so any existing usage keeps working.
+export const SearchBar = ({
+	placeholder,
+	value,
+	onChange,
+}: InputProps) => {
 	return (
 		<div className="w-full flex items-center bg-[#d9d9d9] py-1.5 px-2 rounded-2xl">
 			<Icon icon="mdi:search" className="w-5 h-5 text-[#494949]" />
@@ -171,6 +181,8 @@ export const SearchBar = ({ placeholder }: InputProps) => {
 				type="text"
 				className="w-full px-1.5 text-sm bg-transparent outline-0"
 				placeholder={placeholder}
+				value={value}
+				onChange={onChange}
 			/>
 		</div>
 	);
@@ -181,11 +193,21 @@ export const RangeInput = ({
 	min = 0,
 	max = 5,
 	unit = "km",
+	value: controlledValue,
+	onChange,
 }: RangeInputProps) => {
-	const [value, setValue] = useState(min);
+	const [internalValue, setInternalValue] = useState(min);
+
+	const isControlled = controlledValue !== undefined;
+	const value = isControlled ? controlledValue : internalValue;
 
 	const percentage = ((value - min) / (max - min)) * 100;
 	const midValue = Math.round((min + max) / 2);
+
+	const handleChange = (next: number) => {
+		if (!isControlled) setInternalValue(next);
+		onChange?.(next);
+	};
 
 	return (
 		<div className="w-full flex flex-col gap-2">
@@ -204,14 +226,13 @@ export const RangeInput = ({
 				max={max}
 				step="1"
 				value={value}
-				onChange={(e) => setValue(Number(e.target.value))}
+				onChange={(e) => handleChange(Number(e.target.value))}
 				className="w-full h-1.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#ffce1c] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#ffce1c] [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:shadow-md"
 				style={{
 					background: `linear-gradient(to right, #ffce1c 0%, #ffce1c ${percentage}%, #d1d1d1 ${percentage}%, #d1d1d1 100%)`,
 				}}
 			/>
 
-			{/* TICK LABELS */}
 			<div className="w-full flex justify-between text-xs text-[#817b70]">
 				<span>
 					{min} {unit}

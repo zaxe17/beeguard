@@ -69,8 +69,8 @@ const Login = () => {
 				await refresh();
 				if (role === "citizen") router.push("/citizen");
 				else if (role === "beekeeper")
-					router.push("/citizen"); // TODO: replace when beekeeper dashboard exists
-				else router.push("/citizen"); // TODO: admin dashboard route
+					router.push("/beekeeper"); // TODO: replace when beekeeper dashboard exists
+				else router.push("/admin"); // TODO: admin dashboard route
 				setSubmitting(false);
 				return;
 			}

@@ -1,6 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { HiveHealthChart } from "@/components/graph/Doughnut";
 import { YieldSummaryChart } from "@/components/graph/Line";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
 import { UserNav } from "@/components/ui/UserNav";
@@ -9,66 +11,33 @@ import {
 	BeefarmOperation,
 	BeeFarmProps,
 } from "@/components/ui/BeefarmContainer";
-import { PesticideAlert, AlertProps } from "@/components/ui/Alert";
+import { PesticideAlert } from "@/components/ui/Alert";
 
 import * as Icons from "@/public/assets/icons/icons";
 
-// NEARBY FARM EXAMPLE DATA
+import {
+	analyticsService,
+	DashboardSummary,
+	HiveHealthSlice,
+	YieldTrend,
+} from "@/services/analytics";
+import { pesticideService, AlertRecord } from "@/services/pesticide";
+
+// Nearby-farm discovery has no backend endpoint yet — kept as a
+// static fixture until that feature exists.
 import beefarmsData from "@/data/beefarms.json";
 const beefarms = beefarmsData as BeeFarmProps[];
-
-// ALERT DETAILS EXAMPLE DATE
-import pesticideDetailsData from "@/data/pesticideDetails.json";
-const pesticideAlert = pesticideDetailsData as AlertProps[];
-
-// CARD CONTENTS
-const statusCard = [
-	{
-		icon: Icons.hive,
-		count: "12",
-		title: "total hives",
-		color: "#ffdb4f",
-	},
-	{
-		icon: Icons.health_search,
-		count: "7",
-		title: "healthy hives",
-		color: "#00cc00",
-	},
-	{
-		icon: Icons.alert,
-		count: "3",
-		title: "active alerts",
-		color: "#ff0000",
-	},
-	{
-		icon: Icons.honey_jar,
-		count: "24.6kg",
-		title: "total yield",
-		color: "#38b6ff",
-	},
-];
-
-const hiveHealthData = [
-	{ label: "Healthy", value: 7, color: "#4CAF50" },
-	{ label: "Weak", value: 2, color: "#FFC93F" },
-	{ label: "Needs Attention", value: 2, color: "#FF9800" },
-	{ label: "Diseased", value: 1, color: "#FF0000" },
-];
 
 interface GraphProps {
 	children?: React.ReactNode;
 	title?: string;
 }
 
-// GRAPHS CONTAINER
 const GraphContainer = ({ children, title }: GraphProps) => {
 	return (
 		<div
 			className="w-1/2 border border-[#a6a3a3] rounded-2xl p-4 flex flex-col"
-			style={{
-				boxShadow: `rgba(0, 0, 0, 0.24) 0px 3px 8px`,
-			}}>
+			style={{ boxShadow: `rgba(0, 0, 0, 0.24) 0px 3px 8px` }}>
 			<h2 className="Poppins-SemiBold capitalize text-center text-xl mb-2">
 				{title}
 			</h2>
@@ -77,28 +46,112 @@ const GraphContainer = ({ children, title }: GraphProps) => {
 	);
 };
 
+// Fallback palette in case a health slice's color comes back empty —
+// mirrors the backend's own palette in analytics_service.py.
+const DEFAULT_HEALTH_COLORS: Record<string, string> = {
+	Healthy: "#00cc00",
+	"Needs Attention": "#f89d36",
+	Weak: "#ffdb4f",
+	Diseased: "#ff0000",
+};
+
+function formatKg(v: number | undefined | null) {
+	return `${(v ?? 0).toFixed(1)}kg`;
+}
+
 const Beekeeper = () => {
+	const [loading, setLoading] = useState(true);
+	const [summary, setSummary] = useState<DashboardSummary | null>(null);
+	const [hiveHealth, setHiveHealth] = useState<HiveHealthSlice[]>([]);
+	const [trend, setTrend] = useState<YieldTrend>({ categories: [], data: [] });
+	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const load = async () => {
+			setLoading(true);
+			setErrorMsg(null);
+
+			const [summaryRes, healthRes, trendRes, alertsRes] = await Promise.all([
+				analyticsService.dashboardSummary(),
+				analyticsService.hiveHealth(),
+				analyticsService.yieldTrend(5),
+				pesticideService.listMyAlerts(),
+			]);
+
+			if (cancelled) return;
+
+			if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
+			else setErrorMsg(summaryRes.message);
+
+			if (healthRes.success && healthRes.data) setHiveHealth(healthRes.data);
+			if (trendRes.success && trendRes.data) setTrend(trendRes.data);
+			if (alertsRes.success && alertsRes.data) setAlerts(alertsRes.data);
+
+			setLoading(false);
+		};
+
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const statusCard = [
+		{
+			icon: Icons.hive,
+			count: String(summary?.hives.total ?? 0),
+			title: "total hives",
+			color: "#ffdb4f",
+		},
+		{
+			icon: Icons.health_search,
+			count: String(summary?.hives.healthy ?? 0),
+			title: "healthy hives",
+			color: "#00cc00",
+		},
+		{
+			icon: Icons.alert,
+			count: String(summary?.recommendations.open ?? 0),
+			title: "open recommendations",
+			color: "#ff0000",
+		},
+		{
+			icon: Icons.honey_jar,
+			count: formatKg(summary?.yield_totals.this_month.total_kg),
+			title: "yield this month",
+			color: "#38b6ff",
+		},
+	];
+
+	const hiveHealthChartData = hiveHealth.length
+		? hiveHealth.map((h) => ({
+				label: h.label,
+				value: h.value,
+				color: h.color || DEFAULT_HEALTH_COLORS[h.label] || "#a6a3a3",
+			}))
+		: [{ label: "No data", value: 1, color: "#e2e2e6" }];
+
 	return (
 		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
-			{/* USER NAVIGAATION BAAR */}
+			{/* USER NAVIGATION BAR */}
 			<UserNav />
 
-			{/* <div className="w-full h-full flex flex-col gap-3"> */}
 			<div className="w-full flex gap-3">
 				{/* LEFT SIDE */}
 				<div className="w-1/3 flex flex-col gap-3">
-					{/* PAGE TITLE */}
 					<h2 className="Poppins-SemiBold text-[#a6a3a3] text-2xl">
 						Dashboard
 					</h2>
 
-					{/* STATUS CARD */}
 					<div className="w-full grid grid-cols-2 gap-3 flex-1">
 						{statusCard.map((c, i) => (
 							<Card
 								key={i}
 								icon={c.icon}
-								count={c.count}
+								count={loading ? "…" : c.count}
 								title={c.title}
 								color={c.color}
 							/>
@@ -109,23 +162,27 @@ const Beekeeper = () => {
 				{/* RIGHT SIDE */}
 				<div className="w-2/3 flex items-stretch gap-3">
 					<GraphContainer title="hive health">
-						<HiveHealthChart data={hiveHealthData} />
+						<HiveHealthChart data={hiveHealthChartData} />
 					</GraphContainer>
 					<GraphContainer title="yield summary">
 						<YieldSummaryChart
-							value="24.6kg"
-							valueLabel="Total Hives"
-							changeAmount={-8.4}
-							changePercent={15}
-							categories={["Jan", "Feb", "March", "April", "May"]}
-							data={[10, 20, 15, 32, 24]}
+							value={formatKg(summary?.yield_totals.this_month.total_kg)}
+							valueLabel="Yield This Month"
+							changeAmount={summary?.yield_totals.change_amount ?? 0}
+							changePercent={summary?.yield_totals.change_percent ?? 0}
+							categories={
+								trend.categories.length ? trend.categories : ["No data"]
+							}
+							data={trend.data.length ? trend.data : [0]}
 						/>
 					</GraphContainer>
 				</div>
 			</div>
 
+			{errorMsg && <p className="text-xs text-red-600 px-2">{errorMsg}</p>}
+
 			<div className="w-full flex-1 flex items-stretch gap-3 min-h-0">
-				{/* LEFT CONTAINER */}
+				{/* LEFT CONTAINER — nearby farms (fixture, no backend yet) */}
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
@@ -159,53 +216,39 @@ const Beekeeper = () => {
 								</h2>
 							</div>
 						)}
-
-						{/* BEEKEEPER NOT VERIFIED */}
-						<div className="hidden w-full h-full flex-col items-center text-center">
-							<Icon
-								icon="mdi:alert-circle"
-								className="w-20 h-20 text-[#ffce1c]"
-							/>
-							<h2 className="w-1/2 Poppins-SemiBold text-2xl">
-								Beekeeper Account Not Verified
-							</h2>
-							<p className="w-2/3 text-xs text-[#817b70] font-light mb-5">
-								Your beekeeper account is currently not
-								verified. You must complete the verification
-								process before you can accept or manage bee
-								rescue requests
-							</p>
-							<Button label="verify your account" width="50%" />
-						</div>
 					</div>
 				</Container>
 
-				{/* RIGHT CONTAINER */}
+				{/* RIGHT CONTAINER — real pesticide alerts for this beekeeper */}
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Recent Alerts{" "}
 							<span
-								className={`text-xs text-[#ffce1c] cursor-pointer ${pesticideAlert.length > 0 ? "block" : "hidden"}`}>
+								className={`text-xs text-[#ffce1c] cursor-pointer ${alerts.length > 0 ? "block" : "hidden"}`}>
 								view all
 							</span>
 						</span>
 
-						{/* PESTICIDE ALERT */}
-						{pesticideAlert && pesticideAlert.length > 0 ? (
+						{alerts && alerts.length > 0 ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
-								{pesticideAlert.map((pa, i) => (
+								{alerts.map((a) => (
 									<PesticideAlert
-										key={i}
-										location={pa.location}
-										date={pa.date}
-										time={pa.time}
-										status={pa.status}
+										key={a.alert_id}
+										location={
+											a.affected_area ||
+											`${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}`
+										}
+										date={new Date(a.scheduled_date).toLocaleDateString()}
+										time={new Date(a.scheduled_date).toLocaleTimeString([], {
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+										status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
 									/>
 								))}
 							</div>
 						) : (
-							// IF NO ALERT
 							<div className="w-full h-full flex flex-col items-center justify-center text-center opacity-40">
 								<Icon
 									icon="famicons:notifications-off"
@@ -219,7 +262,6 @@ const Beekeeper = () => {
 					</div>
 				</Container>
 			</div>
-			{/* </div> */}
 		</div>
 	);
 };

@@ -2,6 +2,7 @@ import * as Icons from "@/public/assets/icons/icons";
 import Image from "next/image";
 import { Button } from "./ui/Button";
 import { Icon } from "@iconify/react";
+import { HealthStatus } from "@/services/hive";
 
 const HiveIcon = {
 	healthy: {
@@ -30,6 +31,8 @@ export type HiveProps = {
 	status: "healthy" | "weak" | "need attention" | "diseased";
 	yieldThisMonth?: string;
 	hiveState?: string;
+	selected?: boolean;
+	onClick?: () => void;
 	hiveHealthButton?: () => void;
 	addYieldButton?: () => void;
 	history?: () => void;
@@ -38,6 +41,22 @@ export type HiveProps = {
 
 function getHiveIconKey(status: HiveProps["status"]) {
 	return status.replace(" ", "_") as keyof typeof HiveIcon;
+}
+
+/** Converts the backend's health_status enum to this component's UI status key. */
+export function mapHealthStatusToUi(health: HealthStatus): HiveProps["status"] {
+	switch (health) {
+		case "Healthy":
+			return "healthy";
+		case "Weak":
+			return "weak";
+		case "Needs Attention":
+			return "need attention";
+		case "Diseased":
+			return "diseased";
+		default:
+			return "healthy";
+	}
 }
 
 export const HiveDetailsContainer = ({
@@ -50,6 +69,7 @@ export const HiveDetailsContainer = ({
 	location,
 	lastCheck,
 	status,
+	yieldThisMonth,
 	hiveState,
 }: HiveProps) => {
 	const iconKey = getHiveIconKey(status);
@@ -120,11 +140,13 @@ export const HiveDetailsContainer = ({
 
 					{/* LOCATION AND DATE CHECK */}
 					<div className="flex flex-col mb-15">
+						{location && (
+							<span className="Poppins-SemiBold text-[#817b70] text-sm">
+								Species: {location}
+							</span>
+						)}
 						<span className="Poppins-SemiBold text-[#817b70] text-sm">
-							Location: {location}
-						</span>
-						<span className="Poppins-SemiBold text-[#817b70] text-sm">
-							Last Check: {lastCheck}
+							Established: {lastCheck}
 						</span>
 					</div>
 
@@ -132,7 +154,9 @@ export const HiveDetailsContainer = ({
 					<h3 className="text-[#817b70] text-sm">
 						Yield(This Month)
 					</h3>
-					<span className="Poppins-SemiBold text-sm">5.2 Kg</span>
+					<span className="Poppins-SemiBold text-sm">
+						{yieldThisMonth ?? "—"}
+					</span>
 
 					{/* HIVE STATE AND HEALTH */}
 					<div className="flex justify-between items-center mt-5">
@@ -188,13 +212,18 @@ export const HiveTabs = ({
 	status,
 	yieldThisMonth,
 	hiveState,
+	selected,
+	onClick,
 }: HiveProps) => {
 	const iconKey = getHiveIconKey(status);
 	const { icon, color } = HiveIcon[iconKey];
 
 	return (
 		<div
-			className="border-2 border-[#e2e2e6] rounded-2xl p-5 capitalize flex gap-5"
+			onClick={onClick}
+			className={`border-2 rounded-2xl p-5 capitalize flex gap-5 cursor-pointer transition-all ${
+				selected ? "border-[#ffce1c] bg-[#fff8e1]" : "border-[#e2e2e6]"
+			}`}
 			style={{
 				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
 			}}>
@@ -234,11 +263,13 @@ export const HiveTabs = ({
 
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
+					{location && (
+						<span className="Poppins-SemiBold text-[#817b70] text-xs">
+							Species: {location}
+						</span>
+					)}
 					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Location: {location}
-					</span>
-					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Last Check: {lastCheck}
+						Established: {lastCheck}
 					</span>
 				</div>
 
@@ -250,7 +281,7 @@ export const HiveTabs = ({
 							Yield(This Month)
 						</h2>
 						<span className="Poppins-SemiBold text-sm">
-							{yieldThisMonth}
+							{yieldThisMonth ?? "—"}
 						</span>
 					</div>
 
@@ -305,11 +336,13 @@ export const HiveTrans = ({
 
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
+					{location && (
+						<span className="Poppins-SemiBold text-[#817b70] text-xs">
+							Species: {location}
+						</span>
+					)}
 					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Location: {location}
-					</span>
-					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Last Check: {lastCheck}
+						Established: {lastCheck}
 					</span>
 				</div>
 			</div>

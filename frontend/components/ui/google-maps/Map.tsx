@@ -1,18 +1,82 @@
-import React from "react";
+"use client";
 
-const Map = () => {
+import { useMemo, useState } from "react";
+import {
+	MapContainer,
+	TileLayer,
+	Marker,
+	useMapEvents,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+type LatLng = { lat: number; lng: number };
+
+type MapProps = {
+	onLocationSelect?: (coords: LatLng) => void;
+	initialCenter?: LatLng;
+	initialMarker?: LatLng | null;
+};
+
+// Same spot the old static iframe pointed at (Bureau of Animal
+// Industry, QC) — used only as the default center before a pin is set.
+const DEFAULT_CENTER: LatLng = { lat: 14.6598, lng: 121.0286 };
+
+// react-leaflet only exposes click events via a child hook, not a
+// prop on <MapContainer> — this renders nothing, just wires the event.
+const ClickHandler = ({ onClick }: { onClick: (coords: LatLng) => void }) => {
+	useMapEvents({
+		click(e) {
+			onClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+		},
+	});
+	return null;
+};
+
+const Map = ({ onLocationSelect, initialCenter, initialMarker }: MapProps) => {
+	const [marker, setMarker] = useState<LatLng | null>(initialMarker ?? null);
+	const center = marker ?? initialCenter ?? DEFAULT_CENTER;
+
+	// Built lazily inside the component (not at module scope) so it
+	// never runs during SSR/module evaluation — sidesteps Leaflet's
+	// known webpack/Next.js issue where its default marker image
+	// paths 404, and avoids "window is not defined" on the server.
+	const pinIcon = useMemo(
+		() =>
+			L.divIcon({
+				className: "",
+				html: `<div style="
+					width: 26px; height: 26px;
+					background: #ff9a00;
+					border: 3px solid #fff;
+					border-radius: 50% 50% 50% 0;
+					transform: rotate(-45deg);
+					box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+				"></div>`,
+				iconSize: [26, 26],
+				iconAnchor: [13, 26],
+			}),
+		[],
+	);
+
+	const handleClick = (coords: LatLng) => {
+		setMarker(coords);
+		onLocationSelect?.(coords);
+	};
+
 	return (
-		<div className="w-full h-full">
-			<iframe
-				src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d19540.905696663343!2d121.02859267520665!3d14.659800993250323!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b710db7cef5b%3A0x3e13b4b353f13f2e!2sBureau%20Of%20Animal%20Industry!5e1!3m2!1sen!2sph!4v1782965343838!5m2!1sen!2sph"
-				width="100%"
-				height="100%"
-				className="w-full h-full"
-				style={{ border: 0 }}
-				allowFullScreen
-				loading="lazy"
-				referrerPolicy="strict-origin-when-cross-origin"></iframe>
-		</div>
+		<MapContainer
+			center={[center.lat, center.lng]}
+			zoom={14}
+			scrollWheelZoom
+			style={{ width: "100%", height: "100%" }}>
+			<TileLayer
+				attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+			/>
+			{marker && <Marker position={[marker.lat, marker.lng]} icon={pinIcon} />}
+			<ClickHandler onClick={handleClick} />
+		</MapContainer>
 	);
 };
 

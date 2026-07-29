@@ -4,6 +4,13 @@ from flask_cors import CORS
 from config.config import Config
 from config.database import Database
 from routes.auth import auth_bp
+from routes.pesticide import pesticide_bp
+from routes.hive import hive_bp
+from routes.harvest import yield_bp
+from routes.queen import queen_bp
+from routes.analytics import analytics_bp
+from routes.notification import notification_bp
+from routes.report import report_bp
 
 
 def create_app() -> Flask:
@@ -22,6 +29,13 @@ def create_app() -> Flask:
 
     # Blueprints
     app.register_blueprint(auth_bp)
+    app.register_blueprint(pesticide_bp)
+    app.register_blueprint(hive_bp)
+    app.register_blueprint(yield_bp)
+    app.register_blueprint(queen_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(notification_bp)
+    app.register_blueprint(report_bp)
 
     # Health check (kept for backwards compatibility with your original stub)
     @app.route("/api/home", methods=["GET"])

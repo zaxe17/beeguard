@@ -28,15 +28,28 @@ class AuthService:
 
     # ---------- JWT ----------
     @staticmethod
-    def issue_token(user_id: str, role: str) -> str:
+    def issue_token(user_id: str, role: str, remember: bool = False) -> str:
+        """
+        Standard session: Config.JWT_EXPIRES_HOURS (default 24h).
+        Remember Me:      Config.JWT_EXPIRES_HOURS_REMEMBER (default 30d).
+
+        Note: the JWT itself carries the extended expiry — no separate
+        refresh-token endpoint is introduced, which keeps the middleware
+        (`token_required`) unchanged. If you later need true refresh-token
+        rotation, add a `refresh_tokens` table + `/auth/refresh` route;
+        the `remember` flag here already flows through cleanly.
+        """
         now = dt.datetime.now(dt.timezone.utc)
+        hours = (
+            Config.JWT_EXPIRES_HOURS_REMEMBER if remember
+            else Config.JWT_EXPIRES_HOURS
+        )
         payload = {
             "sub": user_id,
             "role": role,
             "iat": int(now.timestamp()),
-            "exp": int(
-                (now + dt.timedelta(hours=Config.JWT_EXPIRES_HOURS)).timestamp()
-            ),
+            "exp": int((now + dt.timedelta(hours=hours)).timestamp()),
+            "rmb": bool(remember),   # informational; middleware ignores
         }
         return jwt.encode(payload, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
 
@@ -50,31 +63,22 @@ class AuthService:
     @staticmethod
     def check_unique(role: str, username: str | None,
                      email: str | None, contact_no: str | None) -> dict:
-        """
-        Returns a dict of {field: True} for fields that ALREADY exist.
-        Checks BOTH citizen and beekeeper tables so an email/phone/username
-        used by one role cannot be reused by the other.
-        """
         taken: dict[str, bool] = {}
-
         if username:
             if CitizenModel.exists_username(username) or \
                BeekeeperModel.exists_username(username):
                 taken["username"] = True
-
         if email:
             if CitizenModel.exists_email(email) or \
                BeekeeperModel.exists_email(email):
                 taken["email"] = True
-
         if contact_no:
             if CitizenModel.exists_contact_no(contact_no) or \
                BeekeeperModel.exists_contact_no(contact_no):
                 taken["contact_no"] = True
-
         return taken
 
-    # ---------- register ----------
+    # ---------- register (unchanged) ----------
     @staticmethod
     def register(cleaned: dict) -> tuple[bool, str, dict | list]:
         role = cleaned["role"]
@@ -82,7 +86,6 @@ class AuthService:
         email = cleaned["email"]
         contact_no = cleaned["contact_no"]
 
-        # Explicit uniqueness pre-check (still race-safe because of DB unique keys)
         taken = AuthService.check_unique(role, username, email, contact_no)
         if taken:
             if taken.get("email"):
@@ -94,12 +97,9 @@ class AuthService:
 
         hashed_pw = AuthService.hash_password(cleaned["password"])
 
-        # ── Atomic transaction: reserve ID (per-role) + insert row ──
         conn = Database.get_connection()
         try:
-            # 🔑 CHANGED: per-role sequence
             user_id = next_user_id(conn, role)
-
             if role == "citizen":
                 record = {
                     "citizenID": user_id,
@@ -127,12 +127,11 @@ class AuthService:
                     "password": hashed_pw,
                     "contact_no": contact_no,
                     "email": email,
-                    "farm_name": cleaned["farm_name"],       # required now
+                    "farm_name": cleaned["farm_name"],
                     "apiary_type": cleaned["apiary_type"],
                     "terms_accepted": cleaned["terms_accepted"],
                 }
                 BeekeeperModel.insert_with_conn(conn, record)
-
             conn.commit()
         except Exception:
             conn.rollback()
@@ -140,17 +139,13 @@ class AuthService:
         finally:
             conn.close()
 
-        # Fire off verification OTP (best-effort — user can resend from UI)
         OtpService.issue_and_send(email=email, role=role, name=cleaned["name"])
 
         return True, "Registration successful. Verification code sent.", {
-            "id": user_id,
-            "role": role,
-            "username": username,
-            "email": email,
+            "id": user_id, "role": role, "username": username, "email": email,
         }
 
-    # ---------- verify OTP ----------
+    # ---------- verify OTP (auto-login WITHOUT remember-me) ----------
     @staticmethod
     def verify_registration_otp(email: str, role: str, code: str) -> tuple[bool, str, dict | None]:
         ok, msg = OtpService.verify(email, code)
@@ -169,14 +164,14 @@ class AuthService:
         if not row:
             return False, "Account not found after verification.", None
 
-        # Auto-login: issue token so user goes straight to dashboard
         user_id = row[id_field]
-        token = AuthService.issue_token(user_id, role)
+        # Auto-login after verify uses the STANDARD session — the user
+        # never got the chance to tick "Remember me" on the OTP screen.
+        token = AuthService.issue_token(user_id, role, remember=False)
         return True, "Email verified. You are now logged in.", {
             "token": token,
             "user": {
-                "id": user_id,
-                "role": role,
+                "id": user_id, "role": role,
                 "name": row.get("name"),
                 "email": row["email"],
                 "username": row.get("username"),
@@ -188,7 +183,6 @@ class AuthService:
         row = (CitizenModel.find_by_email(email) if role == "citizen"
                else BeekeeperModel.find_by_email(email))
         if not row:
-            # Do not leak account existence
             return True, "If the account exists, a new code has been sent."
         if row.get("email_verified"):
             return False, "This account is already verified."
@@ -196,10 +190,10 @@ class AuthService:
             email=email, role=role, name=row.get("name", "")
         )
 
-    # ---------- login ----------
+    # ---------- login (now accepts remember_me) ----------
     @staticmethod
-    def login(role: str, identifier: str,
-              password: str) -> tuple[bool, str, dict | None]:
+    def login(role: str, identifier: str, password: str,
+              remember: bool = False) -> tuple[bool, str, dict | None]:
         if role == "citizen":
             row = CitizenModel.find_by_username_or_email(identifier)
             id_field = "citizenID"
@@ -214,13 +208,10 @@ class AuthService:
 
         if not row:
             return False, "Invalid credentials.", None
-
         if row.get("status") and row["status"].lower() != "active":
             return False, "Account is not active.", None
-
         if not AuthService.verify_password(password, row["password"]):
             return False, "Invalid credentials.", None
-
         if role in ("citizen", "beekeeper") and not row.get("email_verified"):
             return False, "Please verify your email before logging in.", {
                 "requires_verification": True,
@@ -229,38 +220,32 @@ class AuthService:
             }
 
         user_id = row[id_field]
-        token = AuthService.issue_token(user_id, role)
+        token = AuthService.issue_token(user_id, role, remember=remember)
         return True, "Login successful.", {
             "token": token,
             "user": {
-                "id": user_id,
-                "role": role,
+                "id": user_id, "role": role,
                 "name": row.get("name") or row.get("admin_name"),
                 "email": row["email"],
                 "username": row.get("username"),
             },
         }
 
-    # ---------- fetch current user ----------
+    # ---------- fetch current user (unchanged) ----------
     @staticmethod
     def get_user(role: str, user_id: str) -> dict | None:
         if role == "citizen":
-            row = CitizenModel.find_by_id(user_id)
-            id_field = "citizenID"
+            row = CitizenModel.find_by_id(user_id); id_field = "citizenID"
         elif role == "beekeeper":
-            row = BeekeeperModel.find_by_id(user_id)
-            id_field = "beekeeperID"
+            row = BeekeeperModel.find_by_id(user_id); id_field = "beekeeperID"
         elif role == "admin":
-            row = AdminModel.find_by_id(user_id)
-            id_field = "adminID"
+            row = AdminModel.find_by_id(user_id); id_field = "adminID"
         else:
             return None
         if not row:
             return None
         return {
-            "id": row[id_field],
-            "role": role,
+            "id": row[id_field], "role": role,
             "name": row.get("name") or row.get("admin_name"),
-            "email": row["email"],
-            "username": row.get("username"),
+            "email": row["email"], "username": row.get("username"),
         }

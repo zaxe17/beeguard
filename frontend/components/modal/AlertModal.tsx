@@ -42,20 +42,25 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 			header="Add New Hive"
 			onClose={onClose}>
 			{/* MAP */}
-			<div className="w-full h-80 rounded-xl relative overflow-hidden">
+			<div className="w-full h-60 rounded-xl relative overflow-hidden">
 				<Map />
 			</div>
 			<div className="flex flex-col gap-3">
 				<h2 className="Poppins-SemiBold text-[#817b70]">
 					Alert Information
 				</h2>
-				{/* <RangeInput label="Danger Radius" min={1} max={25} unit="km" /> */}
+
+				<RangeInput label="Danger Radius" min={1} max={5} unit="km" />
+
+				{/* SELECT PESTICIDE TYPE */}
 				<Select
 					label="Select Pesticide"
 					options={pesticideOptions}
 					value={selectedPesticide}
 					onSelectChange={(e) => setSelectedPesticide(e.target.value)}
 				/>
+
+				{/* IF SELECTED OTHERS SHOW INPUT */}
 				{selectedPesticide === OTHERS_VALUE && (
 					<Input
 						placeholder="Enter pesticide name"
@@ -63,7 +68,12 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 						onChange={(e) => setOtherPesticide(e.target.value)}
 					/>
 				)}
+
+
+				{/* PESTICIDE SCHEDULE DATE */}
 				<Input label="Scheduled Date & Time" type="date" />
+
+				{/* BUTTONS */}
 				<div className="flex items-center gap-3 w-full">
 					<CancelButton onClick={onClose} />
 					<Button

@@ -16,7 +16,12 @@ export const Card = ({ icon, count, title, color }: CardProps) => {
 			<div
 				className="rounded-full w-15 h-15 p-3"
 				style={{ backgroundColor: `${color}4D` }}>
-				<Image src={icon} alt="" className="w-full h-full" priority />
+				<Image
+					src={icon}
+					alt=""
+					className="w-full h-full object-contain"
+					priority
+				/>
 			</div>
 
 			{/* STATUS COUNT */}
@@ -27,7 +32,9 @@ export const Card = ({ icon, count, title, color }: CardProps) => {
 			</span>
 
 			{/* STATUS TITLE */}
-			<span className="Poppins-SemiBold capitalize text-lg">{title}</span>
+			<span className="Poppins-SemiBold capitalize text-sm text-center">
+				{title}
+			</span>
 		</div>
 	);
 };

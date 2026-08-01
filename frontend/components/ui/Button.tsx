@@ -7,6 +7,7 @@ type ButtonProps = {
 	buttonType?: "button" | "submit" | "reset";
 	route?: string;
 	width?: string;
+	BGcolor?: string;
 	onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 	disabled?: boolean;
 };
@@ -40,7 +41,7 @@ export const Button = ({
 			onClick={handleClick}
 			type={buttonType}
 			disabled={disabled}
-			className="flex justify-center items-center py-1.5 px-3 bg-linear-to-r from-[#ffdb4f] to-[#eec572] rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+			className="flex justify-center items-center py-1.5 px-3 bg-linear-to-r from-[#ffdb4f] to-[#eec572] rounded-xl text-base text-[#4A2F00] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
 			style={{
 				boxShadow: shadow["shadow-18"],
 				width: width || "100%",
@@ -51,18 +52,18 @@ export const Button = ({
 };
 
 // CANCEL BUTTON
-export const CancelButton = ({ onClick, width, disabled }: ButtonProps) => {
+export const CancelButton = ({ onClick, width, disabled, label = "Cancel", BGcolor }: ButtonProps) => {
 	return (
 		<button
 			onClick={onClick}
 			type="button"
 			disabled={disabled}
-			className="flex justify-center items-center py-1.5 px-3 bg-transparent rounded-xl border border-[#a6a3a3] border-solid text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+			className={`flex justify-center items-center py-1.5 px-3 bg-transparent rounded-xl border border-[#a6a3a3] border-solid text-base text-[#4A2F00] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${BGcolor}`}
 			style={{
 				boxShadow: shadow["shadow-18"],
 				width: width || "100%",
 			}}>
-			Cancel
+			{label}
 		</button>
-	);
+	);		
 };

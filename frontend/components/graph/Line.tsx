@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsPage } from "@/hooks/useIsPage";
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -117,29 +118,33 @@ export const YieldSummaryChart = ({
 		},
 	};
 
+	const location = useIsPage("/beekeeper/history");
+
 	return (
 		<div className="w-full h-full flex flex-col items-stretch gap-4">
 			{/* STATS */}
-			<div className="flex items-center justify-between text-sm">
-				<div className="flex flex-col">
-					<span className="Poppins-SemiBold text-[#38b6ff]">
-						{value}
-					</span>
-					<span className="text-[#817b70]">{valueLabel}</span>
-				</div>
+			{!location && (
+				<div className="flex items-center justify-between text-sm">
+					<div className="flex flex-col">
+						<span className="Poppins-SemiBold text-[#38b6ff]">
+							{value}
+						</span>
+						<span className="text-[#817b70]">{valueLabel}</span>
+					</div>
 
-				<div className="flex flex-col">
-					<span
-						className={`Poppins-SemiBold ${
-							isNegative ? "text-[#ff0000]" : "text-[#00cc00]"
-						}`}>
-						{isNegative ? "" : "+"}
-						{changeAmount} kg ({isNegative ? "↓" : "↑"}
-						{Math.abs(changePercent)}%)
-					</span>
-					<span className="text-[#817b70]">vs last season</span>
+					<div className="flex flex-col">
+						<span
+							className={`Poppins-SemiBold ${
+								isNegative ? "text-[#ff0000]" : "text-[#00cc00]"
+							}`}>
+							{isNegative ? "" : "+"}
+							{changeAmount} kg ({isNegative ? "↓" : "↑"}
+							{Math.abs(changePercent)}%)
+						</span>
+						<span className="text-[#817b70]">vs last season</span>
+					</div>
 				</div>
-			</div>
+			)}
 
 			{/* CHART */}
 			<div className="flex-1 flex flex-col">

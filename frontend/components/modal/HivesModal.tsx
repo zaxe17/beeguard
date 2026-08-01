@@ -3,7 +3,7 @@
 import { Icon } from "@iconify/react";
 import React, { useEffect, useState } from "react";
 import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
+import { Button, CancelButton } from "../ui/Button";
 import { ModalContainer } from "./Modal";
 import { HiveTrans } from "../HiveContainer";
 import {
@@ -15,6 +15,10 @@ import {
 } from "@/services/hive";
 import { yieldService, YieldRecord } from "@/services/harvest";
 import { queenService } from "@/services/queen";
+import { useIsPage } from "@/hooks/useIsPage";
+
+import bee_report from "@/public/assets/bee_report.png";
+import Image from "next/image";
 
 type ModalProps = {
 	isOpen: boolean;
@@ -22,7 +26,11 @@ type ModalProps = {
 	onConfirm?: () => void; // called after a successful action, in addition to the built-in close
 };
 
-const HealthStatusOptions: { label: string; value: HealthStatus; color: string }[] = [
+const HealthStatusOptions: {
+	label: string;
+	value: HealthStatus;
+	color: string;
+}[] = [
 	{ label: "Healthy", value: "Healthy", color: "#009900" },
 	{ label: "Weak", value: "Weak", color: "#e6c347" },
 	{ label: "Needs Attention", value: "Needs Attention", color: "#d9822a" },
@@ -97,14 +105,18 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 		setErrorMsg(null);
 
 		if (!hiveName.trim() || !beeSpecies.trim() || !dateEstablished) {
-			setErrorMsg("Hive name, bee species, and date established are required.");
+			setErrorMsg(
+				"Hive name, bee species, and date established are required.",
+			);
 			return;
 		}
 
 		const hasKg = histYieldKg.trim() !== "";
 		const hasYear = histYieldYear.trim() !== "";
 		if (hasKg !== hasYear) {
-			setErrorMsg("Provide both historical yield and year, or leave both blank.");
+			setErrorMsg(
+				"Provide both historical yield and year, or leave both blank.",
+			);
 			return;
 		}
 
@@ -117,7 +129,9 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 				hive_state: hiveState,
 				health_status: healthStatus,
 				historical_yield_kg: hasKg ? parseFloat(histYieldKg) : null,
-				historical_yield_year: hasYear ? parseInt(histYieldYear, 10) : null,
+				historical_yield_year: hasYear
+					? parseInt(histYieldYear, 10)
+					: null,
 			});
 
 			if (!res.success) {
@@ -146,7 +160,9 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 			width="w-1/3"
 			header="Add New Hive"
 			onClose={onClose}>
-			<form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+			<form
+				onSubmit={handleSubmit}
+				className="w-full flex flex-col gap-3">
 				<Input
 					label="Hive Name"
 					value={hiveName}
@@ -185,7 +201,8 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 							className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent bg-(--stat-bg) has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
 							style={
 								{
-									boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+									boxShadow:
+										"rgba(0, 0, 0, 0.24) 0px 3px 8px",
 									"--stat-bg": `${stat.color}33`,
 								} as React.CSSProperties
 							}>
@@ -233,9 +250,15 @@ type HiveScopedModalProps = ModalProps & {
 	hive?: HiveTargetSummary | null;
 };
 
-export const MonitorHealth = ({ isOpen, onClose, onConfirm, hive }: HiveScopedModalProps) => {
+export const MonitorHealth = ({
+	isOpen,
+	onClose,
+	onConfirm,
+	hive,
+}: HiveScopedModalProps) => {
 	const [activityDate, setActivityDate] = useState("");
-	const [observation, setObservation] = useState<InspectionObservation | null>(null);
+	const [observation, setObservation] =
+		useState<InspectionObservation | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -292,9 +315,19 @@ export const MonitorHealth = ({ isOpen, onClose, onConfirm, hive }: HiveScopedMo
 			width="w-1/3"
 			header="Monitor Hive Health"
 			onClose={onClose}>
-			<form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
-				<Input label="Hive Name" value={hive?.hiveName ?? ""} disabled />
-				<Input label="Bee Species" value={hive?.beeSpecies ?? ""} disabled />
+			<form
+				onSubmit={handleSubmit}
+				className="w-full flex flex-col gap-3">
+				<Input
+					label="Hive Name"
+					value={hive?.hiveName ?? ""}
+					disabled
+				/>
+				<Input
+					label="Bee Species"
+					value={hive?.beeSpecies ?? ""}
+					disabled
+				/>
 				<Input
 					label="Activity Date"
 					type="date"
@@ -310,7 +343,9 @@ export const MonitorHealth = ({ isOpen, onClose, onConfirm, hive }: HiveScopedMo
 						<label
 							key={label}
 							className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
-							style={{ boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px" }}>
+							style={{
+								boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+							}}>
 							<div className="flex justify-start items-center gap-2">
 								<input
 									type="radio"
@@ -325,7 +360,9 @@ export const MonitorHealth = ({ isOpen, onClose, onConfirm, hive }: HiveScopedMo
 										className="hidden w-full h-full text-[#4A2F00] group-has-[input:checked]:block"
 									/>
 								</div>
-								<span className="Poppins-SemiBold text-xs">{label}</span>
+								<span className="Poppins-SemiBold text-xs">
+									{label}
+								</span>
 							</div>
 						</label>
 					))}
@@ -346,7 +383,12 @@ export const MonitorHealth = ({ isOpen, onClose, onConfirm, hive }: HiveScopedMo
 // ─────────────────────────────────────────────
 // ADD YIELD — takes `hive` as a real prop
 // ─────────────────────────────────────────────
-export const AddYield = ({ isOpen, onClose, onConfirm, hive }: HiveScopedModalProps) => {
+export const AddYield = ({
+	isOpen,
+	onClose,
+	onConfirm,
+	hive,
+}: HiveScopedModalProps) => {
 	const [harvestDate, setHarvestDate] = useState("");
 	const [yieldKg, setYieldKg] = useState("");
 	const [submitting, setSubmitting] = useState(false);
@@ -406,9 +448,19 @@ export const AddYield = ({ isOpen, onClose, onConfirm, hive }: HiveScopedModalPr
 			width="w-1/4"
 			header="Add Yield"
 			onClose={onClose}>
-			<form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
-				<Input label="Hive Name" value={hive?.hiveName ?? ""} disabled />
-				<Input label="Bee Species" value={hive?.beeSpecies ?? ""} disabled />
+			<form
+				onSubmit={handleSubmit}
+				className="w-full flex flex-col gap-3">
+				<Input
+					label="Hive Name"
+					value={hive?.hiveName ?? ""}
+					disabled
+				/>
+				<Input
+					label="Bee Species"
+					value={hive?.beeSpecies ?? ""}
+					disabled
+				/>
 				<Input
 					label="Date Established"
 					value={hive?.dateEstablished ?? ""}
@@ -453,8 +505,14 @@ type ViewHistoryProps = ModalProps & {
 	};
 };
 
-export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) => {
-	const [activeTab, setActiveTab] = useState<"monitoring" | "harvest">("monitoring");
+export const ViewHistory = ({
+	isOpen,
+	onClose,
+	hiveSummary,
+}: ViewHistoryProps) => {
+	const [activeTab, setActiveTab] = useState<"monitoring" | "harvest">(
+		"monitoring",
+	);
 	const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([]);
 	const [harvests, setHarvests] = useState<YieldRecord[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -470,7 +528,8 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 				yieldService.listHistory(hiveSummary.hiveId),
 			]);
 			if (cancelled) return;
-			if (maintRes.success && maintRes.data) setMaintenance(maintRes.data);
+			if (maintRes.success && maintRes.data)
+				setMaintenance(maintRes.data);
 			if (yieldRes.success && yieldRes.data) setHarvests(yieldRes.data);
 			setLoading(false);
 		};
@@ -487,7 +546,10 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 	}));
 	const harvestEntries: HistoryEntry[] = harvests
 		.filter((h) => !h.is_baseline)
-		.map((h) => ({ date: h.yield_date, yield: `${h.yield_kg.toFixed(2)}kg` }));
+		.map((h) => ({
+			date: h.yield_date,
+			yield: `${h.yield_kg.toFixed(2)}kg`,
+		}));
 
 	const grouped: Record<string, HistoryEntry[]> = groupByMonth(
 		activeTab === "monitoring" ? monitoringEntries : harvestEntries,
@@ -506,7 +568,9 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 					type="button"
 					onClick={() => setActiveTab("monitoring")}
 					className={`Poppins-SemiBold w-full p-2 rounded-lg ${
-						activeTab === "monitoring" ? "bg-[#FFC700]" : "bg-[#e2e2e6]"
+						activeTab === "monitoring"
+							? "bg-[#FFC700]"
+							: "bg-[#e2e2e6]"
 					}`}>
 					Monitoring
 				</button>
@@ -514,7 +578,9 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 					type="button"
 					onClick={() => setActiveTab("harvest")}
 					className={`Poppins-SemiBold w-full p-2 rounded-lg ${
-						activeTab === "harvest" ? "bg-[#FFC700]" : "bg-[#e2e2e6]"
+						activeTab === "harvest"
+							? "bg-[#FFC700]"
+							: "bg-[#e2e2e6]"
 					}`}>
 					Harvest
 				</button>
@@ -533,10 +599,14 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 
 			<div className="border-2 border-[#e2e2e6] rounded-xl p-2 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0">
 				{loading ? (
-					<p className="text-center text-sm text-[#817b70] p-4">Loading...</p>
+					<p className="text-center text-sm text-[#817b70] p-4">
+						Loading...
+					</p>
 				) : Object.keys(grouped).length === 0 ? (
 					<p className="text-center text-sm text-[#817b70] p-4">
-						No {activeTab === "monitoring" ? "monitoring" : "harvest"} records yet.
+						No{" "}
+						{activeTab === "monitoring" ? "monitoring" : "harvest"}{" "}
+						records yet.
 					</p>
 				) : (
 					<table className="w-full border-collapse">
@@ -558,7 +628,9 @@ export const ViewHistory = ({ isOpen, onClose, hiveSummary }: ViewHistoryProps) 
 												{entry.date}
 											</td>
 											<td className="px-4 py-3 text-sm text-center text-[#6b6b6b]">
-												{activeTab === "monitoring" ? entry.status : entry.yield}
+												{activeTab === "monitoring"
+													? entry.status
+													: entry.yield}
 											</td>
 										</tr>
 									))}
@@ -579,7 +651,12 @@ type QueenReplaceProps = ModalProps & {
 	hiveId?: string | null;
 };
 
-export const QueenReplace = ({ isOpen, onClose, onConfirm, hiveId }: QueenReplaceProps) => {
+export const QueenReplace = ({
+	isOpen,
+	onClose,
+	onConfirm,
+	hiveId,
+}: QueenReplaceProps) => {
 	const [replacementDate, setReplacementDate] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -628,7 +705,9 @@ export const QueenReplace = ({ isOpen, onClose, onConfirm, hiveId }: QueenReplac
 			width="w-1/4"
 			header="Replace the Queen Bee"
 			onClose={onClose}>
-			<form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+			<form
+				onSubmit={handleSubmit}
+				className="w-full flex flex-col gap-3">
 				<Input
 					label="Date of Replacement"
 					type="date"
@@ -647,5 +726,57 @@ export const QueenReplace = ({ isOpen, onClose, onConfirm, hiveId }: QueenReplac
 				</div>
 			</form>
 		</ModalContainer>
+	);
+};
+
+type BeeQueenModalProps = {
+	onCancel?: () => void;
+};
+
+export const BeeQueenModal = ({ onCancel }: BeeQueenModalProps) => {
+	const isHivesPage = useIsPage("/beekeeper/hives");
+	const [dismissed, setDismissed] = useState(false);
+
+	const handleCancel = () => {
+		setDismissed(true);
+		onCancel?.();
+	};
+
+	if (!isHivesPage || dismissed) return null;
+
+	return (
+		<div className="hidden fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center">
+			<div
+				className="w-1/4 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5"
+				onClick={(e) => e.stopPropagation()}>
+				<div className="flex flex-col items-center text-center">
+					<h2 className="Poppins-Bold text-[#db4b44] text-4xl uppercase">
+						HIVE #003
+					</h2>
+
+					<p className="Poppins-Bold text-xl uppercase">
+						QUEEN BEE NEEDS ATTENTION
+					</p>
+
+					<div className="w-full flex justify-center items-center my-4">
+						<Image
+							src={bee_report}
+							alt="bee_report"
+							className="w-48 h-w-48"
+						/>
+					</div>
+
+					<p className="text-base mb-3">
+						Consider replacing the queen bee for much productive
+						colony.
+					</p>
+
+					<div className="flex items-center gap-3 w-full">
+						<CancelButton onClick={handleCancel} />
+						<Button buttonType="button" label="Replace Queen" />
+					</div>
+				</div>
+			</div>
+		</div>
 	);
 };

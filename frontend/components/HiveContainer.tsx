@@ -1,3 +1,5 @@
+"use client";
+
 import * as Icons from "@/public/assets/icons/icons";
 import Image from "next/image";
 import { Button } from "./ui/Button";
@@ -134,19 +136,23 @@ export const HiveDetailsContainer = ({
 					<h1 className="Poppins-Bold text-2xl">{hiveId}</h1>
 
 					{/* NAME */}
-					<h2 className="Poppins-Bold text-xl italic mb-4">
-						{hive}
-					</h2>
+					<h2 className="Poppins-Bold text-xl italic mb-4">{hive}</h2>
 
 					{/* LOCATION AND DATE CHECK */}
 					<div className="flex flex-col mb-15">
 						{location && (
-							<span className="Poppins-SemiBold text-[#817b70] text-sm">
-								Species: {location}
+							<span className="text-[#817b70] text-sm">
+								Species:{" "}
+								<span className="Poppins-SemiBold">
+									{location}
+								</span>
 							</span>
 						)}
-						<span className="Poppins-SemiBold text-[#817b70] text-sm">
-							Established: {lastCheck}
+						<span className="text-[#817b70] text-sm">
+							Established:{" "}
+							<span className="Poppins-SemiBold">
+								{lastCheck}
+							</span>
 						</span>
 					</div>
 
@@ -264,12 +270,12 @@ export const HiveTabs = ({
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
 					{location && (
-						<span className="Poppins-SemiBold text-[#817b70] text-xs">
-							Species: {location}
+						<span className="text-[#817b70] text-xs">
+							Species: <span className="Poppins-SemiBold">{location}</span>
 						</span>
 					)}
-					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Established: {lastCheck}
+					<span className="text-[#817b70] text-xs">
+						Established: <span className="Poppins-SemiBold">{lastCheck}</span>
 					</span>
 				</div>
 

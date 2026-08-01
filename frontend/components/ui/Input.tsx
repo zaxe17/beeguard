@@ -169,17 +169,15 @@ export const CheckBox = ({
 // SEARCHBAR — now supports controlled value/onChange, same pattern
 // as RangeInput: falls back to plain uncontrolled behavior if the
 // parent doesn't pass them, so any existing usage keeps working.
-export const SearchBar = ({
-	placeholder,
-	value,
-	onChange,
-}: InputProps) => {
+export const SearchBar = ({ placeholder, value, onChange }: InputProps) => {
 	return (
 		<div className="w-full flex items-center bg-[#d9d9d9] py-1.5 px-2 rounded-2xl">
-			<Icon icon="mdi:search" className="w-5 h-5 text-[#494949]" />
+			<div className="w-6 h-6">
+				<Icon icon="mdi:search" className="w-full h-full text-[#494949]" />
+			</div>
 			<input
 				type="text"
-				className="w-full px-1.5 text-sm bg-transparent outline-0"
+				className="w-full px-1 text-sm bg-transparent outline-0"
 				placeholder={placeholder}
 				value={value}
 				onChange={onChange}

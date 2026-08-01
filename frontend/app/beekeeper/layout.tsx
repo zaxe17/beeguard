@@ -5,6 +5,7 @@ import { AddAlert } from "@/components/modal/AlertModal";
 import {
 	AddHiveModal,
 	AddYield,
+	BeeQueenModal,
 	MonitorHealth,
 	QueenReplace,
 	ViewHistory,
@@ -15,6 +16,10 @@ import { ModalProvider, useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
 import { reportService } from "@/services/report";
+import {
+	WarningQueenReplacment,
+} from "@/components/popup/PopUp";
+import { usePathname } from "next/navigation";
 
 type ModalType =
 	| "addHive"
@@ -32,10 +37,17 @@ const BeekeeperLayoutContent = ({
 }: {
 	children: React.ReactNode;
 }) => {
-	const { closeModal, isModalOpen, payload } = useModal<ModalType, HivePayload>();
+	const { closeModal, isModalOpen, payload } = useModal<
+		ModalType,
+		HivePayload
+	>();
+
 	const [targetHive, setTargetHive] = useState<Hive | null>(null);
 	const [downloading, setDownloading] = useState(false);
 	const [downloadError, setDownloadError] = useState<string | null>(null);
+
+	const pathname = usePathname();
+	const location = pathname === "/beekeeper/hives";
 
 	const hiveScoped =
 		isModalOpen("monitorHealth") ||
@@ -68,7 +80,9 @@ const BeekeeperLayoutContent = ({
 			closeModal();
 		} catch (err) {
 			setDownloadError(
-				err instanceof Error ? err.message : "Failed to generate report.",
+				err instanceof Error
+					? err.message
+					: "Failed to generate report.",
 			);
 		} finally {
 			setDownloading(false);
@@ -76,7 +90,7 @@ const BeekeeperLayoutContent = ({
 	};
 
 	return (
-		<div className="h-screen flex flex-row">
+		<div className="w-full h-screen flex flex-row relative">
 			<Sidebar />
 
 			<main className="w-full flex flex-col relative">
@@ -98,7 +112,12 @@ const BeekeeperLayoutContent = ({
 				labelButton={downloading ? "Downloading..." : "Download"}
 			/>
 
-			<AddHiveModal isOpen={isModalOpen("addHive")} onClose={closeModal} />
+			<BeeQueenModal onCancel={closeModal} />
+
+			<AddHiveModal
+				isOpen={isModalOpen("addHive")}
+				onClose={closeModal}
+			/>
 
 			<MonitorHealth
 				isOpen={isModalOpen("monitorHealth")}
@@ -141,7 +160,9 @@ const BeekeeperLayoutContent = ({
 								hiveId: targetHive.hive_id,
 								hive: targetHive.hive_name,
 								species: targetHive.bee_species,
-								status: mapHealthStatusToUi(targetHive.health_status),
+								status: mapHealthStatusToUi(
+									targetHive.health_status,
+								),
 								hiveState: targetHive.hive_state,
 							}
 						: undefined
@@ -153,6 +174,8 @@ const BeekeeperLayoutContent = ({
 				onClose={closeModal}
 				hiveId={targetHive?.hive_id ?? null}
 			/>
+
+			<WarningQueenReplacment onClose={closeModal} />
 		</div>
 	);
 };

@@ -1,5 +1,8 @@
+"use client";
+
 import { Icon } from "@iconify/react";
 import { AlertContainer } from "@/components/ui/Alert";
+import Map from "@/components/ui/google-maps/Map";
 
 type DetailsProps = {
 	location?: string;
@@ -127,6 +130,50 @@ const Information = ({
 	);
 };
 
+const Recommendation = () => {
+	return (
+		<div className="bg-[#ff0000]/10 rounded-lg p-5 text-xs">
+			<h3 className="Poppins-SemiBold text-[#ff0000] mb-3">
+				Recommendation for Beekeepers
+			</h3>
+
+			<div className="flex items-center gap-1 mb-1">
+				<div className="w-4 h-4">
+					<Icon icon="uil:shield-check" className="w-full h-full" />
+				</div>
+				<span>Keep your hives covered or sheltered.</span>
+			</div>
+
+			<div className="flex items-center gap-1 mb-1">
+				<div className="w-4 h-4">
+					<Icon
+						icon="heroicons:no-symbol-20-solid"
+						className="w-full h-full"
+					/>
+				</div>
+				<span>Do not open hives during the spraying period.</span>
+			</div>
+
+			<div className="flex items-center gap-1 mb-1">
+				<div className="w-4 h-4">
+					<Icon
+						icon="solar:wind-line-duotone"
+						className="w-full h-full"
+					/>
+				</div>
+				<span>Ensure good ventilation after the spraying.</span>
+			</div>
+
+			<div className="flex items-center gap-1 mb-1">
+				<div className="w-4 h-4">
+					<Icon icon="ic:baseline-hive" className="w-full h-full" />
+				</div>
+				<span>Move hives out of the area if possible.</span>
+			</div>
+		</div>
+	);
+};
+
 const AlertDetails = () => {
 	return (
 		<div className="h-screen w-full flex gap-15 py-15 px-20">
@@ -149,13 +196,18 @@ const AlertDetails = () => {
 					issued="Atok LGU"
 					contact="(074) 123-4567"
 				/>
+
+				<Recommendation />
 			</div>
 
 			{/* RIGHT */}
-			<div className="w-1/2 ">
-				<h1>yadgas</h1>
+			<div className="w-1/2">
 				{/* MAPS */}
-				<div className=""></div>
+				<div className="w-full h-80 rounded-xl relative overflow-hidden">
+					<Map />
+
+					
+				</div>
 			</div>
 		</div>
 	);

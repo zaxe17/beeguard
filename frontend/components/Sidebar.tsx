@@ -62,6 +62,11 @@ const beekeeperTabs = [
 		tabName: "profile",
 		route: "/",
 	},
+	{
+		icon: "iconamoon:history-bold",
+		tabName: "history",
+		route: "/beekeeper/history",
+	},
 ];
 
 const Sidebar = () => {
@@ -74,7 +79,7 @@ const Sidebar = () => {
 		<nav className="bg-linear-to-b from-[#ffdb4f] to-[#d9a441] h-full shrink-0">
 			{/* NAV HEADER */}
 			<div className="px-3 pt-5 mb-10 flex items-center gap-2">
-				<div className="border border-amber-100 w-13 h-13 rounded-full overflow-hidden">
+				<div className="border border-amber-100 w-10 h-10 rounded-full overflow-hidden">
 					<Image
 						src={user_profile}
 						alt="user_profile"
@@ -83,7 +88,7 @@ const Sidebar = () => {
 					/>
 				</div>
 				<span
-					className="text-[26px] text-[#ffa004]"
+					className="text-xl text-[#ffa004]"
 					style={{
 						fontFamily: "'Poppins-Bold', sans-serif",
 					}}>
@@ -100,13 +105,16 @@ const Sidebar = () => {
 						<li key={i} className="group pl-5">
 							<Link
 								href={tab.route}
-								className={`flex items-center gap-2 p-2.5 rounded-l-xl group-hover:bg-white transition-all duration-100 ease-in ${activeTab ? "bg-white" : ""}`}>
-								<Icon
-									icon={tab.icon}
-									className={`w-8 h-8 mb-1 group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}
-								/>
+								className={`flex gap-2 items-center p-2.5 rounded-l-xl group-hover:bg-white transition-all duration-100 ease-in ${activeTab ? "bg-white" : ""}`}>
+								<div className="w-8 h-8">
+									<Icon
+										icon={tab.icon}
+										className={`w-full h-full mb-1 group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}
+									/>
+								</div>
+
 								<span
-									className={`capitalize text-xl group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
+									className={`Poppins-Medium capitalize text-base group-hover:text-[#ffc95f] transition-all duration-100 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
 									{tab.tabName}
 								</span>
 							</Link>

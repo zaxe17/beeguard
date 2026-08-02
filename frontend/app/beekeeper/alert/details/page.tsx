@@ -174,6 +174,62 @@ const Recommendation = () => {
 	);
 };
 
+type TimelineStatus = "active" | "pending" | "upcoming";
+
+type TimelineItem = {
+	title: string;
+	date: string;
+	time: string;
+	status: TimelineStatus;
+};
+
+const statusColors: Record<TimelineStatus, string> = {
+	active: "bg-[#ef4444]",
+	pending: "bg-[#f97316]",
+	upcoming: "bg-[#d1d5db]",
+};
+
+type AlertTimelineProps = {
+	title?: string;
+	items: TimelineItem[];
+};
+
+const AlertTimeline = ({
+	title = "Alert Timeline",
+	items,
+}: AlertTimelineProps) => {
+	return (
+		<div className="w-full flex flex-col gap-2">
+			<h1 className="Poppins-SemiBold text-xl">{title}</h1>
+
+			<div className="flex flex-col">
+				{items.map((item, index) => (
+					<div key={index} className="flex gap-3">
+						<div className="flex flex-col items-center">
+							<span
+								className={`w-3 h-3 rounded-full shrink-0 ${statusColors[item.status]}`}
+							/>
+							{index < items.length - 1 && (
+								<span className="w-px flex-1 bg-[#e5e7eb] my-1" />
+							)}
+						</div>
+
+						<div className={index < items.length - 1 ? "pb-6" : ""}>
+							<p className="Poppins-SemiBold text-sm text-[#111827]">
+								{item.title}
+							</p>
+							<p className="text-xs text-[#9ca3af] mt-0.5">
+								{item.date} <span className="mx-1">•</span>{" "}
+								{item.time}
+							</p>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+};
+
 const AlertDetails = () => {
 	return (
 		<div className="h-screen w-full flex gap-15 py-15 px-20">
@@ -203,11 +259,34 @@ const AlertDetails = () => {
 			{/* RIGHT */}
 			<div className="w-1/2">
 				{/* MAPS */}
-				<div className="w-full h-80 rounded-xl relative overflow-hidden">
+				<h1 className="Poppins-SemiBold text-xl mb-2">Maps</h1>
+				<div className="w-full h-80 rounded-xl relative overflow-hidden mb-8">
 					<Map />
-
-					
 				</div>
+
+				{/* TIMELINE */}
+				<AlertTimeline
+					items={[
+						{
+							title: "Alert Issued",
+							date: "May 10, 2024",
+							time: "8:00 AM",
+							status: "active",
+						},
+						{
+							title: "Scheduled Spraying",
+							date: "May 16, 2024",
+							time: "8:00 AM",
+							status: "pending",
+						},
+						{
+							title: "Expected Completion",
+							date: "May 16, 2024",
+							time: "12:00 PM",
+							status: "upcoming",
+						},
+					]}
+				/>
 			</div>
 		</div>
 	);

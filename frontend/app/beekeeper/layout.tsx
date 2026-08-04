@@ -1,3 +1,5 @@
+// layout.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,17 +7,15 @@ import { AddAlert } from "@/components/modal/AlertModal";
 import {
 	AddHiveModal,
 	AddYield,
-	BeeQueenModal,
 	MonitorHealth,
 	QueenReplace,
 	ViewHistory,
 } from "@/components/modal/HivesModal";
-import { Modal } from "@/components/modal/Modal";
+import { GenerateReportModal } from "@/components/modal/ReportModal";
 import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
-import { reportService } from "@/services/report";
 import {
 	WarningQueenReplacment,
 } from "@/components/popup/PopUp";
@@ -37,14 +37,9 @@ const BeekeeperLayoutContent = ({
 }: {
 	children: React.ReactNode;
 }) => {
-	const { closeModal, isModalOpen, payload } = useModal<
-		ModalType,
-		HivePayload
-	>();
+	const { closeModal, isModalOpen, payload } = useModal<ModalType, HivePayload>();
 
 	const [targetHive, setTargetHive] = useState<Hive | null>(null);
-	const [downloading, setDownloading] = useState(false);
-	const [downloadError, setDownloadError] = useState<string | null>(null);
 
 	const pathname = usePathname();
 	const location = pathname === "/beekeeper/hives";
@@ -72,23 +67,6 @@ const BeekeeperLayoutContent = ({
 		};
 	}, [payload?.hiveId, hiveScoped]);
 
-	const handleDownloadReport = async () => {
-		setDownloading(true);
-		setDownloadError(null);
-		try {
-			await reportService.downloadYieldReport();
-			closeModal();
-		} catch (err) {
-			setDownloadError(
-				err instanceof Error
-					? err.message
-					: "Failed to generate report.",
-			);
-		} finally {
-			setDownloading(false);
-		}
-	};
-
 	return (
 		<div className="w-full h-screen flex flex-row relative">
 			<Sidebar />
@@ -98,21 +76,12 @@ const BeekeeperLayoutContent = ({
 				{children}
 			</main>
 
-			<Modal
-				open={isModalOpen("generate")}
-				onCancel={closeModal}
-				onConfirm={handleDownloadReport}
-				title="GENERATE YIELD HISTORY"
-				content={
-					downloadError ||
-					(downloading
-						? "Preparing your report..."
-						: "Do you want to download your honey yield history?")
-				}
-				labelButton={downloading ? "Downloading..." : "Download"}
+			{/* GENERATE REPORT — now previews the PDF in-modal before
+			    the beekeeper commits to downloading it. */}
+			<GenerateReportModal
+				isOpen={isModalOpen("generate")}
+				onClose={closeModal}
 			/>
-
-			<BeeQueenModal onCancel={closeModal} />
 
 			<AddHiveModal
 				isOpen={isModalOpen("addHive")}

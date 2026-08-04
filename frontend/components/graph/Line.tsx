@@ -8,6 +8,7 @@ import {
 	PointElement,
 	LineElement,
 	Tooltip,
+	Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
@@ -17,16 +18,38 @@ ChartJS.register(
 	PointElement,
 	LineElement,
 	Tooltip,
+	Legend,
 );
+
+// Distinct, colorblind-friendlier palette cycled by hive index when
+// a per-hive color isn't explicitly provided.
+const DEFAULT_PALETTE = [
+	"#FFC93F", // yellow (original single-line default)
+	"#38b6ff", // blue
+	"#ff6b6b", // red
+	"#00cc88", // green
+	"#a66bff", // purple
+	"#ff9f40", // orange
+];
+
+export type YieldSeries = {
+	hive_id?: string;
+	label: string; // hive_name — used in the legend
+	data: (number | null)[];
+	color?: string;
+};
 
 type YieldSummaryChartProps = {
 	value: string;
 	valueLabel: string;
 	changeAmount: number;
 	changePercent: number;
-	categories: string[];
-	data: number[];
+	categories: string[]; // supports multi-line "Harvest Season N\nMon YYYY"
+	data?: number[]; // single-line mode (Dashboard)
+	series?: YieldSeries[]; // multi-line mode (History, per hive)
 	lineColor?: string;
+	onClick?: () => void; // NEW: e.g. navigate Dashboard -> History
+	hideSummary?: boolean; // NEW: force-hide the value/change header row
 };
 
 export const YieldSummaryChart = ({
@@ -36,27 +59,53 @@ export const YieldSummaryChart = ({
 	changePercent,
 	categories,
 	data,
+	series,
 	lineColor = "#FFC93F",
+	onClick,
+	hideSummary,
 }: YieldSummaryChartProps) => {
 	const isNegative = changeAmount < 0;
+	const isMultiLine = !!series && series.length > 0;
+
+	const datasets = isMultiLine
+		? series!.map((s, i) => {
+				const color = s.color ?? DEFAULT_PALETTE[i % DEFAULT_PALETTE.length];
+				return {
+					label: s.label,
+					data: s.data,
+					borderColor: color,
+					backgroundColor: color,
+					pointBackgroundColor: color,
+					pointBorderColor: "#fff",
+					pointBorderWidth: 2,
+					pointRadius: 5,
+					pointHoverRadius: 7,
+					borderWidth: 3,
+					tension: 0.4,
+					fill: false,
+					spanGaps: true, // connect only this hive's own points
+				};
+			})
+		: [
+				{
+					label: "Total Yield (kg)",
+					data: data ?? [],
+					borderColor: lineColor,
+					backgroundColor: lineColor,
+					pointBackgroundColor: lineColor,
+					pointBorderColor: "#fff",
+					pointBorderWidth: 2,
+					pointRadius: 5,
+					pointHoverRadius: 7,
+					borderWidth: 3,
+					tension: 0.4,
+					fill: false,
+				},
+			];
 
 	const chartData = {
-		labels: categories,
-		datasets: [
-			{
-				data,
-				borderColor: lineColor,
-				backgroundColor: lineColor,
-				pointBackgroundColor: lineColor,
-				pointBorderColor: "#fff",
-				pointBorderWidth: 2,
-				pointRadius: 5,
-				pointHoverRadius: 7,
-				borderWidth: 3,
-				tension: 0.4,
-				fill: false,
-			},
-		],
+		labels: categories.map((c) => c.split("\n")),
+		datasets,
 	};
 
 	const options = {
@@ -64,11 +113,11 @@ export const YieldSummaryChart = ({
 		maintainAspectRatio: false,
 		plugins: {
 			legend: {
-				display: false,
+				display: true,
+				position: "top" as const,
+				labels: { boxWidth: 12, font: { size: 11 } },
 			},
-			tooltip: {
-				enabled: true,
-			},
+			tooltip: { enabled: true },
 		},
 		animations: {
 			x: {
@@ -98,22 +147,12 @@ export const YieldSummaryChart = ({
 		scales: {
 			y: {
 				beginAtZero: true,
-				grid: {
-					color: "#f0f0f0",
-				},
-				ticks: {
-					font: { size: 11 },
-					color: "#666",
-				},
+				grid: { color: "#f0f0f0" },
+				ticks: { font: { size: 11 }, color: "#666" },
 			},
 			x: {
-				grid: {
-					display: false,
-				},
-				ticks: {
-					font: { size: 12, weight: "bold" as const },
-					color: "#333",
-				},
+				grid: { display: false },
+				ticks: { font: { size: 11, weight: "bold" as const }, color: "#333" },
 			},
 		},
 	};
@@ -121,9 +160,12 @@ export const YieldSummaryChart = ({
 	const location = useIsPage("/beekeeper/history");
 
 	return (
-		<div className="w-full h-full flex flex-col items-stretch gap-4">
-			{/* STATS */}
-			{!location && (
+		<div
+			className={`w-full h-full flex flex-col items-stretch gap-4 ${
+				onClick ? "cursor-pointer" : ""
+			}`}
+			onClick={onClick}>
+			{!location && !hideSummary && (
 				<div className="flex items-center justify-between text-sm">
 					<div className="flex flex-col">
 						<span className="Poppins-SemiBold text-[#38b6ff]">
@@ -146,7 +188,6 @@ export const YieldSummaryChart = ({
 				</div>
 			)}
 
-			{/* CHART */}
 			<div className="flex-1 flex flex-col">
 				<div className="flex-1 relative">
 					<Line data={chartData} options={options} />

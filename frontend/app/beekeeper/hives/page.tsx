@@ -1,3 +1,5 @@
+// page.tsx
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -11,11 +13,8 @@ import { SearchBar } from "@/components/ui/Input";
 import { Icon } from "@iconify/react";
 import { useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
-// NOTE: analyticsService currently has no per-hive monthly yield endpoint.
-// yieldTrend() is farm-wide only (categories + data arrays), not keyed by hive_id.
-// Re-add this import once a per-hive endpoint exists, e.g.:
-//   hiveMonthlyYield: () => api.get<Record<string, number>>("/analytics/hive-monthly-yield")
-// import { analyticsService } from "@/services/analytics";
+import { HIVES_CHANGED_EVENT, BeeQueenModal } from "@/components/modal/HivesModal";
+import { analyticsService } from "@/services/analytics";
 
 type ModalType =
 	| "addHive"
@@ -26,6 +25,14 @@ type ModalType =
 	| "replace";
 
 type HivePayload = { hiveId: string };
+
+// Health statuses that should trigger the queen-alert popup
+// the moment the hive is tapped in the list.
+const QUEEN_ALERT_STATUSES = new Set([
+	"Needs Attention",
+	"Weak",
+	"Diseased",
+]);
 
 function formatKg(v: number | undefined | null) {
 	return v == null ? "—" : `${v.toFixed(1)}kg`;
@@ -40,9 +47,18 @@ const Hives = () => {
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 
+	// Queen-alert popup state — separate from `selectedId` so it can
+	// be dismissed without losing the current selection.
+	const [queenAlertHive, setQueenAlertHive] = useState<Hive | null>(null);
+	const [showQueenAlert, setShowQueenAlert] = useState(false);
+
 	const loadAll = useCallback(async () => {
 		setLoading(true);
-		const hivesRes = await hiveService.list();
+		const [hivesRes, monthlyRes] = await Promise.all([
+			hiveService.list(),
+			analyticsService.hiveMonthlyYield?.() ??
+				Promise.resolve({ success: false, message: "", data: undefined }),
+		]);
 
 		if (hivesRes.success && hivesRes.data) {
 			setHives(hivesRes.data);
@@ -53,15 +69,23 @@ const Hives = () => {
 			);
 		}
 
-		// TODO: populate thisMonthKg once a per-hive monthly yield endpoint exists.
-		// For now this stays empty and formatKg() will render "—" for every hive.
-		setThisMonthKg({});
+		if (monthlyRes.success && monthlyRes.data) {
+			setThisMonthKg(monthlyRes.data as Record<string, number>);
+		}
 
 		setLoading(false);
 	}, []);
 
 	useEffect(() => {
 		loadAll();
+	}, [loadAll]);
+
+	// NEW: whenever a hive is added/updated anywhere (modals dispatch
+	// this event on success), refetch immediately — no restart needed.
+	useEffect(() => {
+		const handler = () => loadAll();
+		window.addEventListener(HIVES_CHANGED_EVENT, handler);
+		return () => window.removeEventListener(HIVES_CHANGED_EVENT, handler);
 	}, [loadAll]);
 
 	const selectedHive = hives.find((h) => h.hive_id === selectedId) ?? null;
@@ -73,6 +97,16 @@ const Hives = () => {
 	const openHiveModal = (modal: "monitorHealth" | "addYield" | "viewHistory" | "replace") => {
 		if (!selectedHive) return;
 		openModal(modal, { hiveId: selectedHive.hive_id });
+	};
+
+	// Handles a tap on a hive tab in the list: selects it, and if its
+	// health status needs attention, pops up the queen-alert modal.
+	const handleSelectHive = (hive: Hive) => {
+		setSelectedId(hive.hive_id);
+		if (QUEEN_ALERT_STATUSES.has(hive.health_status)) {
+			setQueenAlertHive(hive);
+			setShowQueenAlert(true);
+		}
 	};
 
 	return (
@@ -145,7 +179,7 @@ const Hives = () => {
 								yieldThisMonth={formatKg(thisMonthKg[h.hive_id])}
 								hiveState={h.hive_state}
 								selected={h.hive_id === selectedId}
-								onClick={() => setSelectedId(h.hive_id)}
+								onClick={() => handleSelectHive(h)}
 							/>
 						))
 					)}
@@ -177,6 +211,27 @@ const Hives = () => {
 					)}
 				</div>
 			</div>
+
+			{/* QUEEN ALERT POPUP — shows when a tapped hive needs attention */}
+			<BeeQueenModal
+				isOpen={showQueenAlert}
+				onClose={() => setShowQueenAlert(false)}
+				hive={
+					queenAlertHive
+						? {
+								hiveId: queenAlertHive.hive_id,
+								hiveName: queenAlertHive.hive_name,
+								healthStatus: queenAlertHive.health_status,
+							}
+						: null
+				}
+				onReplaceQueen={() => {
+					setShowQueenAlert(false);
+					if (queenAlertHive) {
+						openModal("replace", { hiveId: queenAlertHive.hive_id });
+					}
+				}}
+			/>
 		</div>
 	);
 };

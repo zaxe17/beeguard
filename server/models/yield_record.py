@@ -1,3 +1,5 @@
+# yield_record.py
+
 from config.database import Database
 from utils.id_generator import next_yield_id
 
@@ -7,12 +9,21 @@ class YieldModel:
 
     # ── READ ──────────────────────────────────
     @staticmethod
-    def find_baseline(hive_id: str):
+    def find_baseline(hive_id: str, conn=None):
+        """
+        `conn`, when passed, reads within the SAME transaction as the
+        caller (e.g. a pending yield insert that hasn't committed yet).
+        Without it, a fresh connection would not see uncommitted rows.
+        """
         sql = f"""
             SELECT * FROM {YieldModel.TABLE}
             WHERE hive_id = %s AND is_baseline = TRUE
             LIMIT 1
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id,))
+                return cur.fetchone()
         return Database.execute(sql, (hive_id,), fetchone=True)
 
     @staticmethod
@@ -27,24 +38,35 @@ class YieldModel:
         return Database.execute(sql, (hive_id,), fetchall=True) or []
 
     @staticmethod
-    def latest_non_baseline(hive_id: str):
-        """The most recent 'real' harvest (excludes the seeded historical row)."""
+    def latest_non_baseline(hive_id: str, conn=None):
+        """
+        The most recent 'real' harvest (excludes the seeded historical
+        row). Same conn-awareness as find_baseline — see note above.
+        """
         sql = f"""
             SELECT * FROM {YieldModel.TABLE}
             WHERE hive_id = %s AND is_baseline = FALSE
             ORDER BY yield_date DESC, created_at DESC
             LIMIT 1
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id,))
+                return cur.fetchone()
         return Database.execute(sql, (hive_id,), fetchone=True)
 
     @staticmethod
-    def last_n_non_baseline(hive_id: str, n: int = 3):
+    def last_n_non_baseline(hive_id: str, n: int = 3, conn=None):
         sql = f"""
             SELECT * FROM {YieldModel.TABLE}
             WHERE hive_id = %s AND is_baseline = FALSE
             ORDER BY yield_date DESC, created_at DESC
             LIMIT %s
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id, int(n)))
+                return cur.fetchall()
         return Database.execute(sql, (hive_id, int(n)), fetchall=True) or []
 
     @staticmethod

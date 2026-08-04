@@ -1,3 +1,5 @@
+# hive_service.py
+
 """
 Hive lifecycle orchestration.
 
@@ -8,6 +10,25 @@ Key responsibilities:
     modal — writes to hives_maintenance (option a) AND updates
     hives.health_status, then re-runs the queen rules engine.
   * Enforce beekeeper ownership on every mutating call.
+
+CUMULATIVE HEALTH TRACKING
+---------------------------
+health_status is no longer derived from a single Physical Inspection
+submission in isolation. Instead, each new inspection is MERGED with
+any symptoms still "open" from prior monitoring sessions (i.e. every
+distinct symptom reported since the last time the beekeeper recorded
+'Normal / Healthy'). This means:
+
+  - Monitor #1: select "Presence of Queen Cells"        -> Needs Attention
+  - Monitor #2: select "Emaciated Queen" (different one) -> Weak
+    (because the hive now has 2 distinct unresolved symptoms:
+     Queen Cells from monitor #1 + Emaciated Queen from monitor #2)
+  - Monitor #3: select "Normal / Healthy"                -> Healthy
+    (resets the tracker — future inspections start counting fresh)
+
+Re-selecting the SAME symptom again does not double-count it (the
+merge is a set union), so re-confirming an existing symptom does not
+by itself push the hive from Needs Attention to Weak.
 """
 import datetime as dt
 
@@ -18,14 +39,43 @@ from models.hive_maintenance import HiveMaintenanceModel
 from services.queen_service import QueenService
 
 
-# Maps the 4 radio options in MonitorHealth modal → hives.health_status
-INSPECTION_TO_HEALTH = {
-    "Normal / Healthy":          "Healthy",
-    "Presence of Queen Cells":   "Needs Attention",
-    "Reduction of Open Brood":   "Needs Attention",
-    "Emaciated Queen":           "Needs Attention",
+# The four checkboxes in the MonitorHealth modal.
+NORMAL_LABEL = "Normal / Healthy"
+VALID_INSPECTION_LABELS = {
+    NORMAL_LABEL,
+    "Presence of Queen Cells",
+    "Reduction of Open Brood",
+    "Emaciated Queen",
 }
-VALID_INSPECTION_LABELS = set(INSPECTION_TO_HEALTH.keys())
+
+
+def _health_from_observations(observation_labels: list[str]) -> str:
+    """
+    Maps a set of Physical Inspection labels to a health_status.
+
+    IMPORTANT: as of the cumulative-tracking change, `observation_labels`
+    passed in here is expected to already be the MERGED/CUMULATIVE set
+    (this session's picks + any still-unresolved symptoms from prior
+    monitoring sessions) — not just what was checked in the current
+    submission. See HiveService.record_physical_inspection().
+
+      - Only "Normal / Healthy" present (0 real symptoms) -> "Healthy"
+      - Exactly 1 distinct symptom                        -> "Needs Attention"
+      - 2 or 3 distinct symptoms                           -> "Weak"
+
+    "Normal / Healthy" is mutually exclusive with the other three at
+    the validator level (validate_physical_inspection rejects mixing
+    them within a single submission), so if it's present here it will
+    be the only item — the symptom_count below naturally comes out to
+    0 in that case.
+    """
+    symptom_count = len([o for o in observation_labels if o != NORMAL_LABEL])
+    if symptom_count == 0:
+        return "Healthy"
+    elif symptom_count == 1:
+        return "Needs Attention"
+    else:  # 2 or 3
+        return "Weak"
 
 
 class HiveService:
@@ -114,33 +164,62 @@ class HiveService:
     # ── PHYSICAL INSPECTION (MonitorHealth modal) ─
     @staticmethod
     def record_physical_inspection(beekeeper_id: str, hive_id: str,
-                                    observation_label: str,
+                                    observation_labels: list[str],
                                     activity_date: dt.date | None = None) -> dict:
         """
-        Called by the MonitorHealth modal. Encapsulates the whole flow:
+        Called by the MonitorHealth modal. `activity_date` is REQUIRED —
+        the beekeeper must explicitly pick the date of the inspection;
+        there is no silent "defaults to today" fallback.
+
+        Encapsulates the whole flow:
           1. Ownership check
-          2. Write hives_maintenance row (activity_type='Inspection',
-             remarks='Physical Inspection: <label>')
-          3. Update hives.health_status from the observation
-          4. Re-run queen rules engine (may fire a recommendation)
+          2. Look up any symptoms still unresolved from PRIOR monitoring
+             sessions (everything reported since the last 'Normal /
+             Healthy' record), and merge them with this session's picks
+             into a cumulative set.
+          3. Write ONE hives_maintenance row (activity_type='Inspection',
+             remarks='Physical Inspection: <label1>, <label2>, ...')
+             — remarks reflect ONLY this session's picks (audit trail).
+          4. Update hives.health_status from the CUMULATIVE merged set
+             (see _health_from_observations).
+          5. Re-run queen rules engine (may fire a recommendation).
         """
-        if observation_label not in VALID_INSPECTION_LABELS:
+        if not observation_labels or not set(observation_labels).issubset(VALID_INSPECTION_LABELS):
             raise ValueError(
-                f"Unknown physical-inspection observation: {observation_label!r}. "
-                f"Expected one of {sorted(VALID_INSPECTION_LABELS)}."
+                f"Unknown physical-inspection observation(s): {observation_labels!r}. "
+                f"Expected a non-empty subset of {sorted(VALID_INSPECTION_LABELS)}."
             )
+        if NORMAL_LABEL in observation_labels and len(observation_labels) > 1:
+            raise ValueError(
+                f"{NORMAL_LABEL!r} cannot be combined with other symptoms."
+            )
+
+        if activity_date is None:
+            raise ValueError("activity_date is required.")
 
         hive = HiveService.get_hive_owned(beekeeper_id, hive_id)
         if not hive:
             raise PermissionError("Hive does not exist or is not owned by this beekeeper.")
 
-        new_health = INSPECTION_TO_HEALTH[observation_label]
-        activity_date = activity_date or dt.date.today()
+        # ── Merge with unresolved symptoms from prior sessions ──
+        # Selecting 'Normal / Healthy' now is an explicit "hive is
+        # clear" signal, so it overrides/resets any carried-over
+        # symptoms rather than being merged with them.
+        if NORMAL_LABEL in observation_labels:
+            cumulative_labels = list(observation_labels)
+        else:
+            prior_symptoms = HiveMaintenanceModel.list_unresolved_symptoms(hive_id)
+            cumulative_labels = list(prior_symptoms)
+            for label in observation_labels:
+                if label not in cumulative_labels:
+                    cumulative_labels.append(label)
+
+        new_health = _health_from_observations(cumulative_labels)
 
         conn = Database.get_connection()
         try:
             HiveMaintenanceModel.record_physical_inspection(
-                conn, hive_id, observation_label, activity_date,
+                conn, hive_id, observation_labels, activity_date,
             )
             # Same transaction — but update_health_status uses a fresh
             # connection under the hood, so commit maintenance first.
@@ -157,8 +236,9 @@ class HiveService:
         recommendation = QueenService.evaluate_hive(hive_id, persist=True)
 
         return {
-            "hive_id":         hive_id,
-            "observation":     observation_label,
-            "health_status":   new_health,
-            "recommendation":  recommendation,
+            "hive_id":                hive_id,
+            "observations":           observation_labels,   # what was checked THIS session
+            "cumulative_observations": cumulative_labels,    # merged w/ prior unresolved symptoms
+            "health_status":          new_health,
+            "recommendation":         recommendation,
         }

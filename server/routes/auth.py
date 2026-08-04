@@ -8,7 +8,7 @@ from validators.auth_validator import (
     validate_unique_check_payload,
     validate_otp_payload,
 )
-from middleware.auth_middleware import token_required
+from middleware.auth_middleware import token_required, role_required
 from utils.responses import success, error
 from models.citizen import CitizenModel
 from models.beekeeper import BeekeeperModel
@@ -170,6 +170,68 @@ def me():
     if not user:
         return error("User not found.", status=404)
     return success("OK", data=user, status=200)
+
+
+# ── UPDATE MY LOCATION (beekeeper) ────────────
+# Fixes the gap where latitude was optional at registration (longitude
+# required, latitude not) — a beekeeper who registered without dropping
+# a map pin has latitude = NULL forever, which silently excludes them
+# from pesticide alert matching (PesticideService._find_nearby_beekeepers
+# requires both latitude AND longitude to be non-null). There was
+# previously no endpoint to set/fix this after signup.
+#
+# NOTE: only affects alerts created AFTER the location is fixed —
+# matching runs once at alert-creation time, it isn't recomputed
+# retroactively for existing alerts.
+@auth_bp.route("/me/location", methods=["PATCH"])
+@token_required
+@role_required("beekeeper")
+def update_my_location():
+    payload = request.get_json(silent=True) or {}
+    raw_lat = payload.get("latitude")
+    raw_lng = payload.get("longitude")
+
+    if raw_lat is None or raw_lng is None:
+        body, code = _envelope_error(
+            "Validation failed.",
+            {
+                **({"latitude": "Latitude is required."} if raw_lat is None else {}),
+                **({"longitude": "Longitude is required."} if raw_lng is None else {}),
+            },
+            422,
+        )
+        return body, code
+
+    try:
+        latitude = float(raw_lat)
+        longitude = float(raw_lng)
+    except (TypeError, ValueError):
+        body, code = _envelope_error(
+            "Validation failed.",
+            {"_": "Latitude and longitude must be numbers."},
+            422,
+        )
+        return body, code
+
+    if not (-90.0 <= latitude <= 90.0) or not (-180.0 <= longitude <= 180.0):
+        body, code = _envelope_error(
+            "Validation failed.",
+            {"_": "Latitude must be between -90 and 90, longitude between -180 and 180."},
+            422,
+        )
+        return body, code
+
+    try:
+        BeekeeperModel.update_location(g.user_id, latitude, longitude)
+    except Exception as e:
+        print(f"[UPDATE-LOCATION] Unhandled error: {e}")
+        return error("Failed to update location. Please try again.", status=500)
+
+    return success(
+        "Location updated. This will apply to alerts created from now on.",
+        data={"latitude": latitude, "longitude": longitude},
+        status=200,
+    )
 
 
 # ── DELETE USER (admin) ───────────────────────

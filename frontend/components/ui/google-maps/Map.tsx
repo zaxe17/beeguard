@@ -1,3 +1,5 @@
+// components/ui/google-maps/Map.tsx
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -5,6 +7,7 @@ import {
 	MapContainer,
 	TileLayer,
 	Marker,
+	Circle,
 	useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
@@ -16,6 +19,10 @@ type MapProps = {
 	onLocationSelect?: (coords: LatLng) => void;
 	initialCenter?: LatLng;
 	initialMarker?: LatLng | null;
+	// NEW: when provided, draws a circle around the marker showing the
+	// current danger radius (in kilometers) — updates live as the
+	// value changes, e.g. from the Add Alert modal's radius slider.
+	radiusKm?: number | null;
 };
 
 // Same spot the old static iframe pointed at (Bureau of Animal
@@ -33,7 +40,12 @@ const ClickHandler = ({ onClick }: { onClick: (coords: LatLng) => void }) => {
 	return null;
 };
 
-const Map = ({ onLocationSelect, initialCenter, initialMarker }: MapProps) => {
+const Map = ({
+	onLocationSelect,
+	initialCenter,
+	initialMarker,
+	radiusKm,
+}: MapProps) => {
 	const [marker, setMarker] = useState<LatLng | null>(initialMarker ?? null);
 	const center = marker ?? initialCenter ?? DEFAULT_CENTER;
 
@@ -75,6 +87,18 @@ const Map = ({ onLocationSelect, initialCenter, initialMarker }: MapProps) => {
 				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 			/>
 			{marker && <Marker position={[marker.lat, marker.lng]} icon={pinIcon} />}
+			{marker && radiusKm != null && radiusKm > 0 && (
+				<Circle
+					center={[marker.lat, marker.lng]}
+					radius={radiusKm * 1000}
+					pathOptions={{
+						color: "#ff9a00",
+						fillColor: "#ff9a00",
+						fillOpacity: 0.15,
+						weight: 2,
+					}}
+				/>
+			)}
 			<ClickHandler onClick={handleClick} />
 		</MapContainer>
 	);

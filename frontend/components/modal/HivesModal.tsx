@@ -1,3 +1,5 @@
+// HivesModal.tsx
+
 "use client";
 
 import { Icon } from "@iconify/react";
@@ -15,7 +17,6 @@ import {
 } from "@/services/hive";
 import { yieldService, YieldRecord } from "@/services/harvest";
 import { queenService } from "@/services/queen";
-import { useIsPage } from "@/hooks/useIsPage";
 
 import bee_report from "@/public/assets/bee_report.png";
 import Image from "next/image";
@@ -37,27 +38,39 @@ const HealthStatusOptions: {
 	{ label: "Diseased", value: "Diseased", color: "#cc0000" },
 ];
 
-const PhysicalInspectionOptions: InspectionObservation[] = [
-	"Normal / Healthy",
+// NORMAL_LABEL is mutually exclusive with the other three — checking
+// it clears any symptom checkboxes, and checking any symptom clears it.
+const NORMAL_LABEL: InspectionObservation = "Normal / Healthy";
+const SymptomOptions: InspectionObservation[] = [
 	"Presence of Queen Cells",
 	"Reduction of Open Brood",
 	"Emaciated Queen",
 ];
+const PhysicalInspectionOptions: InspectionObservation[] = [
+	NORMAL_LABEL,
+	...SymptomOptions,
+];
+
+// ── Shared "hives changed" signal ──────────────────────────
+// Dispatched after ANY successful create/update that affects hive
+// data, yields, or recommendations. Any screen (Hives list,
+// Dashboard, History) can listen for this and refetch immediately
+// instead of requiring a manual page refresh.
+export const HIVES_CHANGED_EVENT = "beeguard:hives-changed";
+
+function notifyHivesChanged() {
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(HIVES_CHANGED_EVENT));
+	}
+}
 
 // ── Shared history-entry shape ────────────────
-// The Monitoring tab shows {date, status} rows, the Harvest tab shows
-// {date, yield} rows. Previously groupByMonth was called separately
-// with two different generic T's, producing a union Record type that
-// TypeScript can't distribute Object.entries() over cleanly — that's
-// what caused the "implicitly has an any type" error. Using one
-// shared type (with both fields optional) for both tabs fixes it.
 type HistoryEntry = {
 	date: string;
 	status?: string;
 	yield?: string;
 };
 
-// groups entries by "Month Year"
 const groupByMonth = (data: HistoryEntry[]): Record<string, HistoryEntry[]> => {
 	const groups: Record<string, HistoryEntry[]> = {};
 
@@ -146,6 +159,11 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 
 			resetForm();
 			setSubmitting(false);
+
+			// NEW: broadcast so Hives list / Dashboard / History refetch
+			// immediately without needing a manual page reload.
+			notifyHivesChanged();
+
 			onConfirm?.();
 			onClose();
 		} catch {
@@ -257,18 +275,41 @@ export const MonitorHealth = ({
 	hive,
 }: HiveScopedModalProps) => {
 	const [activityDate, setActivityDate] = useState("");
-	const [observation, setObservation] =
-		useState<InspectionObservation | null>(null);
+	// NEW: multi-select — replaces the old single `observation` state.
+	const [observations, setObservations] = useState<InspectionObservation[]>(
+		[],
+	);
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (isOpen) {
 			setActivityDate("");
-			setObservation(null);
+			setObservations([]);
 			setErrorMsg(null);
 		}
 	}, [isOpen, hive?.hiveId]);
+
+	// Toggling "Normal / Healthy" clears any symptom checkboxes (they're
+	// mutually exclusive). Toggling any symptom clears "Normal / Healthy"
+	// if it was checked, and otherwise adds/removes that one symptom —
+	// so up to all 3 symptoms can be checked together.
+	const toggleObservation = (label: InspectionObservation) => {
+		setObservations((prev) => {
+			const isChecked = prev.includes(label);
+
+			if (label === NORMAL_LABEL) {
+				return isChecked ? [] : [NORMAL_LABEL];
+			}
+
+			// Checking a symptom always clears "Normal / Healthy" first.
+			const withoutNormal = prev.filter((o) => o !== NORMAL_LABEL);
+			if (isChecked) {
+				return withoutNormal.filter((o) => o !== label);
+			}
+			return [...withoutNormal, label];
+		});
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -278,15 +319,15 @@ export const MonitorHealth = ({
 			setErrorMsg("No hive selected.");
 			return;
 		}
-		if (!observation) {
-			setErrorMsg("Please select a physical inspection observation.");
+		if (observations.length === 0) {
+			setErrorMsg("Please select at least one physical inspection observation.");
 			return;
 		}
 
 		setSubmitting(true);
 		try {
 			const res = await hiveService.recordInspection(hive.hiveId, {
-				observation,
+				observations,
 				activity_date: activityDate || null,
 			});
 
@@ -301,6 +342,11 @@ export const MonitorHealth = ({
 			}
 
 			setSubmitting(false);
+
+			// NEW: health_status + recommendation may have changed —
+			// refresh any screen listening.
+			notifyHivesChanged();
+
 			onConfirm?.();
 			onClose();
 		} catch {
@@ -338,34 +384,41 @@ export const MonitorHealth = ({
 				<label className="lg:text-base text-xs text-black">
 					Physical Inspection
 				</label>
+				<p className="text-[10px] text-[#817b70] -mt-2">
+					Select all that apply. 1 symptom → Needs Attention · 2–3
+					symptoms → Weak.
+				</p>
 				<div className="grid grid-cols-2 gap-2 mb-3">
-					{PhysicalInspectionOptions.map((label) => (
-						<label
-							key={label}
-							className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
-							style={{
-								boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
-							}}>
-							<div className="flex justify-start items-center gap-2">
-								<input
-									type="radio"
-									name="healthStatus"
-									className="hidden"
-									checked={observation === label}
-									onChange={() => setObservation(label)}
-								/>
-								<div className="w-4.25 h-4.25 rounded-sm border border-[#a6a3a3]">
-									<Icon
-										icon="iconamoon:check-bold"
-										className="hidden w-full h-full text-[#4A2F00] group-has-[input:checked]:block"
+					{PhysicalInspectionOptions.map((label) => {
+						const checked = observations.includes(label);
+						return (
+							<label
+								key={label}
+								className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
+								style={{
+									boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+								}}>
+								<div className="flex justify-start items-center gap-2">
+									<input
+										type="checkbox"
+										name="observations"
+										className="hidden"
+										checked={checked}
+										onChange={() => toggleObservation(label)}
 									/>
+									<div className="w-4.25 h-4.25 rounded-sm border border-[#a6a3a3]">
+										<Icon
+											icon="iconamoon:check-bold"
+											className="hidden w-full h-full text-[#4A2F00] group-has-[input:checked]:block"
+										/>
+									</div>
+									<span className="Poppins-SemiBold text-xs">
+										{label}
+									</span>
 								</div>
-								<span className="Poppins-SemiBold text-xs">
-									{label}
-								</span>
-							</div>
-						</label>
-					))}
+							</label>
+						);
+					})}
 				</div>
 
 				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
@@ -434,6 +487,11 @@ export const AddYield = ({
 			}
 
 			setSubmitting(false);
+
+			// NEW: new harvest affects Dashboard tiles, yield trend, and
+			// possibly a queen recommendation — refresh everywhere.
+			notifyHivesChanged();
+
 			onConfirm?.();
 			onClose();
 		} catch {
@@ -691,6 +749,10 @@ export const QueenReplace = ({
 			}
 
 			setSubmitting(false);
+
+			// NEW: queen_installed_date + recommendation state changed.
+			notifyHivesChanged();
+
 			onConfirm?.();
 			onClose();
 		} catch {
@@ -729,33 +791,64 @@ export const QueenReplace = ({
 	);
 };
 
-type BeeQueenModalProps = {
-	onCancel?: () => void;
+// ─────────────────────────────────────────────
+// QUEEN ALERT POPUP — shown when a tapped hive's health status
+// is Needs Attention / Weak / Diseased. Fully prop-driven now:
+// the parent screen decides WHEN to open it and WHICH hive it's
+// for (see `page.tsx`), instead of the old hardcoded/hidden logic.
+// ─────────────────────────────────────────────
+type BeeQueenModalHive = {
+	hiveId: string;
+	hiveName: string;
+	healthStatus: HealthStatus;
 };
 
-export const BeeQueenModal = ({ onCancel }: BeeQueenModalProps) => {
-	const isHivesPage = useIsPage("/beekeeper/hives");
-	const [dismissed, setDismissed] = useState(false);
+type BeeQueenModalProps = ModalProps & {
+	hive?: BeeQueenModalHive | null;
+	onReplaceQueen?: () => void;
+};
 
-	const handleCancel = () => {
-		setDismissed(true);
-		onCancel?.();
-	};
+const QUEEN_ALERT_TEXT: Partial<Record<HealthStatus, { title: string; message: string }>> = {
+	"Needs Attention": {
+		title: "QUEEN BEE NEEDS ATTENTION",
+		message: "Consider replacing the queen bee for a more productive colony.",
+	},
+	Weak: {
+		title: "HIVE IS WEAK",
+		message: "This hive is weakening. Consider replacing the queen bee.",
+	},
+	Diseased: {
+		title: "HIVE IS DISEASED",
+		message: "This hive shows signs of disease. Consider replacing the queen bee.",
+	},
+};
 
-	if (!isHivesPage || dismissed) return null;
+export const BeeQueenModal = ({
+	isOpen,
+	onClose,
+	hive,
+	onReplaceQueen,
+}: BeeQueenModalProps) => {
+	if (!isOpen || !hive) return null;
+
+	const alertText =
+		QUEEN_ALERT_TEXT[hive.healthStatus] ??
+		QUEEN_ALERT_TEXT["Needs Attention"]!;
 
 	return (
-		<div className="hidden fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center">
+		<div
+			className="fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center"
+			onClick={onClose}>
 			<div
 				className="w-1/4 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5"
 				onClick={(e) => e.stopPropagation()}>
 				<div className="flex flex-col items-center text-center">
 					<h2 className="Poppins-Bold text-[#db4b44] text-4xl uppercase">
-						HIVE #003
+						{hive.hiveName}
 					</h2>
 
 					<p className="Poppins-Bold text-xl uppercase">
-						QUEEN BEE NEEDS ATTENTION
+						{alertText.title}
 					</p>
 
 					<div className="w-full flex justify-center items-center my-4">
@@ -766,14 +859,15 @@ export const BeeQueenModal = ({ onCancel }: BeeQueenModalProps) => {
 						/>
 					</div>
 
-					<p className="text-base mb-3">
-						Consider replacing the queen bee for much productive
-						colony.
-					</p>
+					<p className="text-base mb-3">{alertText.message}</p>
 
 					<div className="flex items-center gap-3 w-full">
-						<CancelButton onClick={handleCancel} />
-						<Button buttonType="button" label="Replace Queen" />
+						<CancelButton onClick={onClose} />
+						<Button
+							buttonType="button"
+							label="Replace Queen"
+							onClick={onReplaceQueen}
+						/>
 					</div>
 				</div>
 			</div>

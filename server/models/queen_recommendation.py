@@ -7,23 +7,58 @@ class QueenRecommendationModel:
 
     # ── READ ──────────────────────────────────
     @staticmethod
-    def latest_open_for_hive(hive_id: str):
-        """Most-recent unresolved recommendation for a hive (any level)."""
+    def latest_open_for_hive(hive_id: str, conn=None):
+        """
+        Most-recent unresolved recommendation for a hive (ANY level,
+        including 'Normal'). Used only for de-dupe inside
+        QueenService.evaluate_hive() — NOT for display — so 'Normal'
+        stays included here to correctly detect "nothing changed since
+        last evaluation."
+
+        `conn` MUST be passed through when the caller (evaluate_hive)
+        is running inside an existing transaction (e.g. from
+        YieldService.add_harvest, or a second evaluate_hive call on
+        the same not-yet-committed conn). Without it, this read goes
+        out on a separate connection and won't see a row this same
+        transaction already inserted-but-not-committed — the dedupe
+        then thinks there's no open recommendation and inserts a
+        SECOND open row for the same hive, which is what made
+        dashboard_summary()'s recommendations.open count (rows, not
+        hives) exceed the actual number of hives needing attention.
+        """
         sql = f"""
             SELECT * FROM {QueenRecommendationModel.TABLE}
             WHERE hive_id = %s AND resolved_at IS NULL
             ORDER BY evaluated_at DESC
             LIMIT 1
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id,))
+                return cur.fetchone()
         return Database.execute(sql, (hive_id,), fetchone=True)
 
     @staticmethod
     def list_open_for_beekeeper(beekeeper_id: str, min_level: str | None = None):
         """
-        Open (unresolved) recommendations for a beekeeper.
-        `min_level='Replace'` filters to actionable ones only.
+        Open (unresolved), ACTIONABLE recommendations for a beekeeper.
+
+        'Normal' rows are logging-only — a hive evaluating as Normal
+        is never something the beekeeper needs to act on, and it never
+        gets explicitly resolved (confirm_replacement only resolves
+        Monitor/Replace). So it's EXCLUDED here unconditionally, even
+        without a min_level filter — otherwise a Normal hive would sit
+        "open" forever and inflate dashboard/recommendation counts.
+
+        `min_level='Replace'` narrows further to Replace-only.
+        `min_level='Monitor'` narrows to Monitor+Replace (same as the
+        unconditional default, kept for explicitness/back-compat).
         """
-        clauses = ["beekeeper_id = %s", "resolved_at IS NULL"]
+        clauses = [
+            "beekeeper_id = %s",
+            "resolved_at IS NULL",
+            "level != 'Normal'",
+        ]
         params: list = [beekeeper_id]
         if min_level == "Replace":
             clauses.append("level = 'Replace'")
@@ -88,6 +123,30 @@ class QueenRecommendationModel:
               AND resolved_at IS NULL
         """
         return Database.execute(sql, (recommendation_id, beekeeper_id), commit=True)
+
+    @staticmethod
+    def resolve_with_conn(conn, recommendation_id: str) -> int:
+        """
+        Same-tx resolve — used by QueenService.evaluate_hive() to
+        auto-close a stale open recommendation the moment a fresh
+        evaluation supersedes it (level/reason_code changed), so it
+        commits/rolls back together with the new row's INSERT.
+
+        Without this, a hive that transitions Monitor -> Replace ->
+        Monitor (etc.) across harvests leaves EVERY prior open row
+        unresolved — one hive ends up with multiple "open" rows,
+        inflating AnalyticsService.dashboard_summary()'s
+        recommendations.open count above the actual number of hives
+        that need attention. Not beekeeper-scoped (unlike resolve())
+        because this is a system-triggered supersede, not a user action.
+        """
+        sql = f"""
+            UPDATE {QueenRecommendationModel.TABLE}
+            SET resolved_at = CURRENT_TIMESTAMP
+            WHERE recommendation_id = %s AND resolved_at IS NULL
+        """
+        with conn.cursor() as cur:
+            return cur.execute(sql, (recommendation_id,))
 
     @staticmethod
     def acknowledge(recommendation_id: str, beekeeper_id: str) -> int:

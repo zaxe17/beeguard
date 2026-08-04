@@ -1,3 +1,5 @@
+# report_service.py
+
 """
 PDF report generator for Feature 5 (Yield Analytics Reports).
 
@@ -79,6 +81,7 @@ class ReportService:
         story += ReportService._monthly_trend_block(dataset)
         story.append(PageBreak())
         story += ReportService._per_hive_blocks(dataset)
+        story += ReportService._signature_block(beekeeper)
 
         doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
         return buf.getvalue()
@@ -273,6 +276,48 @@ class ReportService:
             Spacer(1, 4),
             Paragraph("Queen recommendations", STYLES["h2"]),
             rtbl,
+        ]
+
+    # ── Signature block (typed, not drawn/uploaded) ────
+    @staticmethod
+    def _signature_block(bk: dict) -> list:
+        """
+        A simple typed certification line at the end of the report —
+        the beekeeper's name and today's date, formatted like a
+        signature line. No image/DB storage involved; the name comes
+        straight from the same beekeeper dict already passed into
+        render_yield_report().
+        """
+        today_str = dt.date.today().strftime("%B %d, %Y")
+        name = bk.get("name") or "—"
+
+        sig_rows = [
+            ["_" * 42, "_" * 22],
+            [name, today_str],
+            ["Beekeeper's Signature", "Date"],
+        ]
+        sig_tbl = Table(sig_rows, colWidths=[90*mm, 40*mm])
+        sig_tbl.setStyle(TableStyle([
+            ("FONT",          (0,0), (-1,0), "Helvetica", 9),
+            ("FONT",          (0,1), (0,1), "Helvetica-Bold", 9.5),
+            ("FONT",          (1,1), (1,1), "Helvetica", 9.5),
+            ("FONT",          (0,2), (-1,2), "Helvetica-Oblique", 8),
+            ("TEXTCOLOR",     (0,2), (-1,2), colors.grey),
+            ("TOPPADDING",    (0,0), (-1,-1), 2),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+        ]))
+
+        return [
+            Spacer(1, 18),
+            Paragraph("Certification", STYLES["h1"]),
+            Paragraph(
+                "I certify that the yield and hive records presented in "
+                "this report reflect my own recorded observations and "
+                "harvests.",
+                STYLES["body"],
+            ),
+            Spacer(1, 20),
+            sig_tbl,
         ]
 
 

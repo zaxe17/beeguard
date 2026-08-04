@@ -28,6 +28,16 @@ def yield_trend():
     return success("OK", data=data, status=200)
 
 
+# ── PER-HIVE YIELD TREND (History page, multi-line) ────
+@analytics_bp.route("/hive-yield-trends", methods=["GET"])
+@token_required
+@role_required("beekeeper")
+def hive_yield_trends():
+    months = request.args.get("months", default=12, type=int)
+    data = AnalyticsService.hive_yield_trends(g.user_id, months=months)
+    return success("OK", data=data, status=200)
+
+
 # ── PER-HIVE THIS-MONTH YIELD (Hives page list) ─
 @analytics_bp.route("/hive-monthly-yield", methods=["GET"])
 @token_required

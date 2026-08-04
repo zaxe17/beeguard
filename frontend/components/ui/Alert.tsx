@@ -14,6 +14,10 @@ export type AlertProps = {
 	date: string;
 	time: string;
 	status: "high" | "medium" | "low";
+	// NEW: wired up so the card is actually clickable, not just
+	// styled like it (it already had cursor-pointer/hover before,
+	// with nothing behind it).
+	onClick?: () => void;
 };
 
 const alertLevels = {
@@ -36,11 +40,21 @@ export const PesticideAlert = ({
 	date,
 	time,
 	status,
+	onClick,
 }: AlertProps) => {
 	const [isHovered, setIsHovered] = useState(false);
 
 	return (
 		<div
+			role={onClick ? "button" : undefined}
+			tabIndex={onClick ? 0 : undefined}
+			onClick={onClick}
+			onKeyDown={(e) => {
+				if (onClick && (e.key === "Enter" || e.key === " ")) {
+					e.preventDefault();
+					onClick();
+				}
+			}}
 			className="px-3 flex items-start rounded-2xl border hover:bg-[#fff1ad]/60 transition-all duration-100 ease-in hover:scale-102 cursor-pointer"
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}

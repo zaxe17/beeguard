@@ -1,3 +1,5 @@
+# hive_validator.py
+
 """
 Validators for hive create / update / physical-inspection payloads.
 Returns (cleaned, field_errors) — same shape as auth_validator.
@@ -6,8 +8,9 @@ import datetime as dt
 
 VALID_HEALTH  = {"Healthy", "Needs Attention", "Weak", "Diseased"}
 VALID_STATE   = {"Active", "Inactive"}
+NORMAL_LABEL  = "Normal / Healthy"
 VALID_INSPECT = {
-    "Normal / Healthy",
+    NORMAL_LABEL,
     "Presence of Queen Cells",
     "Reduction of Open Brood",
     "Emaciated Queen",
@@ -124,18 +127,41 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
 
 
 def validate_physical_inspection(payload: dict) -> tuple[dict, dict]:
+    """
+    NOTE: this now expects `observations` — a NON-EMPTY LIST of one or
+    more of VALID_INSPECT (checkboxes, not a single radio choice
+    anymore). "Normal / Healthy" is mutually exclusive with the other
+    three — if present, it must be the only item selected.
+    """
     errors: dict[str, str] = {}
     cleaned: dict = {}
 
-    obs = payload.get("observation")
-    if obs not in VALID_INSPECT:
-        errors["observation"] = f"observation must be one of {sorted(VALID_INSPECT)}."
+    obs_raw = payload.get("observations")
+    if not isinstance(obs_raw, list) or len(obs_raw) == 0:
+        errors["observations"] = (
+            f"observations must be a non-empty list containing one or "
+            f"more of {sorted(VALID_INSPECT)}."
+        )
     else:
-        cleaned["observation"] = obs
+        seen: list[str] = []
+        invalid_found = False
+        for o in obs_raw:
+            if o not in VALID_INSPECT:
+                invalid_found = True
+                break
+            if o not in seen:
+                seen.append(o)
+
+        if invalid_found:
+            errors["observations"] = f"observations must only contain values from {sorted(VALID_INSPECT)}."
+        elif NORMAL_LABEL in seen and len(seen) > 1:
+            errors["observations"] = "'Normal / Healthy' cannot be combined with other symptoms."
+        else:
+            cleaned["observations"] = seen
 
     ad_raw = payload.get("activity_date")
-    if ad_raw is None:
-        cleaned["activity_date"] = dt.date.today()
+    if ad_raw is None or (isinstance(ad_raw, str) and not ad_raw.strip()):
+        errors["activity_date"] = "activity_date is required (YYYY-MM-DD)."
     else:
         ad = _parse_date(ad_raw)
         if ad is None:

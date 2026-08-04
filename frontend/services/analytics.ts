@@ -39,6 +39,21 @@ export interface YieldTrend {
 	data: number[];
 }
 
+// NEW: one shared x-axis (every hive's harvest dates, chronological)
+// plus one series per hive, values aligned to that shared axis with
+// `null` at indices that belong to a different hive. Powers the
+// multi-line History chart.
+export interface HiveTrendSeries {
+	hive_id: string;
+	hive_name: string;
+	data: (number | null)[];
+}
+
+export interface HiveYieldTrends {
+	categories: string[];
+	series: HiveTrendSeries[];
+}
+
 export interface HiveHealthSlice {
 	label: string;
 	value: number;
@@ -58,7 +73,16 @@ export const analyticsService = {
 	yieldTrend: (months = 12) =>
 		api.get<YieldTrend>(`/analytics/yield-trend?months=${months}`),
 
+	// NEW: per-hive multi-line trend for the History page.
+	hiveYieldTrends: (months = 12) =>
+		api.get<HiveYieldTrends>(`/analytics/hive-yield-trends?months=${months}`),
+
 	hiveHealth: () => api.get<HiveHealthSlice[]>("/analytics/hive-health"),
+
+	// NEW: per-hive this-month totals, used by the Hives list/detail
+	// so "Yield (This Month)" no longer shows "—" for every hive.
+	hiveMonthlyYield: () =>
+		api.get<Record<string, number>>("/analytics/hive-monthly-yield"),
 
 	seasonalComparison: (hiveId?: string) =>
 		api.get<SeasonalComparisonRow[]>(

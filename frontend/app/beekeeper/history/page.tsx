@@ -39,6 +39,15 @@ const YearFilter = ({
 	);
 };
 
+// BEE QUEEN HISTORY CARD
+const BQHistoryCard = () => {
+	return (
+		<div className="bg-white p-3 rounded-lg" style={{boxShadow: "rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 2px 6px 2px"}}>
+			asasd
+		</div>
+	)
+}
+
 const History = () => {
 	const [loading, setLoading] = useState(true);
 	const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -76,7 +85,9 @@ const History = () => {
 	// real harvest history instead of being hardcoded.
 	const availableYears = useMemo(() => {
 		const years = new Set(trends.categories.map(periodYear));
-		return Array.from(years).sort((a, b) => b - a).map(String);
+		return Array.from(years)
+			.sort((a, b) => b - a)
+			.map(String);
 	}, [trends.categories]);
 
 	// Filtering by year keeps every series aligned to the same
@@ -88,7 +99,9 @@ const History = () => {
 				? trends.categories.map((_, i) => i)
 				: trends.categories
 						.map((c, i) => ({ c, i }))
-						.filter(({ c }) => String(periodYear(c)) === selectedYear)
+						.filter(
+							({ c }) => String(periodYear(c)) === selectedYear,
+						)
 						.map(({ i }) => i);
 
 		const labels = idxs.map((i) => formatPeriod(trends.categories[i]));
@@ -102,44 +115,72 @@ const History = () => {
 	}, [trends, selectedYear]);
 
 	return (
-		<div className="h-full w-full flex justify-center items-center">
-			<div className="h-full w-full flex flex-col justify-center pt-10 p-5">
-				{/* FILTER BUTTON */}
-				<div className="flex justify-start gap-3 mb-6">
-					<YearFilter
-						year="All"
-						active={selectedYear === "All"}
-						onClick={() => setSelectedYear("All")}
-					/>
-					{availableYears.map((y) => (
+		<div className="h-full w-full min-h-0 flex justify-center items-center overflow-hidden">
+			<div className="flex flex-col h-full w-full min-h-0 overflow-y-auto">
+				{/* LINE GRAPH */}
+				<div className="h-2/3 w-full flex flex-col justify-center pt-10 p-5">
+					{/* FILTER BUTTON */}
+					<div className="flex justify-start gap-3 mb-6">
 						<YearFilter
-							key={y}
-							year={y}
-							active={selectedYear === y}
-							onClick={() => setSelectedYear(y)}
+							year="All"
+							active={selectedYear === "All"}
+							onClick={() => setSelectedYear("All")}
 						/>
-					))}
+						{availableYears.map((y) => (
+							<YearFilter
+								key={y}
+								year={y}
+								active={selectedYear === y}
+								onClick={() => setSelectedYear(y)}
+							/>
+						))}
+					</div>
+
+					<div className="w-full h-screen">
+						{loading ? (
+							<p className="text-center text-sm text-[#817b70] p-4">
+								Loading history...
+							</p>
+						) : series.length === 0 ? (
+							<p className="text-center text-sm text-[#817b70] p-4">
+								No harvest history yet.
+							</p>
+						) : (
+							<YieldSummaryChart
+								value={formatKg(
+									summary?.yield_totals.this_month.total_kg,
+								)}
+								valueLabel="Yield This Month"
+								changeAmount={
+									summary?.yield_totals.change_amount ?? 0
+								}
+								changePercent={
+									summary?.yield_totals.change_percent ?? 0
+								}
+								categories={
+									labels.length ? labels : ["No data"]
+								}
+								series={series}
+							/>
+						)}
+					</div>
 				</div>
 
-				<div className="w-full h-screen">
-					{loading ? (
-						<p className="text-center text-sm text-[#817b70] p-4">
-							Loading history...
-						</p>
-					) : series.length === 0 ? (
-						<p className="text-center text-sm text-[#817b70] p-4">
-							No harvest history yet.
-						</p>
-					) : (
-						<YieldSummaryChart
-							value={formatKg(summary?.yield_totals.this_month.total_kg)}
-							valueLabel="Yield This Month"
-							changeAmount={summary?.yield_totals.change_amount ?? 0}
-							changePercent={summary?.yield_totals.change_percent ?? 0}
-							categories={labels.length ? labels : ["No data"]}
-							series={series}
-						/>
-					)}
+				{/* BEE QUEEN REPLACEMENT CONTAINER HISTORY */}
+				<div className="w-full px-5 py-4 grid grid-cols-3 gap-3">
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
+					<BQHistoryCard />
 				</div>
 			</div>
 		</div>

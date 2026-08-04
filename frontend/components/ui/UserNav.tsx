@@ -1,11 +1,32 @@
-import Image from "next/image";
+"use client"
 
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import user_profile from "@/public/assets/user_profile.png";
 import { Icon } from "@iconify/react";
+import Notification from "../popup/Notification";
 
 export const UserNav = () => {
+	const [isOpen, setIsOpen] = useState(false);
+	const wrapperRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				wrapperRef.current &&
+				!wrapperRef.current.contains(event.target as Node)
+			) {
+				setIsOpen(false);
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		return () =>
+			document.removeEventListener("mousedown", handleClickOutside);
+	}, []);
+
 	return (
-		<div className="pt-3 w-full flex items-center justify-between">
+		<div className="w-full flex items-start justify-between">
 			<div className="flex items-center gap-3.5">
 				{/* USER PROFILE */}
 				<div className="border border-amber-100 w-16 h-16 rounded-full">
@@ -27,18 +48,30 @@ export const UserNav = () => {
 
 			{/* 3 ACTION BUTTON [NOTIFICATION, MESSAGES] */}
 			<div className="flex items-center gap-3">
+				{/* NOTIFICATION */}
 				<div className="relative">
-                    <span className="absolute right-0 bg-red-500 border-2 border-white w-4 h-4 rounded-full text-[8px] text-white flex justify-center items-center">4</span>
-					<Icon
-						icon="mdi:notifications"
-						className="w-10 h-10 text-[#ffdb4f] cursor-pointer"
-					/>
+					<span className="absolute right-0 bg-red-500 border-2 border-white w-4 h-4 rounded-full text-[8px] text-white flex justify-center items-center">
+						4
+					</span>
+					<div
+						onClick={() => setIsOpen((prev) => !prev)}
+						className="w-10 h-10">
+						<Icon
+							icon="mdi:notifications"
+							className="w-full h-full text-[#ffdb4f] cursor-pointer"
+						/>
+					</div>
+
+					{isOpen && <Notification />}
 				</div>
 
-				<Icon
-					icon="flowbite:messages-solid"
-					className="w-10 h-10 text-[#ffdb4f] cursor-pointer"
-				/>
+				{/* MESSAGE */}
+				<div className="w-10 h-10">
+					<Icon
+						icon="flowbite:messages-solid"
+						className="w-full h-full text-[#ffdb4f] cursor-pointer"
+					/>
+				</div>
 			</div>
 		</div>
 	);

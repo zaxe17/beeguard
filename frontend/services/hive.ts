@@ -1,3 +1,5 @@
+// services/hive.ts
+
 import { api, ApiEnvelope } from "./api";
 
 export type HealthStatus = "Healthy" | "Needs Attention" | "Weak" | "Diseased";
@@ -49,13 +51,15 @@ export type InspectionObservation =
 	| "Emaciated Queen";
 
 export interface PhysicalInspectionPayload {
-	observation: InspectionObservation;
+	// NEW: multi-select — one or more checkboxes, instead of a single
+	// radio choice. "Normal / Healthy" must be the ONLY item if chosen.
+	observations: InspectionObservation[];
 	activity_date?: string | null;
 }
 
 export interface InspectionResult {
 	hive_id: string;
-	observation: string;
+	observations: string[];
 	health_status: HealthStatus;
 	recommendation: QueenRecommendationResult;
 }

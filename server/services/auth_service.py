@@ -190,21 +190,56 @@ class AuthService:
             email=email, role=role, name=row.get("name", "")
         )
 
-    # ---------- login (now accepts remember_me) ----------
+    # ---------- role auto-detection ----------
     @staticmethod
-    def login(role: str, identifier: str, password: str,
+    def _find_account_by_identifier(identifier: str):
+        """
+        Look up `identifier` (username or email) across all three role
+        tables, in order: citizen -> beekeeper -> admin. Returns the
+        first match as (role, id_field, row), or (None, None, None) if
+        no account exists under any role.
+
+        This relies on username/email being enforced unique ACROSS the
+        citizen and beekeeper tables already (see AuthService.check_unique,
+        used at registration time), so a given identifier should only
+        ever belong to one account. Admin accounts are looked up by
+        email only, matching the existing admin lookup elsewhere in
+        this service.
+        """
+        row = CitizenModel.find_by_username_or_email(identifier)
+        if row:
+            return "citizen", "citizenID", row
+
+        row = BeekeeperModel.find_by_username_or_email(identifier)
+        if row:
+            return "beekeeper", "beekeeperID", row
+
+        row = AdminModel.find_by_email(identifier)
+        if row:
+            return "admin", "adminID", row
+
+        return None, None, None
+
+    # ---------- login (role optional — auto-detected if omitted) ----------
+    @staticmethod
+    def login(role: str | None, identifier: str, password: str,
               remember: bool = False) -> tuple[bool, str, dict | None]:
-        if role == "citizen":
-            row = CitizenModel.find_by_username_or_email(identifier)
-            id_field = "citizenID"
-        elif role == "beekeeper":
-            row = BeekeeperModel.find_by_username_or_email(identifier)
-            id_field = "beekeeperID"
-        elif role == "admin":
-            row = AdminModel.find_by_email(identifier)
-            id_field = "adminID"
+        if role:
+            # Explicit role given — look up only in that table.
+            if role == "citizen":
+                row = CitizenModel.find_by_username_or_email(identifier)
+                id_field = "citizenID"
+            elif role == "beekeeper":
+                row = BeekeeperModel.find_by_username_or_email(identifier)
+                id_field = "beekeeperID"
+            elif role == "admin":
+                row = AdminModel.find_by_email(identifier)
+                id_field = "adminID"
+            else:
+                return False, "Invalid role.", None
         else:
-            return False, "Invalid role.", None
+            # No role given — auto-detect by searching all role tables.
+            role, id_field, row = AuthService._find_account_by_identifier(identifier)
 
         if not row:
             return False, "Invalid credentials.", None

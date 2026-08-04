@@ -1,3 +1,5 @@
+# hive.py (models/hive.py)
+
 from config.database import Database
 from utils.id_generator import next_hive_id
 
@@ -7,8 +9,17 @@ class HiveModel:
 
     # ── READ ──────────────────────────────────
     @staticmethod
-    def find_by_id(hive_id: str):
+    def find_by_id(hive_id: str, conn=None):
+        """
+        `conn`, when passed, reads within the SAME transaction as the
+        caller — needed so evaluate_hive() sees any not-yet-committed
+        changes made earlier in that same transaction.
+        """
         sql = f"SELECT * FROM {HiveModel.TABLE} WHERE hive_id = %s LIMIT 1"
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id,))
+                return cur.fetchone()
         return Database.execute(sql, (hive_id,), fetchone=True)
 
     @staticmethod
@@ -84,12 +95,23 @@ class HiveModel:
         return hive_id
 
     @staticmethod
-    def update_health_status(hive_id: str, beekeeper_id: str, status: str) -> int:
+    def update_health_status(hive_id: str, beekeeper_id: str, status: str, conn=None) -> int:
+        """
+        `conn`, when passed, updates within the SAME transaction as the
+        caller instead of opening its own connection + committing
+        immediately — important when called from inside
+        QueenService.evaluate_hive() mid-transaction, so the health
+        status change and the recommendation row commit/rollback
+        together.
+        """
         sql = f"""
             UPDATE {HiveModel.TABLE}
             SET health_status = %s
             WHERE hive_id = %s AND beekeeper_id = %s
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                return cur.execute(sql, (status, hive_id, beekeeper_id))
         return Database.execute(sql, (status, hive_id, beekeeper_id), commit=True)
 
     @staticmethod

@@ -33,52 +33,45 @@ const Login = () => {
 
 		setSubmitting(true);
 
-		// Try citizen first, then beekeeper, then admin — matches the schema's role tables.
-		const roles: ("citizen" | "beekeeper" | "admin")[] = [
-			"citizen",
-			"beekeeper",
-			"admin",
-		];
-		let lastError = "Invalid credentials.";
-		for (const role of roles) {
-			const res = await authService.login({
-				role,
-				identifier: username.trim(),
-				password,
-			});
+		// No role is sent — the backend auto-detects which account table
+		// the identifier belongs to (citizen / beekeeper / admin) and
+		// returns the resolved role in res.data.user.role.
+		const res = await authService.login({
+			identifier: username.trim(),
+			password,
+			remember_me: remember,
+		});
 
-			// Backend returns success:true (with status 403) even when the
-			// account exists but email isn't verified yet — it's not a
-			// "wrong credentials" case, so it must be checked BEFORE we
-			// treat res.success as a real login success.
-			const data = res.data as
-				| { requires_verification?: boolean; email?: string }
-				| undefined;
+		// Backend returns success:true (with status 403) even when the
+		// account exists but email isn't verified yet — it's not a
+		// "wrong credentials" case, so it must be checked BEFORE we
+		// treat res.success as a real login success.
+		const data = res.data as
+			| { requires_verification?: boolean; email?: string; role?: string }
+			| undefined;
 
-			if (data?.requires_verification) {
-				sessionStorage.setItem(
-					"beeguard_pending_verification",
-					JSON.stringify({ email: data.email, role }),
-				);
-				setSubmitting(false);
-				router.push("/register/verification");
-				return;
-			}
-
-			if (res.success) {
-				await refresh();
-				if (role === "citizen") router.push("/citizen");
-				else if (role === "beekeeper")
-					router.push("/beekeeper"); // TODO: replace when beekeeper dashboard exists
-				else router.push("/admin"); // TODO: admin dashboard route
-				setSubmitting(false);
-				return;
-			}
-
-			lastError = res.message || lastError;
+		if (data?.requires_verification) {
+			sessionStorage.setItem(
+				"beeguard_pending_verification",
+				JSON.stringify({ email: data.email, role: data.role }),
+			);
+			setSubmitting(false);
+			router.push("/register/verification");
+			return;
 		}
 
-		setErrorMsg(lastError);
+		if (res.success) {
+			const resolvedRole = res.data?.user?.role;
+			await refresh();
+			if (resolvedRole === "citizen") router.push("/citizen");
+			else if (resolvedRole === "beekeeper")
+				router.push("/beekeeper"); // TODO: replace when beekeeper dashboard exists
+			else router.push("/admin"); // TODO: admin dashboard route
+			setSubmitting(false);
+			return;
+		}
+
+		setErrorMsg(res.message || "Invalid credentials.");
 		setSubmitting(false);
 	};
 

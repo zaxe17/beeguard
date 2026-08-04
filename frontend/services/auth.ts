@@ -21,9 +21,10 @@ export interface RegisterPayload {
 }
 
 export interface LoginPayload {
-    role: Role;
+    role?: Role;
     identifier: string;
     password: string;
+    remember_me?: boolean;
 }
 
 export interface AuthUser {

@@ -2,6 +2,7 @@ import { api, ApiEnvelope } from "./api";
 
 export type PesticideType = "Insecticide" | "Herbicide" | "Fungicide";
 export type RiskLevel = "Low" | "Medium" | "High";
+export type AlertSource = "admin" | "beekeeper";
 
 export interface CreateAlertPayload {
     title: string;
@@ -46,6 +47,29 @@ export interface AlertRecord {
     notified_at?: string;
 }
 
+// GET /pesticide/alerts/<alert_id> — full detail for the Alert Details
+// page. Shape matches schemas/alert_schema.py::AlertDetailOut on the
+// backend (risk_level is already lowercased there to match the
+// "high" | "medium" | "low" status prop the UI components expect).
+export interface AlertDetail {
+    alert_id: string;
+    title: string;
+    source: AlertSource;
+    status: "high" | "medium" | "low";
+    location: string;
+    latitude: number;
+    longitude: number;
+    pesticide_type: PesticideType | null;
+    application_method: string | null;
+    description: string | null;
+    danger_radius_km: number;
+    scheduled_date: string; // ISO
+    expiration_date: string | null; // ISO
+    created_at: string; // ISO
+    issued_by: string | null;
+    contact: string | null;
+}
+
 export type ApiEnvelopeWithFields<T> = ApiEnvelope<T> & {
     field_errors?: Record<string, string>;
 };
@@ -65,6 +89,12 @@ export const pesticideService = {
 
     // Beekeeper — alerts they were actually matched/notified for
     listMyAlerts: () => api.get<AlertRecord[]>("/pesticide/alerts/mine"),
+
+    // Any authenticated role with access (admin, or the reporting/
+    // matched beekeeper) — full detail for one alert, used by the
+    // Alert Details page (?id=<alert_id>)
+    getAlertDetail: (alertId: string) =>
+        api.get<AlertDetail>(`/pesticide/alerts/${alertId}`),
 
     // Admin — who was matched for a given alert
     listAlertRecipients: (alertId: string) =>

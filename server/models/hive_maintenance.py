@@ -1,4 +1,12 @@
+# hive_maintenance.py
+
 from config.database import Database
+
+# Kept in sync with hive_validator.VALID_INSPECT / hive_service.NORMAL_LABEL.
+# Duplicated locally (same pattern already used elsewhere in this codebase)
+# to avoid a circular import between the model and service layers.
+NORMAL_LABEL = "Normal / Healthy"
+REMARKS_PREFIX = "Physical Inspection: "
 
 
 class HiveMaintenanceModel:
@@ -38,6 +46,62 @@ class HiveMaintenanceModel:
         """
         return Database.execute(sql, (hive_id,), fetchone=True)
 
+    @staticmethod
+    def _parse_observation_labels(remarks: str | None) -> list[str]:
+        """
+        Reverses the `remarks` string produced by
+        record_physical_inspection() back into the list of observation
+        labels that were selected in that session, e.g.
+          "Physical Inspection: Presence of Queen Cells, Emaciated Queen"
+          -> ["Presence of Queen Cells", "Emaciated Queen"]
+        Returns [] for rows that aren't Physical Inspection remarks
+        (e.g. other maintenance activity types, or malformed/blank data).
+        """
+        if not remarks or not remarks.startswith(REMARKS_PREFIX):
+            return []
+        tail = remarks[len(REMARKS_PREFIX):]
+        return [p.strip() for p in tail.split(",") if p.strip()]
+
+    @staticmethod
+    def list_unresolved_symptoms(hive_id: str) -> list[str]:
+        """
+        CUMULATIVE symptom tracking across separate monitoring sessions.
+
+        Walks the hive's inspection history newest-first and collects the
+        DISTINCT symptom labels reported since the last time the
+        beekeeper recorded 'Normal / Healthy'. Walking stops as soon as
+        a 'Normal / Healthy' record is hit (that record itself is NOT
+        included — it means the hive was confirmed clear as of that
+        date, so anything before it no longer counts).
+
+        Examples:
+          - No inspection history yet                -> []
+          - Most recent inspection was Normal/Healthy -> []
+          - History (newest first): [QueenCells]      -> ["Presence of Queen Cells"]
+          - History (newest first): [Brood, QueenCells]
+              -> ["Reduction of Open Brood", "Presence of Queen Cells"]
+          - History (newest first): [QueenCells, Normal/Healthy, Brood]
+              -> ["Presence of Queen Cells"]   (stops at Normal/Healthy)
+        """
+        sql = f"""
+            SELECT remarks FROM {HiveMaintenanceModel.TABLE}
+            WHERE hive_id = %s AND activity_type = 'Inspection'
+            ORDER BY activity_date DESC, created_at DESC
+        """
+        rows = Database.execute(sql, (hive_id,), fetchall=True) or []
+
+        symptoms: list[str] = []
+        for row in rows:
+            labels = HiveMaintenanceModel._parse_observation_labels(row.get("remarks"))
+            if NORMAL_LABEL in labels:
+                # Hive was confirmed clear at this point in history —
+                # do not look further back.
+                break
+            for label in labels:
+                if label not in symptoms:
+                    symptoms.append(label)
+        return symptoms
+
     # ── WRITE ─────────────────────────────────
     @staticmethod
     def insert_with_conn(conn, data: dict) -> str:
@@ -58,15 +122,25 @@ class HiveMaintenanceModel:
         return mid
 
     @staticmethod
-    def record_physical_inspection(conn, hive_id: str, observation_label: str,
+    def record_physical_inspection(conn, hive_id: str, observation_labels: list[str],
                                     activity_date, remarks_prefix: str = "Physical Inspection"):
         """
-        Records the modal's 4-option Physical Inspection radio into
-        hives_maintenance as an 'Inspection' activity, with the radio
-        label encoded in `remarks` (option a from the schema Q&A).
+        Records the modal's Physical Inspection checkboxes into
+        hives_maintenance as a single 'Inspection' activity, with ALL
+        selected labels joined into one `remarks` string (e.g.
+        "Physical Inspection: Presence of Queen Cells, Emaciated Queen")
+        — one maintenance row per inspection event, not one per label.
+
+        IMPORTANT: `remarks` here always reflects ONLY what the
+        beekeeper actually checked in THIS session, as an honest audit
+        trail — it is NOT the cumulative symptom set. Cumulative
+        health-status logic lives in list_unresolved_symptoms() /
+        HiveService._health_from_observations(), which read history
+        back out via _parse_observation_labels().
+
         Returns the new maintenance_id.
         """
-        remarks = f"{remarks_prefix}: {observation_label}"
+        remarks = f"{remarks_prefix}: {', '.join(observation_labels)}"
         return HiveMaintenanceModel.insert_with_conn(conn, {
             "hive_id":       hive_id,
             "activity_type": "Inspection",

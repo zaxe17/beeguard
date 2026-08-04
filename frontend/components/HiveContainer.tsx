@@ -1,3 +1,5 @@
+// HiveContainer.tsx
+
 "use client";
 
 import * as Icons from "@/public/assets/icons/icons";
@@ -61,6 +63,25 @@ export function mapHealthStatusToUi(health: HealthStatus): HiveProps["status"] {
 	}
 }
 
+/**
+ * Formats a date-only value for display, stripping any time-of-day
+ * component regardless of whether the backend sends a plain date
+ * ("2026-08-02"), a full ISO datetime ("2026-08-02T00:00:00"), or an
+ * RFC-1123 style string ("Wed, 01 Apr 2026 00:00:00 GMT" — what this
+ * backend's Flask/MySQL layer actually returns). Falls back to the
+ * raw string if it can't be parsed, and to "" if nothing was passed in.
+ */
+function formatDateOnly(value?: string): string {
+	if (!value) return "";
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) return value;
+	return parsed.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+}
+
 export const HiveDetailsContainer = ({
 	hiveHealthButton,
 	addYieldButton,
@@ -78,8 +99,12 @@ export const HiveDetailsContainer = ({
 
 	return (
 		<div className="flex flex-col gap-4 w-md">
-			{/* QUEEN BEE REPLACEMENT WARNING */}
-			{(status === "weak" || status === "need attention") && (
+			{/* QUEEN BEE REPLACEMENT WARNING — now also shows for
+			    "diseased" hives, not just weak / need-attention. A
+			    diseased hive needs this recommendation MORE, not less. */}
+			{(status === "weak" ||
+				status === "need attention" ||
+				status === "diseased") && (
 				<div className="bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-2 flex flex-1 items-center justify-between">
 					<div className="flex items-center gap-2">
 						<div className="w-7 h-7">
@@ -151,7 +176,7 @@ export const HiveDetailsContainer = ({
 						<span className="text-[#817b70] text-sm">
 							Established:{" "}
 							<span className="Poppins-SemiBold">
-								{lastCheck}
+								{formatDateOnly(lastCheck)}
 							</span>
 						</span>
 					</div>
@@ -275,7 +300,7 @@ export const HiveTabs = ({
 						</span>
 					)}
 					<span className="text-[#817b70] text-xs">
-						Established: <span className="Poppins-SemiBold">{lastCheck}</span>
+						Established: <span className="Poppins-SemiBold">{formatDateOnly(lastCheck)}</span>
 					</span>
 				</div>
 
@@ -348,7 +373,7 @@ export const HiveTrans = ({
 						</span>
 					)}
 					<span className="Poppins-SemiBold text-[#817b70] text-xs">
-						Established: {lastCheck}
+						Established: {formatDateOnly(lastCheck)}
 					</span>
 				</div>
 			</div>

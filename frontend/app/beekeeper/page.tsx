@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { HiveHealthChart } from "@/components/graph/Doughnut";
 import { YieldSummaryChart } from "@/components/graph/Line";
 import { Card } from "@/components/ui/Card";
@@ -59,7 +60,16 @@ function formatKg(v: number | undefined | null) {
 	return `${(v ?? 0).toFixed(1)}kg`;
 }
 
+function toAlertLocation(a: AlertRecord): string {
+	if (a.affected_area) return a.affected_area;
+	const lat = Number(a.latitude);
+	const lng = Number(a.longitude);
+	if (Number.isNaN(lat) || Number.isNaN(lng)) return "Unknown location";
+	return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
 const Beekeeper = () => {
+	const router = useRouter();
 	const [loading, setLoading] = useState(true);
 	const [summary, setSummary] = useState<DashboardSummary | null>(null);
 	const [hiveHealth, setHiveHealth] = useState<HiveHealthSlice[]>([]);
@@ -225,7 +235,8 @@ const Beekeeper = () => {
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Recent Alerts{" "}
 							<span
-								className={`text-xs text-[#ffce1c] cursor-pointer ${alerts.length > 0 ? "block" : "hidden"}`}>
+								className={`text-xs text-[#ffce1c] cursor-pointer ${alerts.length > 0 ? "block" : "hidden"}`}
+								onClick={() => router.push("/beekeeper/alert")}>
 								view all
 							</span>
 						</span>
@@ -235,16 +246,16 @@ const Beekeeper = () => {
 								{alerts.map((a) => (
 									<PesticideAlert
 										key={a.alert_id}
-										location={
-											a.affected_area ||
-											`${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}`
-										}
+										location={toAlertLocation(a)}
 										date={new Date(a.scheduled_date).toLocaleDateString()}
 										time={new Date(a.scheduled_date).toLocaleTimeString([], {
 											hour: "2-digit",
 											minute: "2-digit",
 										})}
 										status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
+										onClick={() =>
+											router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
+										}
 									/>
 								))}
 							</div>

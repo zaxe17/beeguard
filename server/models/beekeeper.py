@@ -85,6 +85,35 @@ class BeekeeperModel:
         return Database.execute(sql, (beekeeper_id,), fetchone=True)
 
     @staticmethod
+    def update_location(beekeeper_id: str, latitude: float, longitude: float) -> int:
+        """
+        NEW — previously there was no way to set/fix a beekeeper's
+        location after registration. `latitude` was optional at
+        signup while `longitude` was required, so a beekeeper who
+        registered without dropping a map pin ends up with
+        latitude = NULL forever. That silently excludes them from
+        PesticideService._find_nearby_beekeepers (which requires both
+        latitude AND longitude to be non-null), so they never get
+        matched into alert_recipients for ANY alert — the alert still
+        shows up on the general "active alerts" list, just never on
+        their personal "mine"/dashboard feed.
+
+        NOTE: this does not retroactively backfill alert_recipients
+        for alerts already created before the location was fixed —
+        matching only runs once, at alert-creation time. A beekeeper
+        who fixes their location will start showing up starting with
+        the next alert created, not past ones.
+        """
+        sql = f"""
+            UPDATE {BeekeeperModel.TABLE}
+            SET latitude = %s, longitude = %s
+            WHERE beekeeperID = %s AND deleted_at IS NULL
+        """
+        return Database.execute(
+            sql, (latitude, longitude, beekeeper_id), commit=True
+        )
+
+    @staticmethod
     def mark_email_verified(email: str) -> int:
         sql = f"""
             UPDATE {BeekeeperModel.TABLE}

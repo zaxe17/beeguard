@@ -1,3 +1,5 @@
+# routes/hive.py
+
 from flask import Blueprint, request, g
 
 from middleware.auth_middleware import token_required, role_required
@@ -97,7 +99,7 @@ def record_inspection(hive_id):
     try:
         result = HiveService.record_physical_inspection(
             g.user_id, hive_id,
-            observation_label=cleaned["observation"],
+            observation_labels=cleaned["observations"],
             activity_date=cleaned["activity_date"],
         )
     except PermissionError as e:

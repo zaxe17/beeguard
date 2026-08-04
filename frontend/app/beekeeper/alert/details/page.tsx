@@ -1,8 +1,13 @@
+// app/beekeeper/alert/details/page.tsx
+
 "use client";
 
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { AlertContainer } from "@/components/ui/Alert";
 import Map from "@/components/ui/google-maps/Map";
+import { pesticideService, AlertDetail } from "@/services/pesticide";
 
 type DetailsProps = {
 	location?: string;
@@ -230,27 +235,129 @@ const AlertTimeline = ({
 	);
 };
 
+function splitDateTime(iso: string | null | undefined) {
+	if (!iso) return { date: "—", time: "—" };
+	const d = new Date(iso);
+	return {
+		date: d.toLocaleDateString(undefined, {
+			month: "long",
+			day: "numeric",
+			year: "numeric",
+		}),
+		time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+	};
+}
+
+// Timeline stage status: "already happened" vs "still ahead" is
+// computed off wall-clock time against each stage's own date, so the
+// dots/lines reflect where we actually are relative to the alert —
+// not just a fixed admin/pending/upcoming guess.
+function stageStatus(iso: string | null | undefined, fallback: TimelineStatus): TimelineStatus {
+	if (!iso) return fallback;
+	return new Date(iso).getTime() <= Date.now() ? "active" : fallback;
+}
+
 const AlertDetails = () => {
+	const searchParams = useSearchParams();
+	const alertId = searchParams.get("id");
+
+	const [alert, setAlert] = useState<AlertDetail | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!alertId) {
+			setLoading(false);
+			setErrorMsg("No alert selected.");
+			return;
+		}
+
+		let cancelled = false;
+		const load = async () => {
+			setLoading(true);
+			setErrorMsg(null);
+			const res = await pesticideService.getAlertDetail(alertId);
+			if (cancelled) return;
+
+			if (res.success && res.data) {
+				setAlert(res.data);
+			} else {
+				setErrorMsg(res.message || "Failed to load alert.");
+			}
+			setLoading(false);
+		};
+
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, [alertId]);
+
+	if (loading) {
+		return (
+			<div className="h-screen w-full flex items-center justify-center text-[#817b70]">
+				Loading alert…
+			</div>
+		);
+	}
+
+	if (errorMsg || !alert) {
+		return (
+			<div className="h-screen w-full flex flex-col items-center justify-center gap-2 text-[#817b70]">
+				<Icon icon="famicons:notifications-off" className="w-16 h-16 text-[#a6a3a3]" />
+				<p>{errorMsg || "Alert not found."}</p>
+			</div>
+		);
+	}
+
+	const scheduled = splitDateTime(alert.scheduled_date);
+	const issued = splitDateTime(alert.created_at);
+	const completion = splitDateTime(alert.expiration_date);
+
+	const timelineItems: TimelineItem[] = [
+		{
+			title: "Alert Issued",
+			date: issued.date,
+			time: issued.time,
+			status: "active",
+		},
+		{
+			title: "Scheduled Spraying",
+			date: scheduled.date,
+			time: scheduled.time,
+			status: stageStatus(alert.scheduled_date, "pending"),
+		},
+	];
+
+	if (alert.expiration_date) {
+		timelineItems.push({
+			title: "Expected Completion",
+			date: completion.date,
+			time: completion.time,
+			status: stageStatus(alert.expiration_date, "upcoming"),
+		});
+	}
+
 	return (
 		<div className="h-screen w-full flex gap-15 py-15 px-20">
 			{/* LEFT */}
 			<div className="w-1/2 capitalize flex flex-col gap-8">
 				<Details
-					location="Atok, Benguet"
-					date="May 16, 2026"
-					time="8:00 AM"
-					desc="Pesticide spraying activity detected in your area."
-					status="high"
+					location={alert.location}
+					date={scheduled.date}
+					time={scheduled.time}
+					desc={alert.description ?? undefined}
+					status={alert.status}
 				/>
 
 				<Information
-					pesTyp="Cypermethrin"
-					method="Aeral Spray"
-					date="May 16, 2024"
-					time="8:00 AM"
-					radius="5 km"
-					issued="Atok LGU"
-					contact="(074) 123-4567"
+					pesTyp={alert.pesticide_type ?? "—"}
+					method={alert.application_method ?? "—"}
+					date={scheduled.date}
+					time={scheduled.time}
+					radius={`${alert.danger_radius_km} km`}
+					issued={alert.issued_by ?? "—"}
+					contact={alert.contact ?? "—"}
 				/>
 
 				<Recommendation />
@@ -261,32 +368,15 @@ const AlertDetails = () => {
 				{/* MAPS */}
 				<h1 className="Poppins-SemiBold text-xl mb-2">Maps</h1>
 				<div className="w-full h-80 rounded-xl relative overflow-hidden mb-8">
-					<Map />
+					<Map
+						initialCenter={{ lat: alert.latitude, lng: alert.longitude }}
+						initialMarker={{ lat: alert.latitude, lng: alert.longitude }}
+						radiusKm={alert.danger_radius_km}
+					/>
 				</div>
 
 				{/* TIMELINE */}
-				<AlertTimeline
-					items={[
-						{
-							title: "Alert Issued",
-							date: "May 10, 2024",
-							time: "8:00 AM",
-							status: "active",
-						},
-						{
-							title: "Scheduled Spraying",
-							date: "May 16, 2024",
-							time: "8:00 AM",
-							status: "pending",
-						},
-						{
-							title: "Expected Completion",
-							date: "May 16, 2024",
-							time: "12:00 PM",
-							status: "upcoming",
-						},
-					]}
-				/>
+				<AlertTimeline items={timelineItems} />
 			</div>
 		</div>
 	);

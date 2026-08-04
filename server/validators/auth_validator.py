@@ -145,8 +145,12 @@ def validate_login_payload(payload: dict) -> tuple[dict, dict]:
     if not isinstance(payload, dict):
         return {}, {"_": "Invalid request body."}
 
-    role = str(payload.get("role", "")).lower().strip()
-    if role not in {"citizen", "beekeeper", "admin"}:
+    # Role is now OPTIONAL — if omitted, AuthService.login will auto-detect
+    # which role table the identifier belongs to. Still validated if given,
+    # for any caller that wants to be explicit (e.g. an internal admin tool).
+    raw_role = payload.get("role")
+    role = str(raw_role).lower().strip() if raw_role else ""
+    if role and role not in {"citizen", "beekeeper", "admin"}:
         field_errors["role"] = "Role must be citizen, beekeeper, or admin."
 
     identifier = (
@@ -165,7 +169,7 @@ def validate_login_payload(payload: dict) -> tuple[dict, dict]:
         return {}, field_errors
 
     return {
-        "role": role,
+        "role": role or None,
         "identifier": identifier.strip(),
         "password": password,
     }, {}

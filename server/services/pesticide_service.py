@@ -21,10 +21,13 @@ Risk level has two layers:
     self-reporting beekeeper) picks for the alert as a whole.
   - alert_recipients.risk_level — PER-RECIPIENT, computed from how
     close that beekeeper's own farm is to the pesticide site relative
-    to the danger radius (see _risk_level_for_distance). Two
-    beekeepers matched on the same alert can see different severities:
-    someone 200m away is at real risk; someone 4.9km away in a 5km
-    radius is only nominally inside it.
+    to the danger radius (see _risk_level_for_distance).
+
+    Rule (kapag sobrang lapit → High, sakto lang → Medium, sobrang
+    layo → Low):
+        distance <= radius / 3           -> High   (very close)
+        distance <= 2 * radius / 3       -> Medium (moderately close)
+        distance >  2 * radius / 3       -> Low    (far / outside)
 
   A beekeeper who is NOT matched as a recipient at all (outside the
   danger radius entirely) is never at real personal risk, regardless
@@ -66,13 +69,28 @@ def _default_radius(pesticide_type: str | None) -> float:
 
 def _risk_level_for_distance(distance_km: float, radius_km: float) -> str:
     """
-    Thirds-of-radius rule:
-        distance <= radius/3   -> High
-        distance <= radius*2/3 -> Medium
-        otherwise               -> Low
+    Distance-based personal risk rule (thirds-of-radius):
+        very near      (distance <= radius / 3)      -> High
+        moderately near(distance <= 2 * radius / 3)  -> Medium
+        far (including outside the danger radius)    -> Low
+
+    Latitude and longitude are converted to an actual geodesic
+    distance in _find_nearby_beekeepers BEFORE this function is
+    called. Never compare raw latitude/longitude differences: one
+    degree of longitude varies by latitude.
+
+    Edge cases:
+      - radius_km <= 0        -> "Low" (bad data, don't panic anyone).
+      - distance_km <= 0      -> "High" (same pin / rounding to zero).
+      - distance_km is None   -> "Low" (unlocated beekeeper — the
+        caller normally handles this separately, but be safe).
     """
-    if radius_km <= 0:
-        return "Medium"
+    if radius_km is None or radius_km <= 0:
+        return "Low"
+    if distance_km is None:
+        return "Low"
+    if distance_km <= 0:
+        return "High"
     ratio = distance_km / radius_km
     if ratio <= 1 / 3:
         return "High"
@@ -85,11 +103,11 @@ class PesticideService:
 
     @staticmethod
     def _find_nearby_beekeepers(conn, lat: float, lng: float, radius_km: float,
-                                  exclude_beekeeper_id: str | None = None):
+                                exclude_beekeeper_id: str | None = None):
         """
         Returns (matched, unlocated, other_ids).
 
-        - matched: beekeepers within radius_km with a real distance.
+        - matched:  beekeepers within radius_km with a real distance.
         - unlocated: beekeepers with NULL lat/lng (we can't compute a
           distance for them, but we still want them to hear about the
           alert so they know to fix their farm location).
@@ -113,7 +131,7 @@ class PesticideService:
             cur.execute(sql)
             rows = cur.fetchall()
 
-        origin = (lat, lng)
+        origin = (float(lat), float(lng))
         matched, unlocated, other_ids = [], [], []
         for row in rows:
             bk_id = row["beekeeperID"]
@@ -160,7 +178,10 @@ class PesticideService:
           - The REPORTER themselves is never counted as a recipient
             — they get a dedicated "Alert Published" confirmation.
         """
-        radius = cleaned.get("danger_radius_km") or _default_radius(cleaned.get("pesticide_type"))
+        radius = float(
+            cleaned.get("danger_radius_km")
+            or _default_radius(cleaned.get("pesticide_type"))
+        )
 
         is_beekeeper_authored = actor_role == "beekeeper"
         reporter_name = None
@@ -204,6 +225,7 @@ class PesticideService:
             notified_ids = set()
 
             # 1) In-radius (matched) — real distance + real risk.
+            #    Kapag sobrang lapit → High, sakto → Medium, malayo → Low.
             for row in matched:
                 bk_id = row["beekeeperID"]
                 distance = float(row["distance_km"])
@@ -302,6 +324,16 @@ class PesticideService:
             # beekeeper we notified — matched + unlocated + other —
             # not just those inside the radius, so a small platform
             # doesn't misleadingly say "0 nearby beekeepers".
+            #
+            # The reporter is deliberately excluded from `matched` above
+            # (see `exclude_id`) so they don't get double-notified as if
+            # they were a stranger recipient. But that also meant they
+            # NEVER got an alert_recipients row for their own alert, so
+            # their own list/detail views always fell back to "Low" —
+            # even when they set the alert right on top of their own
+            # farm. We fix that here: compute the reporter's own
+            # distance to the alert (same thirds-of-radius rule as
+            # everyone else) and give them a real recipient row too.
             if is_beekeeper_authored:
                 total_notified = len(notified_ids)
                 matched_count = sum(1 for r in recipients if r.get("distance_km") is not None)
@@ -309,7 +341,27 @@ class PesticideService:
                     detail = f"{matched_count} of them are inside the {radius:.1f} km danger radius."
                 else:
                     detail = f"None of them are inside the {radius:.1f} km danger radius."
-                NotificationModel.insert_with_conn(conn, {
+
+                own_distance = None
+                own_risk = "Low"
+                reporter_lat = (reporter or {}).get("latitude")
+                reporter_lng = (reporter or {}).get("longitude")
+                if reporter_lat is not None and reporter_lng is not None:
+                    origin = (float(cleaned["latitude"]), float(cleaned["longitude"]))
+                    own_point = (float(reporter_lat), float(reporter_lng))
+                    own_distance = geodesic(origin, own_point).km
+                    own_risk = _risk_level_for_distance(own_distance, radius)
+                    own_detail = (
+                        f" Your own apiary is approx. {own_distance:.2f} km from the "
+                        f"site (risk level: {own_risk})."
+                    )
+                else:
+                    own_detail = (
+                        " Your apiary location isn't set, so we couldn't compute your "
+                        "own risk level — please update your farm location."
+                    )
+
+                nid = NotificationModel.insert_with_conn(conn, {
                     "beekeeper_id":      actor_id,
                     "alert_id":          alert_id,
                     "report_id":         None,
@@ -317,9 +369,23 @@ class PesticideService:
                     "message": (
                         f"Your pesticide alert \"{cleaned['title']}\" has been "
                         f"published and sent to {total_notified} beekeeper(s). "
-                        f"{detail}"
+                        f"{detail}{own_detail}"
                     ),
                     "notification_type": "pesticide_alert",
+                })
+
+                rid = AlertRecipientModel.insert_with_conn(conn, {
+                    "alert_id":        alert_id,
+                    "beekeeper_id":    actor_id,
+                    "distance_km":     round(own_distance, 2) if own_distance is not None else None,
+                    "risk_level":      own_risk,
+                    "notification_id": nid,
+                })
+                recipients.append({
+                    "recipient_id": rid,
+                    "beekeeper_id": actor_id,
+                    "distance_km":  round(own_distance, 2) if own_distance is not None else None,
+                    "risk_level":   own_risk,
                 })
 
             conn.commit()
@@ -365,9 +431,7 @@ class PesticideService:
           - beekeeper: can view ANY alert. A pesticide alert is a
             public-safety notice — every beekeeper on the platform
             should be able to open its full detail page, even if they
-            weren't matched as a recipient (they might still want to
-            know what's going on nearby, or a colleague may have
-            forwarded the notification link).
+            weren't matched as a recipient.
 
         risk_level in the response is personalized for a beekeeper
         viewer:
@@ -387,10 +451,6 @@ class PesticideService:
         recipient_row = None
         if actor_role == "beekeeper":
             recipient_row = AlertRecipientModel.get_for_beekeeper(alert_id, actor_id)
-            # NOTE: intentionally no PermissionError here anymore —
-            # every authenticated beekeeper can read any alert's
-            # details. Recipient-row lookup is only used to
-            # personalize risk_level / your_distance_km below.
 
         is_beekeeper_authored = row["source"] == "beekeeper"
         if is_beekeeper_authored:

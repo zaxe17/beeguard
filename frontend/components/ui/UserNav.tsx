@@ -1,14 +1,25 @@
 "use client"
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import user_profile from "@/public/assets/user_profile.png";
 import { Icon } from "@iconify/react";
 import Notification from "../popup/Notification";
+import { notificationService } from "@/services/notification";
 
 export const UserNav = () => {
 	const [isOpen, setIsOpen] = useState(false);
+	const [unreadCount, setUnreadCount] = useState(0);
 	const wrapperRef = useRef<HTMLDivElement>(null);
+
+	const refreshUnreadCount = useCallback(async () => {
+		const res = await notificationService.unreadCount();
+		if (res.success && res.data) setUnreadCount(res.data.count);
+	}, []);
+
+	useEffect(() => {
+		refreshUnreadCount();
+	}, [refreshUnreadCount]);
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -47,12 +58,17 @@ export const UserNav = () => {
 			</div>
 
 			{/* 3 ACTION BUTTON [NOTIFICATION, MESSAGES] */}
-			<div className="flex items-center gap-3">
+			{/* NOTE: wrapperRef is now actually attached (below) — previously
+			    it was declared but never assigned to any element, so
+			    click-outside-to-close silently did nothing. */}
+			<div className="flex items-center gap-3" ref={wrapperRef}>
 				{/* NOTIFICATION */}
 				<div className="relative">
-					<span className="absolute right-0 bg-red-500 border-2 border-white w-4 h-4 rounded-full text-[8px] text-white flex justify-center items-center">
-						4
-					</span>
+					{unreadCount > 0 && (
+						<span className="absolute right-0 bg-red-500 border-2 border-white w-4 h-4 rounded-full text-[8px] text-white flex justify-center items-center">
+							{unreadCount > 9 ? "9+" : unreadCount}
+						</span>
+					)}
 					<div
 						onClick={() => setIsOpen((prev) => !prev)}
 						className="w-10 h-10">
@@ -62,7 +78,9 @@ export const UserNav = () => {
 						/>
 					</div>
 
-					{isOpen && <Notification />}
+					{isOpen && (
+						<Notification onNotificationRead={refreshUnreadCount} />
+					)}
 				</div>
 
 				{/* MESSAGE */}

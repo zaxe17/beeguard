@@ -15,14 +15,6 @@ class AlertModel:
 
     @staticmethod
     def find_detail_by_id(alert_id: str):
-        """
-        Same row as find_by_id, plus whoever issued it — joined in so
-        the Alert Details page can show "Issued By" / "Contact" without
-        a second round trip. Both joins are LEFT joins because exactly
-        one of adminID / reported_by_beekeeper_id is set per alert
-        (enforced by chk_alerts_source_actor), so only one side ever
-        actually matches.
-        """
         sql = f"""
             SELECT
                 a.*,
@@ -42,9 +34,6 @@ class AlertModel:
 
     @staticmethod
     def list_for_admin(admin_id: str, limit: int = 100):
-        """Alerts an ADMIN authored (source='admin'). Beekeeper-authored
-        self-reports never show up here — see list_reported_by_beekeeper
-        if that view is ever needed."""
         sql = f"""
             SELECT * FROM {AlertModel.TABLE}
             WHERE adminID = %s
@@ -54,9 +43,33 @@ class AlertModel:
         return Database.execute(sql, (admin_id, int(limit)), fetchall=True) or []
 
     @staticmethod
-    def list_active(limit: int = 100):
-        """Alerts that haven't expired yet (or have no expiry), regardless
-        of source — admin-issued and beekeeper self-reported both count."""
+    def list_active(limit: int = 100, beekeeper_id: str | None = None):
+        """
+        Personalizes risk_level for a beekeeper viewer: their own
+        distance-derived severity when matched as a recipient,
+        otherwise "Low" — never the alert's global risk_level, since
+        being outside the danger radius means it isn't a real personal
+        threat regardless of what severity the creator picked overall.
+        """
+        if beekeeper_id:
+            sql = f"""
+                SELECT a.*, ar.distance_km, ar.notified_at, ar.recipient_id,
+                       COALESCE(ar.risk_level, 'Low') AS effective_risk_level
+                FROM {AlertModel.TABLE} a
+                LEFT JOIN alert_recipients ar
+                    ON ar.alert_id = a.alert_id AND ar.beekeeper_id = %s
+                WHERE a.expiration_date IS NULL OR a.expiration_date >= NOW()
+                ORDER BY a.scheduled_date DESC
+                LIMIT %s
+            """
+            rows = Database.execute(
+                sql, (beekeeper_id, int(limit)), fetchall=True
+            ) or []
+            for row in rows:
+                if "effective_risk_level" in row:
+                    row["risk_level"] = row.pop("effective_risk_level")
+            return rows
+
         sql = f"""
             SELECT * FROM {AlertModel.TABLE}
             WHERE expiration_date IS NULL OR expiration_date >= NOW()
@@ -67,29 +80,38 @@ class AlertModel:
 
     @staticmethod
     def list_for_beekeeper(beekeeper_id: str, limit: int = 50):
-        """Alerts this beekeeper was actually matched/notified for (as a
-        RECIPIENT) — unrelated to whether they authored any alerts."""
+        """
+        Alerts relevant to this beekeeper's own dashboard/"mine" feed:
+        matched as a recipient, OR self-authored.
+
+        risk_level is PERSONALIZED:
+          - Matched as recipient  -> their own distance-derived severity
+            (ar.risk_level).
+          - Self-authored but NOT matched as a recipient (i.e. their
+            own farm sits outside the danger radius they set) -> "Low".
+        """
         sql = f"""
-            SELECT a.*, ar.distance_km, ar.notified_at, ar.recipient_id
+            SELECT a.*, ar.distance_km, ar.notified_at, ar.recipient_id,
+                   COALESCE(ar.risk_level, 'Low') AS effective_risk_level
             FROM {AlertModel.TABLE} a
-            JOIN alert_recipients ar ON ar.alert_id = a.alert_id
-            WHERE ar.beekeeper_id = %s
+            LEFT JOIN alert_recipients ar
+                ON ar.alert_id = a.alert_id AND ar.beekeeper_id = %s
+            WHERE ar.recipient_id IS NOT NULL
+               OR a.reported_by_beekeeper_id = %s
             ORDER BY a.scheduled_date DESC
             LIMIT %s
         """
-        return Database.execute(sql, (beekeeper_id, int(limit)), fetchall=True) or []
+        rows = Database.execute(
+            sql, (beekeeper_id, beekeeper_id, int(limit)), fetchall=True
+        ) or []
+        for row in rows:
+            if "effective_risk_level" in row:
+                row["risk_level"] = row.pop("effective_risk_level")
+        return rows
 
     # ── WRITE ─────────────────────────────────
     @staticmethod
     def insert_with_conn(conn, data: dict) -> str:
-        """
-        data:
-          source ("admin" | "beekeeper"), title, description,
-          pesticide_type, application_method, affected_area, latitude,
-          longitude, scheduled_date, expiration_date, danger_radius_km,
-          risk_level, admin_id (required when source="admin"),
-          reported_by_beekeeper_id (required when source="beekeeper")
-        """
         aid = next_alert_id(conn)
         sql = f"""
             INSERT INTO {AlertModel.TABLE}
@@ -102,9 +124,9 @@ class AlertModel:
         with conn.cursor() as cur:
             cur.execute(sql, (
                 aid,
-                data.get("admin_id"),                    # NULL when beekeeper-authored
-                None,                                     # legacy single-target column — unused
-                data.get("reported_by_beekeeper_id"),     # NULL when admin-authored
+                data.get("admin_id"),
+                None,
+                data.get("reported_by_beekeeper_id"),
                 data["source"],
                 data["title"],
                 data.get("description"),

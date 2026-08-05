@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HiveHealthChart } from "@/components/graph/Doughnut";
 import { YieldSummaryChart } from "@/components/graph/Line";
@@ -23,9 +23,9 @@ import {
 	YieldTrend,
 } from "@/services/analytics";
 import { pesticideService, AlertRecord } from "@/services/pesticide";
+import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
+import { HIVES_CHANGED_EVENT } from "@/components/modal/HivesModal";
 
-// Nearby-farm discovery has no backend endpoint yet — kept as a
-// static fixture until that feature exists.
 import beefarmsData from "@/data/beefarms.json";
 const beefarms = beefarmsData as BeeFarmProps[];
 
@@ -47,8 +47,6 @@ const GraphContainer = ({ children, title }: GraphProps) => {
 	);
 };
 
-// Fallback palette in case a health slice's color comes back empty —
-// mirrors the backend's own palette in analytics_service.py.
 const DEFAULT_HEALTH_COLORS: Record<string, string> = {
 	Healthy: "#00cc00",
 	"Needs Attention": "#f89d36",
@@ -77,37 +75,52 @@ const Beekeeper = () => {
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-	useEffect(() => {
-		let cancelled = false;
+	const load = useCallback(async () => {
+		setLoading(true);
+		setErrorMsg(null);
 
-		const load = async () => {
-			setLoading(true);
-			setErrorMsg(null);
+		// Use listActiveAlerts (every currently-active alert on the
+		// platform, personalized to this beekeeper's risk_level) rather
+		// than listMyAlerts (only alerts where this beekeeper was
+		// matched as a recipient inside the danger radius). Otherwise
+		// an alert posted by another beekeeper NEARBY BUT OUTSIDE this
+		// user's own danger radius silently never shows up here.
+		const [summaryRes, healthRes, trendRes, alertsRes] = await Promise.all([
+			analyticsService.dashboardSummary(),
+			analyticsService.hiveHealth(),
+			analyticsService.yieldTrend(5),
+			pesticideService.listActiveAlerts(),
+		]);
 
-			const [summaryRes, healthRes, trendRes, alertsRes] = await Promise.all([
-				analyticsService.dashboardSummary(),
-				analyticsService.hiveHealth(),
-				analyticsService.yieldTrend(5),
-				pesticideService.listMyAlerts(),
-			]);
+		if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
+		else setErrorMsg(summaryRes.message);
 
-			if (cancelled) return;
+		if (healthRes.success && healthRes.data) setHiveHealth(healthRes.data);
+		if (trendRes.success && trendRes.data) setTrend(trendRes.data);
+		if (alertsRes.success && alertsRes.data) setAlerts(alertsRes.data);
 
-			if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
-			else setErrorMsg(summaryRes.message);
-
-			if (healthRes.success && healthRes.data) setHiveHealth(healthRes.data);
-			if (trendRes.success && trendRes.data) setTrend(trendRes.data);
-			if (alertsRes.success && alertsRes.data) setAlerts(alertsRes.data);
-
-			setLoading(false);
-		};
-
-		load();
-		return () => {
-			cancelled = true;
-		};
+		setLoading(false);
 	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	// NEW — refetch immediately when a pesticide alert is
+	// published/changed, or a hive/queen action happens (yield
+	// totals, hive health, recommendations all shift too). Previously
+	// this page only ever loaded once on mount, so a freshly
+	// published alert's corrected risk_level wouldn't show up here
+	// until a manual page reload.
+	useEffect(() => {
+		const handler = () => load();
+		window.addEventListener(ALERTS_CHANGED_EVENT, handler);
+		window.addEventListener(HIVES_CHANGED_EVENT, handler);
+		return () => {
+			window.removeEventListener(ALERTS_CHANGED_EVENT, handler);
+			window.removeEventListener(HIVES_CHANGED_EVENT, handler);
+		};
+	}, [load]);
 
 	const statusCard = [
 		{
@@ -144,13 +157,20 @@ const Beekeeper = () => {
 			}))
 		: [{ label: "No data", value: 1, color: "#e2e2e6" }];
 
+	// Sort alerts newest-first for the dashboard's "Recent Alerts"
+	// column so a freshly-published alert lands at the top instead
+	// of at the bottom of a long list.
+	const recentAlerts = [...alerts].sort(
+		(a, b) =>
+			new Date(b.scheduled_date).getTime() -
+			new Date(a.scheduled_date).getTime(),
+	);
+
 	return (
 		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
-			{/* USER NAVIGATION BAR */}
 			<UserNav />
 
 			<div className="w-full flex gap-3">
-				{/* LEFT SIDE */}
 				<div className="w-1/3 flex flex-col gap-3">
 					<h2 className="Poppins-SemiBold text-[#a6a3a3] text-2xl">
 						Dashboard
@@ -169,7 +189,6 @@ const Beekeeper = () => {
 					</div>
 				</div>
 
-				{/* RIGHT SIDE */}
 				<div className="w-2/3 flex items-stretch gap-3">
 					<GraphContainer title="hive health">
 						<HiveHealthChart data={hiveHealthChartData} />
@@ -192,7 +211,6 @@ const Beekeeper = () => {
 			{errorMsg && <p className="text-xs text-red-600 px-2">{errorMsg}</p>}
 
 			<div className="w-full flex-1 flex items-stretch gap-3 min-h-0">
-				{/* LEFT CONTAINER — nearby farms (fixture, no backend yet) */}
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
@@ -229,21 +247,20 @@ const Beekeeper = () => {
 					</div>
 				</Container>
 
-				{/* RIGHT CONTAINER — real pesticide alerts for this beekeeper */}
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Recent Alerts{" "}
 							<span
-								className={`text-xs text-[#ffce1c] cursor-pointer ${alerts.length > 0 ? "block" : "hidden"}`}
+								className={`text-xs text-[#ffce1c] cursor-pointer ${recentAlerts.length > 0 ? "block" : "hidden"}`}
 								onClick={() => router.push("/beekeeper/alert")}>
 								view all
 							</span>
 						</span>
 
-						{alerts && alerts.length > 0 ? (
+						{recentAlerts && recentAlerts.length > 0 ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
-								{alerts.map((a) => (
+								{recentAlerts.map((a) => (
 									<PesticideAlert
 										key={a.alert_id}
 										location={toAlertLocation(a)}

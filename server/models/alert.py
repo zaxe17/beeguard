@@ -112,20 +112,26 @@ class AlertModel:
     # ── WRITE ─────────────────────────────────
     @staticmethod
     def insert_with_conn(conn, data: dict) -> str:
+        """
+        Inserts a new alert. `beekeeperID` (the legacy target-beekeeper
+        column from the original schema) is intentionally NOT written
+        anymore — it was made nullable in Migration 003.5 and is now
+        superseded by `reported_by_beekeeper_id` (the AUTHOR). Target
+        beekeepers live in `alert_recipients`.
+        """
         aid = next_alert_id(conn)
         sql = f"""
             INSERT INTO {AlertModel.TABLE}
-                (alert_id, adminID, beekeeperID, reported_by_beekeeper_id,
+                (alert_id, adminID, reported_by_beekeeper_id,
                  source, title, description, pesticide_type,
                  application_method, affected_area, latitude, longitude,
                  scheduled_date, expiration_date, danger_radius_km, risk_level)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         with conn.cursor() as cur:
             cur.execute(sql, (
                 aid,
                 data.get("admin_id"),
-                None,
                 data.get("reported_by_beekeeper_id"),
                 data["source"],
                 data["title"],

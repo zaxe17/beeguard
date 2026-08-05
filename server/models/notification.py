@@ -1,7 +1,7 @@
 """
 Notification model — thin wrapper over the existing `notifications`
-table. IDs are 15-char strings (matches PK type) generated from a
-timestamp + short random suffix. No schema change required.
+table. IDs are timestamp + random-suffix strings (see migration 006
+for the VARCHAR(25) widening this required).
 """
 import datetime as dt
 import secrets
@@ -14,8 +14,19 @@ class NotificationModel:
 
     @staticmethod
     def _gen_id() -> str:
-        # 15 chars, e.g. "NT-YYMMDDHHMMSS"
-        return "NT-" + dt.datetime.utcnow().strftime("%y%m%d%H%M%S")
+        # "NT-" + YYMMDDHHMMSS (12 digits, second precision) + 6 hex
+        # chars of randomness. The old version used ONLY the
+        # second-precision timestamp, which meant every notification
+        # created within the same second (e.g. fanning out to several
+        # matched beekeepers in PesticideService.create_alert's loop)
+        # got the EXACT SAME id — a duplicate PRIMARY KEY that made
+        # MySQL reject the insert and roll back the whole alert
+        # transaction, silently killing every notification for that
+        # alert. The random suffix makes same-second collisions
+        # astronomically unlikely (16.7M possible suffixes per second).
+        ts = dt.datetime.utcnow().strftime("%y%m%d%H%M%S")
+        suffix = secrets.token_hex(3)
+        return f"NT-{ts}{suffix}"
 
     # ── READ ─────────────────────────────────
     @staticmethod

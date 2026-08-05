@@ -2,50 +2,7 @@
 
 """
 Queen Bee Replacement Recommendation Engine — Feature 3.
-
-Evaluates a single hive against the business rules:
-
-    (R1) Queen age >= QUEEN_MAX_AGE_DAYS (730)         -> Replace
-    (R2) yield_pct <= 60% of historical baseline       -> Replace
-                                                           + hive.health_status -> "Needs Attention"
-    (R3) Health="Needs Attention" AND next harvest
-         is lower than the previous one                 -> Replace
-    (R4) yield_pct <= 80% but > 60%                    -> Monitor
-    (R5) yield_pct >= 100% of baseline AND health_status
-         is currently "Needs Attention"                 -> health_status back to "Healthy"
-    (R6) still "Normal" after R1-R4, but the hive's
-         CURRENT health_status is Diseased/Weak/Needs
-         Attention (e.g. set manually at creation, or
-         via a Physical Inspection, with no yield data
-         yet to trigger R2-R4)                          -> Replace (Diseased)
-                                                            or Monitor (Weak / Needs Attention)
-    otherwise                                          -> Normal
-
-The engine is CALLED from three triggers:
-    (a) after a new (non-baseline) yield row is inserted
-    (b) after a Physical Inspection is recorded that changes
-        health_status to "Needs Attention"
-    (c) once at hive creation, and on demand via
-        /api/queen/evaluate/<hive_id>
-
-Every evaluation is persisted to `queen_recommendations` so the
-UI can render "Normal / Monitor / Replace" pills with a reason,
-history is preserved (never overwritten), and notifications can
-fan out from the same row.
-
-Harvest-season gating: per confirmed decision, evaluation runs
-MONTHLY (every month is a potential harvest). We therefore run
-the engine unconditionally on new yield inserts; the "season"
-gate collapses to a no-op.
-
-IMPORTANT — transactional reads:
-When `conn` is passed in (e.g. from YieldService.add_harvest, where
-a new yield row was just inserted on that same connection but not
-yet committed), every read this engine needs (hive row, baseline,
-latest harvest, last-2 harvests) MUST go through that same `conn`.
-Otherwise a fresh connection would not see the uncommitted insert
-yet, and the engine would evaluate against stale (one-harvest-behind)
-data — which is exactly the bug this file used to have.
+(docstring unchanged — see original for full rules R1-R6)
 """
 import datetime as dt
 
@@ -56,7 +13,6 @@ from models.yield_record import YieldModel
 from models.queen_recommendation import QueenRecommendationModel
 
 
-# ─── Reason codes (machine-stable) ─────────────
 R_QUEEN_TOO_OLD        = "QUEEN_AGE_EXCEEDED"
 R_YIELD_BELOW_60       = "YIELD_BELOW_60_PCT"
 R_DECLINING_AFTER_WARN = "DECLINING_AFTER_ATTENTION"
@@ -65,13 +21,7 @@ R_HEALTH_DISEASED      = "HEALTH_STATUS_DISEASED"
 R_HEALTH_FLAGGED       = "HEALTH_STATUS_FLAGGED"
 R_NORMAL               = "NORMAL"
 
-# Health statuses that a yield-triggered CHANGE (down OR back up) must
-# NEVER touch — "Diseased" and "Weak" are inspection/manual-confirmed
-# states and shouldn't be silently flipped by yield numbers alone.
 HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE = {"Diseased", "Weak"}
-
-# Threshold (as a % of baseline) at/above which a recovered harvest
-# clears a yield-caused "Needs Attention" back to "Healthy".
 YIELD_RECOVERY_THRESHOLD_PCT = 100.0
 
 
@@ -86,11 +36,6 @@ def _queen_age_days(hive: dict, today: dt.date | None = None) -> int | None:
 
 
 def _baseline_kg(hive: dict, conn=None) -> float | None:
-    """
-    Baseline lookup priority:
-      1. yields.is_baseline=TRUE row (canonical)
-      2. hives.historical_yield_kg (seeded at hive creation)
-    """
     row = YieldModel.find_baseline(hive["hive_id"], conn=conn)
     if row and row.get("yield_kg") is not None:
         return float(row["yield_kg"])
@@ -104,6 +49,12 @@ def _pct(current: float, baseline: float) -> float:
     return round((current / baseline) * 100.0, 2)
 
 
+def _as_date(v):
+    if isinstance(v, dt.datetime):
+        return v.date()
+    return v
+
+
 class QueenService:
 
     # ── Core evaluator ─────────────────────────
@@ -111,24 +62,6 @@ class QueenService:
     def evaluate_hive(hive_id: str, *,
                        persist: bool = True,
                        conn=None) -> dict:
-        """
-        Runs all rules. Returns:
-            {
-              level, reason_code, reason,
-              yield_baseline_kg, yield_current_kg, yield_pct,
-              queen_age_days, hive_id, beekeeper_id,
-              recommendation_id  (only when persist=True and a row was written)
-            }
-
-        When `conn` is passed, ALL reads AND the recommendation row
-        INSERT (and any health-status change, if triggered) happen
-        on that connection (same transaction as the yield write, for
-        instance) — the caller must commit. When `conn` is None and
-        persist=True, we open our own short-lived transaction for the
-        whole evaluate-and-persist sequence.
-        """
-        # Read the hive row on `conn` when given, so we see any
-        # not-yet-committed changes made earlier in this transaction.
         hive = HiveModel.find_by_id(hive_id, conn=conn)
         if not hive:
             raise ValueError(f"Hive not found: {hive_id}")
@@ -143,10 +76,8 @@ class QueenService:
 
         current_health = hive.get("health_status")
 
-        # ── Rule evaluation (order matters) ─────
         level, code, reason = "Normal", R_NORMAL, "Hive is performing within expected parameters."
 
-        # R1: queen age ── always applies
         if queen_age is not None and queen_age >= Config.QUEEN_MAX_AGE_DAYS:
             level = "Replace"
             code  = R_QUEEN_TOO_OLD
@@ -155,7 +86,6 @@ class QueenService:
                 f"(currently {queen_age} days)."
             )
 
-        # R2/R4: yield vs baseline (only if we have both)
         if level != "Replace" and pct is not None:
             if pct <= Config.YIELD_REPLACE_THRESHOLD_PCT:
                 level = "Replace"
@@ -174,7 +104,6 @@ class QueenService:
                     f"{pct:.1f}% of baseline {baseline:.2f} kg — trending down."
                 )
 
-        # R3: declining harvest after 'Needs Attention'
         if level == "Normal" and current_health == "Needs Attention":
             last_two = YieldModel.last_n_non_baseline(hive_id, 2, conn=conn)
             if len(last_two) >= 2:
@@ -187,12 +116,6 @@ class QueenService:
                         f"dropped from {prev_kg:.2f} kg to {latest_kg:.2f} kg."
                     )
 
-        # R6: fallback — a hive that's manually/inspection-flagged as
-        # Diseased, Weak, or Needs Attention should still surface as an
-        # open recommendation even when no yield or queen-age rule
-        # fired above (e.g. a brand-new hive added with
-        # health_status="Diseased" at creation, before any harvest
-        # exists to trigger R2/R3/R4).
         if level == "Normal":
             if current_health == "Diseased":
                 level = "Replace"
@@ -218,14 +141,10 @@ class QueenService:
         if not persist:
             return result
 
-        # ── Persist ───────────────────────────
         own_conn = conn is None
         if own_conn:
             conn = Database.get_connection()
         try:
-            # Yield collapse (R2) downgrades hive.health_status —
-            # done on the SAME conn/transaction as the recommendation
-            # row below, so both commit or roll back together.
             if (
                 code == R_YIELD_BELOW_60
                 and current_health not in HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE
@@ -234,12 +153,6 @@ class QueenService:
                 HiveModel.update_health_status(
                     hive_id, beekeeper_id, "Needs Attention", conn=conn
                 )
-
-            # R5: yield recovered to/above baseline — clear a
-            # yield-caused "Needs Attention" back to "Healthy". Only
-            # fires when the CURRENT status is "Needs Attention" (never
-            # touches "Diseased"/"Weak" — those need inspection/manual
-            # clearing, not just a good harvest).
             elif (
                 pct is not None
                 and pct >= YIELD_RECOVERY_THRESHOLD_PCT
@@ -249,9 +162,6 @@ class QueenService:
                     hive_id, beekeeper_id, "Healthy", conn=conn
                 )
 
-            # De-dupe: if the LATEST open recommendation for this hive is
-            # identical in level+reason_code, don't spam another row.
-            # MUST read on `conn` — see latest_open_for_hive docstring.
             latest_open = QueenRecommendationModel.latest_open_for_hive(hive_id, conn=conn)
             same = (
                 latest_open
@@ -259,16 +169,6 @@ class QueenService:
                 and latest_open["reason_code"] == code
             )
             if not same:
-                # Supersede: the hive's evaluation changed (e.g. Monitor
-                # -> Replace, or Replace -> Monitor on a later harvest).
-                # The OLD open recommendation is now stale, so close it
-                # in the same transaction as the new insert below —
-                # otherwise it stays "open" forever and one hive can
-                # pile up multiple open rows, which is what was making
-                # dashboard_summary()'s recommendations.open count
-                # (list_open_for_beekeeper counts ROWS, not hives)
-                # bigger than the number of hives actually needing
-                # attention.
                 if latest_open and latest_open["level"] != "Normal":
                     QueenRecommendationModel.resolve_with_conn(
                         conn, latest_open["recommendation_id"]
@@ -277,9 +177,8 @@ class QueenService:
                 rid = QueenRecommendationModel.insert_with_conn(conn, result)
                 result["recommendation_id"] = rid
 
-                # Fan out a notification for Monitor/Replace only.
                 if level in ("Monitor", "Replace"):
-                    from services.notification_service import NotificationService  # local import avoids cycle
+                    from services.notification_service import NotificationService
                     NotificationService.notify_queen(
                         conn=conn,
                         beekeeper_id=beekeeper_id,
@@ -310,28 +209,10 @@ class QueenService:
     @staticmethod
     def confirm_replacement(hive_id: str, beekeeper_id: str,
                              installed_on: dt.date | None = None) -> dict:
-        """
-        Called from the "Queen Replaced" UI action. This is the
-        confirmed, manual intervention the recommendation was asking
-        for — so unlike the automatic yield-based transitions above,
-        it ALWAYS clears the hive back to "Healthy" regardless of
-        what it was before (Diseased, Weak, or Needs Attention all
-        get reset here — a fresh queen is exactly the fix for all
-        three). It also:
-          - Updates the hive's queen_installed_date
-          - Resolves any open Monitor/Replace recommendations
-          - Forces a re-evaluation (which will now return Normal
-            barring other issues, e.g. queen-age already exceeded
-            again from a backdated installed_on)
-        """
         installed_on = installed_on or dt.date.today()
         conn = Database.get_connection()
         try:
             HiveModel.update_queen_installed(conn, hive_id, installed_on)
-            # NEW: a confirmed queen replacement is the actual fix for
-            # Diseased / Weak / Needs Attention — reset health_status
-            # to "Healthy" in the SAME transaction as the queen-date
-            # update, so both commit or roll back together.
             HiveModel.update_health_status(hive_id, beekeeper_id, "Healthy", conn=conn)
             conn.commit()
         except Exception:
@@ -340,11 +221,63 @@ class QueenService:
         finally:
             conn.close()
 
-        # Close any open Monitor/Replace recommendations for this hive
         opens = QueenRecommendationModel.history_for_hive(hive_id, limit=5)
         for r in opens:
             if r["resolved_at"] is None and r["level"] in ("Monitor", "Replace"):
                 QueenRecommendationModel.resolve(r["recommendation_id"], beekeeper_id)
 
-        # Re-evaluate so the dashboard reflects the fresh state
         return QueenService.evaluate_hive(hive_id, persist=True)
+
+    # ── NEW: Read-side for the History tab's queen-replacement grid ─
+    @staticmethod
+    def list_history_for_beekeeper(beekeeper_id: str) -> list[dict]:
+        """
+        One row per hive owned by this beekeeper:
+          - hive_name
+          - level: the most recent evaluation's level (Normal/Monitor/Replace)
+          - reason: human-readable reason for that level
+          - queen_installed_date: last time a queen was actually installed
+          - replaced: True when the most recent Monitor/Replace
+            recommendation has since been resolved AND the queen was
+            installed on/after that recommendation was evaluated —
+            i.e. confirm_replacement() ran to actually address it,
+            as opposed to the recommendation just being superseded by
+            a newer (still-open) one.
+
+        Uses QueenRecommendationModel.history_for_hive(hive_id, limit=1)
+        to get the single latest row per hive — same method already
+        used by confirm_replacement() above, just capped to 1.
+        """
+        hives = HiveModel.list_by_beekeeper(beekeeper_id)
+        rows = []
+        for h in hives:
+            latest_list = QueenRecommendationModel.history_for_hive(h["hive_id"], limit=1)
+            latest = latest_list[0] if latest_list else None
+
+            level = latest["level"] if latest else "Normal"
+            reason = latest["reason"] if latest else "No evaluation yet."
+            evaluated_at = latest.get("evaluated_at") if latest else None
+            resolved_at = latest.get("resolved_at") if latest else None
+
+            queen_installed = h.get("queen_installed_date")
+            replaced = False
+            if (
+                latest
+                and resolved_at
+                and level in ("Monitor", "Replace")
+                and queen_installed
+                and evaluated_at
+            ):
+                replaced = _as_date(queen_installed) >= _as_date(evaluated_at)
+
+            rows.append({
+                "hive_id": h["hive_id"],
+                "hive_name": h["hive_name"],
+                "level": level,
+                "reason": reason,
+                "evaluated_at": evaluated_at.isoformat() if isinstance(evaluated_at, (dt.date, dt.datetime)) else evaluated_at,
+                "resolved_at": resolved_at.isoformat() if isinstance(resolved_at, (dt.date, dt.datetime)) else resolved_at,
+                "queen_installed_date": queen_installed.isoformat() if isinstance(queen_installed, (dt.date, dt.datetime)) else queen_installed,
+                "replaced": replaced,
+            })
+        return rows

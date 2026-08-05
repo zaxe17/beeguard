@@ -36,8 +36,13 @@ def create_alert():
         print(f"[PESTICIDE-CREATE] Unhandled error: {e}")
         return error("Failed to create alert. Please try again.", status=500)
 
+    # `notified_count` is the number of OTHER beekeepers we sent a
+    # notification to (matched + unlocated + outside-radius heads-ups),
+    # which is what should show up in the confirmation toast/status —
+    # `matched_count` is only those actually inside the danger radius.
     return success(
-        f"Alert created and sent to {result['matched_count']} nearby beekeeper(s).",
+        f"Alert created and sent to {result['notified_count']} beekeeper(s) "
+        f"({result['matched_count']} inside the danger radius).",
         data=result,
         status=201,
     )
@@ -56,7 +61,12 @@ def list_admin_alerts():
 @pesticide_bp.route("/alerts/active", methods=["GET"])
 @token_required
 def list_active_alerts():
-    alerts = PesticideService.list_active()
+    # Personalize risk_level (distance-derived) when a beekeeper is
+    # viewing — admins and any other role see the alert's global
+    # risk_level, since there's no single beekeeper's farm to compute
+    # a distance against.
+    beekeeper_id = g.user_id if g.role == "beekeeper" else None
+    alerts = PesticideService.list_active(beekeeper_id=beekeeper_id)
     return success("OK", data=alerts, status=200)
 
 
@@ -70,9 +80,11 @@ def list_my_alerts():
 
 
 # ── DETAIL — single alert, full detail for the Alert Details page.
-#    Route sits ABOVE /alerts/<id>/recipients but Flask disambiguates
-#    by path shape, so ordering here doesn't matter — kept adjacent
-#    to the other alert-scoped routes for readability. ──────────
+#    Any authenticated admin or beekeeper can open any alert's
+#    details — the service layer used to 403 non-matched beekeepers,
+#    but a pesticide alert is a public-safety notice: every beekeeper
+#    on the platform should be able to see what's going on, even if
+#    their own farm sits outside this alert's danger radius. ────
 @pesticide_bp.route("/alerts/<alert_id>", methods=["GET"])
 @token_required
 @role_required("admin", "beekeeper")
@@ -81,8 +93,6 @@ def get_alert_detail(alert_id):
         detail = PesticideService.get_alert_detail(alert_id, g.user_id, g.role)
     except LookupError:
         return error("Alert not found.", status=404)
-    except PermissionError:
-        return error("You do not have access to this alert.", status=403)
     except Exception as e:
         print(f"[PESTICIDE-DETAIL] Unhandled error: {e}")
         return error("Failed to load alert details. Please try again.", status=500)

@@ -5,9 +5,22 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
+import dynamic from "next/dynamic";
 import { AlertContainer } from "@/components/ui/Alert";
-import Map from "@/components/ui/google-maps/Map";
 import { pesticideService, AlertDetail } from "@/services/pesticide";
+
+// Leaflet touches `window` at module-evaluation time, so it can't be
+// server-rendered — same fix already applied in AlertModal.tsx. This
+// page previously did a static `import Map from "..."`, which forced
+// Next to SSR it and crashed with "window is not defined".
+const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
 
 type DetailsProps = {
 	location?: string;
@@ -248,10 +261,6 @@ function splitDateTime(iso: string | null | undefined) {
 	};
 }
 
-// Timeline stage status: "already happened" vs "still ahead" is
-// computed off wall-clock time against each stage's own date, so the
-// dots/lines reflect where we actually are relative to the alert —
-// not just a fixed admin/pending/upcoming guess.
 function stageStatus(iso: string | null | undefined, fallback: TimelineStatus): TimelineStatus {
 	if (!iso) return fallback;
 	return new Date(iso).getTime() <= Date.now() ? "active" : fallback;

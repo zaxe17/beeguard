@@ -42,7 +42,12 @@ class AlertDetailOut(BaseModel):
     issued_by: Optional[str] = None
     contact: Optional[str] = None
 
-    @field_validator("latitude", "longitude", "danger_radius_km", mode="before")
+    # Only populated when the viewer is a matched beekeeper recipient —
+    # their own distance from the pesticide site in km. Null for
+    # admins and for self-authored alerts with no recipient match.
+    your_distance_km: Optional[float] = None
+
+    @field_validator("latitude", "longitude", "danger_radius_km", "your_distance_km", mode="before")
     @classmethod
     def _coerce_numeric(cls, v):
         if isinstance(v, Decimal):

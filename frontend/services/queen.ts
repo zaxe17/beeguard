@@ -1,35 +1,32 @@
 import { api } from "./api";
-import { QueenRecommendationResult } from "./hive";
 
-export interface QueenRecommendationRecord extends QueenRecommendationResult {
-	recommendation_id: string;
-	evaluated_at: string;
-	acknowledged_at: string | null;
+export type QueenLevel = "Normal" | "Monitor" | "Replace";
+
+// One row per hive owned by the current beekeeper — powers the
+// History tab's queen-replacement grid (below the yield line
+// graph). Backed by GET /api/queen/history.
+export interface QueenHistoryRow {
+	hive_id: string;
+	hive_name: string;
+	level: QueenLevel;
+	reason: string;
+	evaluated_at: string | null;
 	resolved_at: string | null;
+	queen_installed_date: string | null;
+	// True when the latest Monitor/Replace recommendation was actually
+	// acted on — i.e. a queen was installed on/after the evaluation
+	// date, as opposed to the recommendation just being superseded.
+	replaced: boolean;
 }
 
 export const queenService = {
-	evaluate: (hiveId: string) =>
-		api.get<QueenRecommendationResult>(`/queen/evaluate/${hiveId}`),
+	// Signature matches the call site in HivesModal.tsx:
+	//   queenService.confirmReplacement(hiveId, replacementDate)
+	confirmReplacement: (hiveId: string, installedOn: string | null) =>
+		api.post<{ level: QueenLevel }>(`/queen/${hiveId}/confirm-replacement`, {
+			installed_on: installedOn,
+		}),
 
-	confirmReplacement: (hiveId: string, installedOn?: string | null) =>
-		api.post<QueenRecommendationResult>(
-			`/queen/confirm-replacement/${hiveId}`,
-			installedOn ? { installed_on: installedOn } : {},
-		),
-
-	listOpenRecommendations: () =>
-		api.get<QueenRecommendationRecord[]>("/queen/recommendations"),
-
-	resolve: (recommendationId: string) =>
-		api.post<Record<string, never>>(
-			`/queen/recommendations/${recommendationId}/resolve`,
-			{},
-		),
-
-	acknowledge: (recommendationId: string) =>
-		api.post<Record<string, never>>(
-			`/queen/recommendations/${recommendationId}/acknowledge`,
-			{},
-		),
+	// Powers the History tab's queen-replacement grid.
+	historyForBeekeeper: () => api.get<QueenHistoryRow[]>("/queen/history"),
 };

@@ -100,20 +100,53 @@ def validate_register_payload(payload: dict) -> tuple[dict, dict]:
         else:
             cleaned["address"] = address.strip() or None
 
-    # Coordinates — longitude required by schema
+    # Coordinates — BOTH latitude and longitude are required together.
+    # Previously only longitude was enforced, so a payload with
+    # longitude=0 (an unfilled map-pin default) but latitude omitted
+    # would pass validation and get saved as latitude=NULL,
+    # longitude=0.0 — a beekeeper stuck in that state is silently
+    # excluded from PesticideService._find_nearby_beekeepers forever
+    # (it requires BOTH to be non-null), so they never get matched
+    # into any alert's alert_recipients and their risk_level always
+    # falls back to "Low", no matter how close a pesticide alert is.
     lat = payload.get("latitude")
     lng = payload.get("longitude")
-    try:
-        cleaned["latitude"] = float(lat) if lat is not None else None
-    except (TypeError, ValueError):
-        field_errors["latitude"] = "Latitude must be a number."
-    try:
-        if lng is None:
-            field_errors["longitude"] = "Longitude is required."
+
+    if role == "beekeeper":
+        # Beekeepers need a real farm pin — this is the data the
+        # whole pesticide-matching feature depends on.
+        if lat is None or lng is None:
+            field_errors["location"] = (
+                "Please pin your farm location on the map."
+            )
         else:
-            cleaned["longitude"] = float(lng)
-    except (TypeError, ValueError):
-        field_errors["longitude"] = "Longitude must be a number."
+            try:
+                cleaned["latitude"] = float(lat)
+            except (TypeError, ValueError):
+                field_errors["latitude"] = "Latitude must be a number."
+            try:
+                cleaned["longitude"] = float(lng)
+            except (TypeError, ValueError):
+                field_errors["longitude"] = "Longitude must be a number."
+    else:
+        # Citizens: location stays optional, but if either coordinate
+        # is given, BOTH must be given — no more half-saved pins.
+        if lat is None and lng is None:
+            cleaned["latitude"] = None
+            cleaned["longitude"] = None
+        elif lat is None or lng is None:
+            field_errors["location"] = (
+                "Please provide both latitude and longitude, or neither."
+            )
+        else:
+            try:
+                cleaned["latitude"] = float(lat)
+            except (TypeError, ValueError):
+                field_errors["latitude"] = "Latitude must be a number."
+            try:
+                cleaned["longitude"] = float(lng)
+            except (TypeError, ValueError):
+                field_errors["longitude"] = "Longitude must be a number."
 
     # Terms
     if not bool(payload.get("terms_accepted")):

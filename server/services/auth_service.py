@@ -266,7 +266,7 @@ class AuthService:
             },
         }
 
-    # ---------- fetch current user (unchanged) ----------
+    # ---------- fetch current user ----------
     @staticmethod
     def get_user(role: str, user_id: str) -> dict | None:
         if role == "citizen":
@@ -279,8 +279,20 @@ class AuthService:
             return None
         if not row:
             return None
-        return {
+        user = {
             "id": row[id_field], "role": role,
             "name": row.get("name") or row.get("admin_name"),
             "email": row["email"], "username": row.get("username"),
         }
+        # NEW — citizens and beekeepers may have a stored farm/home pin.
+        # Exposed here so the frontend (e.g. the Add Alert map) can
+        # auto-center on the user's own location instead of always
+        # defaulting to a fixed spot in Quezon City. `None` when the
+        # user never set a location (or only partially set it) —
+        # the frontend should fall back to its own default in that case.
+        if role in ("citizen", "beekeeper"):
+            lat = row.get("latitude")
+            lng = row.get("longitude")
+            user["latitude"] = float(lat) if lat is not None else None
+            user["longitude"] = float(lng) if lng is not None else None
+        return user

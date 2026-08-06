@@ -1,8 +1,9 @@
 # Project Setup
 
 ## Requirements
-- Node.js v26.4.0
-- Python 3.14.6
+- **Node.js** v26.4.0
+- **Python** 3.14.6
+- **MySql workbench** 8.0.46
 
 ## 1. Running the Frontend
 

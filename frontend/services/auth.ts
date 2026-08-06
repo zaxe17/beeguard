@@ -33,6 +33,11 @@ export interface AuthUser {
     name: string;
     email: string;
     username?: string;
+    // Present for citizen/beekeeper when GET /auth/me returns it — the
+    // user's stored farm/home pin. `null` if never set (or only
+    // partially set) at registration; undefined for admins.
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 export interface LoginData {

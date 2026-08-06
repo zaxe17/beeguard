@@ -32,12 +32,29 @@ const beefarms = beefarmsData as BeeFarmProps[];
 interface GraphProps {
 	children?: React.ReactNode;
 	title?: string;
+	// NEW — optional click handler so a graph card can double as a
+	// nav shortcut (e.g. "yield summary" -> History tab), without
+	// forcing every GraphContainer to be clickable.
+	onClick?: () => void;
 }
 
-const GraphContainer = ({ children, title }: GraphProps) => {
+const GraphContainer = ({ children, title, onClick }: GraphProps) => {
 	return (
 		<div
-			className="w-1/2 border border-[#a6a3a3] rounded-2xl p-4 flex flex-col"
+			role={onClick ? "button" : undefined}
+			tabIndex={onClick ? 0 : undefined}
+			onClick={onClick}
+			onKeyDown={(e) => {
+				if (onClick && (e.key === "Enter" || e.key === " ")) {
+					e.preventDefault();
+					onClick();
+				}
+			}}
+			className={`w-1/2 border border-[#a6a3a3] rounded-2xl p-4 flex flex-col ${
+				onClick
+					? "cursor-pointer hover:border-[#ffce1c] hover:bg-[#fff1ad]/30 transition-colors"
+					: ""
+			}`}
 			style={{ boxShadow: `rgba(0, 0, 0, 0.24) 0px 3px 8px` }}>
 			<h2 className="Poppins-SemiBold capitalize text-center text-xl mb-2">
 				{title}
@@ -79,12 +96,6 @@ const Beekeeper = () => {
 		setLoading(true);
 		setErrorMsg(null);
 
-		// Use listActiveAlerts (every currently-active alert on the
-		// platform, personalized to this beekeeper's risk_level) rather
-		// than listMyAlerts (only alerts where this beekeeper was
-		// matched as a recipient inside the danger radius). Otherwise
-		// an alert posted by another beekeeper NEARBY BUT OUTSIDE this
-		// user's own danger radius silently never shows up here.
 		const [summaryRes, healthRes, trendRes, alertsRes] = await Promise.all([
 			analyticsService.dashboardSummary(),
 			analyticsService.hiveHealth(),
@@ -106,12 +117,6 @@ const Beekeeper = () => {
 		load();
 	}, [load]);
 
-	// NEW — refetch immediately when a pesticide alert is
-	// published/changed, or a hive/queen action happens (yield
-	// totals, hive health, recommendations all shift too). Previously
-	// this page only ever loaded once on mount, so a freshly
-	// published alert's corrected risk_level wouldn't show up here
-	// until a manual page reload.
 	useEffect(() => {
 		const handler = () => load();
 		window.addEventListener(ALERTS_CHANGED_EVENT, handler);
@@ -157,9 +162,6 @@ const Beekeeper = () => {
 			}))
 		: [{ label: "No data", value: 1, color: "#e2e2e6" }];
 
-	// Sort alerts newest-first for the dashboard's "Recent Alerts"
-	// column so a freshly-published alert lands at the top instead
-	// of at the bottom of a long list.
 	const recentAlerts = [...alerts].sort(
 		(a, b) =>
 			new Date(b.scheduled_date).getTime() -
@@ -193,7 +195,13 @@ const Beekeeper = () => {
 					<GraphContainer title="hive health">
 						<HiveHealthChart data={hiveHealthChartData} />
 					</GraphContainer>
-					<GraphContainer title="yield summary">
+
+					{/* NEW — clicking this card now navigates to the
+					    History tab, which shows the fuller per-hive
+					    version of the same yield trend. */}
+					<GraphContainer
+						title="yield summary"
+						onClick={() => router.push("/beekeeper/history")}>
 						<YieldSummaryChart
 							value={formatKg(summary?.yield_totals.this_month.total_kg)}
 							valueLabel="Yield This Month"

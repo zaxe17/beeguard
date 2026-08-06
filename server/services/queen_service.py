@@ -61,7 +61,27 @@ class QueenService:
     @staticmethod
     def evaluate_hive(hive_id: str, *,
                        persist: bool = True,
-                       conn=None) -> dict:
+                       conn=None,
+                       skip_yield_health_downgrade: bool = False) -> dict:
+        """
+        `skip_yield_health_downgrade`: when True, the R_YIELD_BELOW_60
+        branch below is still evaluated for level/reason/recommendation
+        purposes, but it will NOT push hives.health_status down to
+        "Needs Attention".
+
+        Why this exists: right after QueenService.confirm_replacement()
+        sets health_status to "Healthy", it calls this method again to
+        refresh the recommendation. At that point the latest harvest on
+        file is still the OLD, pre-replacement one (no new harvest has
+        happened yet), so pct-vs-baseline is still low and would
+        immediately flip health_status back to "Needs Attention" —
+        undoing the reset in the same request, before the beekeeper
+        even sees the "Healthy" result. confirm_replacement() passes
+        skip_yield_health_downgrade=True to prevent that. Every other
+        caller (dashboard refresh, batch evaluation, a fresh harvest
+        coming in) leaves this False, so the normal downgrade rule
+        still applies everywhere else.
+        """
         hive = HiveModel.find_by_id(hive_id, conn=conn)
         if not hive:
             raise ValueError(f"Hive not found: {hive_id}")
@@ -147,6 +167,7 @@ class QueenService:
         try:
             if (
                 code == R_YIELD_BELOW_60
+                and not skip_yield_health_downgrade
                 and current_health not in HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE
                 and current_health != "Needs Attention"
             ):
@@ -226,7 +247,13 @@ class QueenService:
             if r["resolved_at"] is None and r["level"] in ("Monitor", "Replace"):
                 QueenRecommendationModel.resolve(r["recommendation_id"], beekeeper_id)
 
-        return QueenService.evaluate_hive(hive_id, persist=True)
+        # skip_yield_health_downgrade=True: prevents the still-stale
+        # (pre-replacement) yield numbers from flipping health_status
+        # back down to "Needs Attention" the instant we just set it
+        # to "Healthy" above. See evaluate_hive()'s docstring.
+        return QueenService.evaluate_hive(
+            hive_id, persist=True, skip_yield_health_downgrade=True
+        )
 
     # ── NEW: Read-side for the History tab's queen-replacement grid ─
     @staticmethod

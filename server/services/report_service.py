@@ -21,6 +21,9 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     PageBreak, KeepTogether,
 )
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.widgets.markers import makeMarker
 
 
 # ── ReportLab styles (single source) ───────────────────────
@@ -34,6 +37,9 @@ STYLES = {
     "body":   ParagraphStyle("b",  parent=_BASE["BodyText"], fontSize=9.5, leading=12),
     "small":  ParagraphStyle("s",  parent=_BASE["BodyText"], fontSize=8,   leading=10,
                               textColor=colors.grey),
+    "cell":   ParagraphStyle("c",  parent=_BASE["BodyText"], fontSize=8.5, leading=10.5),
+    "cell_white": ParagraphStyle("cw", parent=_BASE["BodyText"], fontSize=8.5, leading=10.5,
+                              textColor=colors.white),
 }
 
 # BeeGuard palette — reuse from the frontend so the PDF matches
@@ -142,6 +148,61 @@ class ReportService:
         return [Paragraph("Portfolio summary", STYLES["h1"]), tbl, Spacer(1, 10)]
 
     @staticmethod
+    def _monthly_trend_chart(ds: dict) -> list:
+        """
+        Yield Trend Visualization — plots the same monthly totals shown
+        in the table below as an actual X/Y line chart (month on the
+        x-axis, total kg harvested on the y-axis) so the beekeeper gets
+        a visual read of the trend at a glance, not just numbers.
+
+        Built with reportlab.graphics (no extra dependency needed in
+        this Python/Flask stack — this is the equivalent of plotting
+        the computed data points with ggplot2 in an R pipeline: same
+        idea, same axes, just a different renderer since the PDF is
+        generated server-side in Python).
+        """
+        trend = ds.get("monthly_trend") or {"categories": [], "data": []}
+        cats = trend.get("categories") or []
+        data = trend.get("data") or []
+
+        if not cats or len(cats) < 2:
+            # A single point (or none) doesn't draw a meaningful trend
+            # line — the table below still shows the raw number(s).
+            return []
+
+        values = [float(v) for v in data]
+        max_val = max(values) if values else 0
+
+        drawing = Drawing(460, 170)
+        chart = HorizontalLineChart()
+        chart.x = 45
+        chart.y = 35
+        chart.width = 395
+        chart.height = 115
+
+        chart.data = [values]
+        chart.lines[0].strokeColor = BEE_ORANGE
+        chart.lines[0].strokeWidth = 2
+        chart.lines[0].symbol = makeMarker("Circle")
+        chart.lines[0].symbol.strokeColor = BEE_BROWN
+        chart.lines[0].symbol.fillColor = BEE_ORANGE
+        chart.lines[0].symbol.size = 4
+
+        chart.categoryAxis.categoryNames = cats
+        chart.categoryAxis.labels.fontSize = 6.5
+        chart.categoryAxis.labels.angle = 30
+        chart.categoryAxis.labels.dy = -12
+        chart.categoryAxis.labels.boxAnchor = "n"
+
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = (max_val * 1.2) if max_val > 0 else 10
+        chart.valueAxis.labels.fontSize = 7
+        chart.valueAxis.labelTextFormat = "%0.1f kg"
+
+        drawing.add(chart)
+        return [drawing, Spacer(1, 6)]
+
+    @staticmethod
     def _monthly_trend_block(ds: dict) -> list:
         trend = ds.get("monthly_trend") or {"categories": [], "data": []}
         cats  = trend.get("categories") or []
@@ -166,6 +227,7 @@ class ReportService:
             ("ALIGN",        (1,1), (1,-1), "RIGHT"),
         ]))
         return [Paragraph("Monthly yield trend (last 12 months)", STYLES["h1"]),
+                *ReportService._monthly_trend_chart(ds),
                 tbl, Spacer(1, 10)]
 
     @staticmethod
@@ -249,17 +311,24 @@ class ReportService:
             rec_rows.append([
                 (r.get("evaluated_at") or "").split("T")[0],
                 r.get("level") or "—",
-                r.get("reason") or "—",
-                f"{_fmt_kg(r.get('yield_baseline_kg'))} / "
-                f"{_fmt_kg(r.get('yield_current_kg'))} / "
-                f"{_fmt_pct(r.get('yield_pct'))}",
+                # Wrapped in Paragraph so long reason text wraps within
+                # its column instead of overflowing into the next one
+                # (plain strings in a Table cell don't auto-wrap —
+                # this was the cause of overlapping text in this table).
+                Paragraph(r.get("reason") or "—", STYLES["cell"]),
+                Paragraph(
+                    f"{_fmt_kg(r.get('yield_baseline_kg'))} / "
+                    f"{_fmt_kg(r.get('yield_current_kg'))} / "
+                    f"{_fmt_pct(r.get('yield_pct'))}",
+                    STYLES["cell"],
+                ),
             ])
         rtbl = Table(rec_rows, colWidths=[26*mm, 22*mm, 62*mm, 60*mm], repeatRows=1)
         rtbl.setStyle(TableStyle([
             ("BACKGROUND",   (0,0), (-1,0), BEE_BROWN),
             ("TEXTCOLOR",    (0,0), (-1,0), colors.white),
             ("FONT",         (0,0), (-1,0), "Helvetica-Bold", 9),
-            ("FONT",         (0,1), (-1,-1), "Helvetica", 8.5),
+            ("FONT",         (0,1), (1,-1), "Helvetica", 8.5),
             ("GRID",         (0,0), (-1,-1), 0.25, GRID_GREY),
             ("VALIGN",       (0,0), (-1,-1), "TOP"),
         ]))

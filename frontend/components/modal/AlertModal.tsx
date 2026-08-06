@@ -5,9 +5,10 @@ import { ModalContainer } from "./Modal";
 import dynamic from "next/dynamic";
 import { Button, CancelButton } from "../ui/Button";
 import { Input, RangeInput, Select } from "../ui/Input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import pesticides from "@/data/typesOfPesticide.json";
 import { pesticideService, PesticideType } from "@/services/pesticide";
+import { authService } from "@/services/auth";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — load it client-side only. AddAlert stays mounted
@@ -69,6 +70,35 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 	const [radiusManuallySet, setRadiusManuallySet] = useState(false);
 
 	const [coords, setCoords] = useState<LatLng | null>(null);
+
+	// NEW — the current beekeeper's own farm location, fetched from
+	// their profile so the map opens centered on THEIR farm instead
+	// of always defaulting to a fixed spot in Quezon City
+	// (Map.tsx's DEFAULT_CENTER). Stays `null` (falls back to that
+	// default) if they never set a location, or if the fetch fails.
+	const [ownLocation, setOwnLocation] = useState<LatLng | null>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		let cancelled = false;
+		authService.me().then((res) => {
+			if (cancelled) return;
+			if (
+				res.success &&
+				res.data &&
+				res.data.latitude != null &&
+				res.data.longitude != null
+			) {
+				setOwnLocation({
+					lat: res.data.latitude,
+					lng: res.data.longitude,
+				});
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [open]);
 
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -184,7 +214,9 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 			    that updates as the slider or pesticide type changes. */}
 			<div className="w-full h-60 rounded-xl relative overflow-hidden">
 				<Map
+					key={ownLocation ? `${ownLocation.lat},${ownLocation.lng}` : "default-center"}
 					onLocationSelect={setCoords}
+					initialCenter={ownLocation ?? undefined}
 					initialMarker={coords}
 					radiusKm={radiusKm}
 				/>

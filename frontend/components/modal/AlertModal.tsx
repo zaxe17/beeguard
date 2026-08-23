@@ -126,7 +126,10 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		if (!radiusManuallySet) {
 			const defaultForType = RADIUS_KM_BY_TYPE[code] ?? DEFAULT_RADIUS_KM;
 			setRadiusKm(
-				Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, defaultForType)),
+				Math.min(
+					MAX_RADIUS_KM,
+					Math.max(MIN_RADIUS_KM, defaultForType),
+				),
 			);
 		}
 	};
@@ -214,7 +217,11 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 			    that updates as the slider or pesticide type changes. */}
 			<div className="w-full h-60 rounded-xl relative overflow-hidden">
 				<Map
-					key={ownLocation ? `${ownLocation.lat},${ownLocation.lng}` : "default-center"}
+					key={
+						ownLocation
+							? `${ownLocation.lat},${ownLocation.lng}`
+							: "default-center"
+					}
 					onLocationSelect={setCoords}
 					initialCenter={ownLocation ?? undefined}
 					initialMarker={coords}
@@ -226,21 +233,14 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 					Alert Information
 				</h2>
 
-				<RangeInput
-					label="Danger Radius"
-					min={MIN_RADIUS_KM}
-					max={MAX_RADIUS_KM}
-					unit="km"
-					value={radiusKm}
-					onChange={handleRadiusChange}
-				/>
-
 				{/* SELECT PESTICIDE TYPE */}
 				<Select
 					label="Select Pesticide"
 					options={pesticideOptions}
 					value={selectedPesticide}
-					onSelectChange={(e) => handlePesticideChange(e.target.value)}
+					onSelectChange={(e) =>
+						handlePesticideChange(e.target.value)
+					}
 				/>
 
 				{/* IF SELECTED OTHERS SHOW INPUT */}
@@ -251,6 +251,15 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 						onChange={(e) => setOtherPesticide(e.target.value)}
 					/>
 				)}
+				
+				<RangeInput
+					label="Danger Radius"
+					min={MIN_RADIUS_KM}
+					max={MAX_RADIUS_KM}
+					unit="km"
+					value={radiusKm}
+					onChange={handleRadiusChange}
+				/>
 
 				{/* PESTICIDE SCHEDULE DATE */}
 				<Input
@@ -260,9 +269,7 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 					onChange={(e) => setScheduledDate(e.target.value)}
 				/>
 
-				{errorMsg && (
-					<p className="text-xs text-red-600">{errorMsg}</p>
-				)}
+				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 
 				{/* BUTTONS */}
 				<div className="flex items-center gap-3 w-full">

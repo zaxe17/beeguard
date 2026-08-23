@@ -191,7 +191,7 @@ const TermsCondition = () => {
                         buttonType="button"
                         label={submitting ? "Submitting..." : "Create Account"}
                         onClick={openConfirm}
-                        disabled={submitting}
+                        disabled={submitting || !accepted}
                     />
                 </div>
             </FormContainer>

@@ -147,3 +147,29 @@ class HiveMaintenanceModel:
             "remarks":       remarks,
             "activity_date": activity_date,
         })
+
+    @staticmethod
+    def record_reset(conn, hive_id: str, activity_date):
+        """
+        Logs a 'Normal / Healthy' Inspection row on the caller's own
+        behalf (not from the MonitorHealth modal) — used by
+        QueenService.confirm_replacement() right after a queen
+        replacement is confirmed.
+
+        Without this, list_unresolved_symptoms() has no 'Normal /
+        Healthy' row to stop at, so the NEXT Physical Inspection would
+        walk straight through to symptoms reported BEFORE the
+        replacement and merge them with the new ones — pushing the
+        hive straight to "Weak" instead of correctly starting fresh at
+        "Needs Attention" for the first new symptom after the reset.
+
+        Reuses record_physical_inspection() so the row is written in
+        the exact same "Physical Inspection: Normal / Healthy" format
+        that list_unresolved_symptoms() already knows how to parse —
+        no changes needed there.
+
+        Returns the new maintenance_id.
+        """
+        return HiveMaintenanceModel.record_physical_inspection(
+            conn, hive_id, [NORMAL_LABEL], activity_date,
+        )

@@ -10,6 +10,7 @@ from config.config import Config
 from config.database import Database
 from models.hive import HiveModel
 from models.yield_record import YieldModel
+from models.hive_maintenance import HiveMaintenanceModel
 from models.queen_recommendation import QueenRecommendationModel
 
 
@@ -62,25 +63,30 @@ class QueenService:
     def evaluate_hive(hive_id: str, *,
                        persist: bool = True,
                        conn=None,
-                       skip_yield_health_downgrade: bool = False) -> dict:
+                       just_replaced_queen: bool = False) -> dict:
         """
-        `skip_yield_health_downgrade`: when True, the R_YIELD_BELOW_60
-        branch below is still evaluated for level/reason/recommendation
-        purposes, but it will NOT push hives.health_status down to
-        "Needs Attention".
+        `just_replaced_queen`: True only for the follow-up evaluation
+        that QueenService.confirm_replacement() runs right after it
+        sets health_status back to "Healthy".
 
-        Why this exists: right after QueenService.confirm_replacement()
-        sets health_status to "Healthy", it calls this method again to
-        refresh the recommendation. At that point the latest harvest on
-        file is still the OLD, pre-replacement one (no new harvest has
-        happened yet), so pct-vs-baseline is still low and would
-        immediately flip health_status back to "Needs Attention" —
-        undoing the reset in the same request, before the beekeeper
-        even sees the "Healthy" result. confirm_replacement() passes
-        skip_yield_health_downgrade=True to prevent that. Every other
-        caller (dashboard refresh, batch evaluation, a fresh harvest
-        coming in) leaves this False, so the normal downgrade rule
-        still applies everywhere else.
+        At that exact moment, the only harvest on file for this hive
+        is still the OLD one from before the replacement — no new
+        harvest has come in yet under the new queen. If left on, the
+        yield-vs-baseline rules (R_YIELD_BELOW_60 / R_YIELD_BELOW_80)
+        would judge the brand-new queen using data that predates her,
+        almost always still reading "low" — which immediately opened
+        a fresh Monitor/Replace recommendation and undid the resolve
+        that confirm_replacement() had just done, keeping the
+        beekeeper's open-recommendations count from ever going down.
+
+        Setting this True skips ONLY those two yield-threshold checks
+        for this one evaluation, so the hive is judged on queen_age
+        (freshly 0, won't trigger) and the just-reset health_status
+        ("Healthy", won't trigger the health-flagged rules either) —
+        correctly resolving to "Normal" until a real post-replacement
+        harvest comes in. Every other caller (dashboard refresh, batch
+        evaluation, a new harvest being logged) leaves this False, so
+        the yield rules keep applying normally everywhere else.
         """
         hive = HiveModel.find_by_id(hive_id, conn=conn)
         if not hive:
@@ -106,7 +112,7 @@ class QueenService:
                 f"(currently {queen_age} days)."
             )
 
-        if level != "Replace" and pct is not None:
+        if level != "Replace" and pct is not None and not just_replaced_queen:
             if pct <= Config.YIELD_REPLACE_THRESHOLD_PCT:
                 level = "Replace"
                 code  = R_YIELD_BELOW_60
@@ -167,7 +173,6 @@ class QueenService:
         try:
             if (
                 code == R_YIELD_BELOW_60
-                and not skip_yield_health_downgrade
                 and current_health not in HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE
                 and current_health != "Needs Attention"
             ):
@@ -235,6 +240,12 @@ class QueenService:
         try:
             HiveModel.update_queen_installed(conn, hive_id, installed_on)
             HiveModel.update_health_status(hive_id, beekeeper_id, "Healthy", conn=conn)
+            # Reset the cumulative symptom tracker (see
+            # HiveMaintenanceModel.record_reset's docstring) so the
+            # NEXT Physical Inspection starts counting symptoms fresh
+            # instead of merging with ones reported before this
+            # replacement.
+            HiveMaintenanceModel.record_reset(conn, hive_id, installed_on)
             conn.commit()
         except Exception:
             conn.rollback()
@@ -247,12 +258,12 @@ class QueenService:
             if r["resolved_at"] is None and r["level"] in ("Monitor", "Replace"):
                 QueenRecommendationModel.resolve(r["recommendation_id"], beekeeper_id)
 
-        # skip_yield_health_downgrade=True: prevents the still-stale
-        # (pre-replacement) yield numbers from flipping health_status
-        # back down to "Needs Attention" the instant we just set it
-        # to "Healthy" above. See evaluate_hive()'s docstring.
+        # just_replaced_queen=True: stops the still-stale (pre-
+        # replacement) yield numbers from immediately reopening a
+        # Monitor/Replace recommendation right after we just resolved
+        # the old one above. See evaluate_hive()'s docstring.
         return QueenService.evaluate_hive(
-            hive_id, persist=True, skip_yield_health_downgrade=True
+            hive_id, persist=True, just_replaced_queen=True
         )
 
     # ── NEW: Read-side for the History tab's queen-replacement grid ─

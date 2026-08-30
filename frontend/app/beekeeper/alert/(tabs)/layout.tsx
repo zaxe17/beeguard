@@ -61,7 +61,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 								<Link
 									key={i}
 									href={t.route}
-									className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-100 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "hover:bg-[#ffdb4f] hover:text-[#704500]"}`}>
+									className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-150 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "hover:bg-[#ffdb4f] hover:text-[#704500]"}`}>
 									<li className="Poppins-SemiBold text-center text-xl ">
 										{t.label}
 									</li>

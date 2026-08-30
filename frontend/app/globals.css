@@ -56,13 +56,13 @@
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-    background: #8f8570;
+    background: #E0A93B;
     border-radius: 10px;
 }
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-    background: #817b70;
+    background: #C6890F;
 }
 
 
@@ -90,7 +90,7 @@
 }
 
 .scroll-container:hover .scroll::-webkit-scrollbar-thumb {
-  background: #8f8570;
+  background: #C6890F;
 }
 
 /* CHECKBOX INPUT */

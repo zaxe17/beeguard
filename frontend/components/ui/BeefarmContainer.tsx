@@ -15,7 +15,7 @@ export const BeefarmNearby = ({
 }: BeeFarmProps) => {
 	return (
 		<div
-			className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/60 transition-all duration-100 ease-in hover:scale-102"
+			className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/60 transition-all duration-150 ease-in hover:scale-102"
 			style={{
 				boxShadow:
 					"rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px",
@@ -61,7 +61,7 @@ export const BeefarmOperation = ({
 }: BeeFarmProps) => {
 	return (
 		<div
-			className="p-2 flex flex-col rounded-2xl hover:bg-[#fff1ad]/60 transition-all duration-100 ease-in hover:scale-102"
+			className="p-2 flex flex-col rounded-2xl hover:bg-[#fff1ad]/60 transition-all duration-150 ease-in hover:scale-102"
 			style={{
 				boxShadow:
 					"rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px",

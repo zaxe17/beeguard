@@ -114,7 +114,7 @@ export const ModalContainer = ({
 			<div
 				className={`${width} ${height} bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5 flex flex-col`}
 				onClick={(e) => e.stopPropagation()}>
-				<div className="w-full flex-1 flex flex-col gap-5 min-h-0">
+				<div className="w-full flex-1 flex flex-col gap-3 min-h-0">
 					{/* HEADER */}
 					<div className="relative w-full text-center flex items-center justify-center shrink-0">
 						<div

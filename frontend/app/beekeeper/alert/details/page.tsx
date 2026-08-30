@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import dynamic from "next/dynamic";
@@ -261,12 +261,18 @@ function splitDateTime(iso: string | null | undefined) {
 	};
 }
 
-function stageStatus(iso: string | null | undefined, fallback: TimelineStatus): TimelineStatus {
+function stageStatus(
+	iso: string | null | undefined,
+	fallback: TimelineStatus,
+): TimelineStatus {
 	if (!iso) return fallback;
 	return new Date(iso).getTime() <= Date.now() ? "active" : fallback;
 }
 
-const AlertDetails = () => {
+// Renamed from AlertDetails — this now holds all the original logic.
+// useSearchParams() requires a Suspense boundary around it (see the
+// wrapper component below), so this can no longer be the default export.
+const AlertDetailsInner = () => {
 	const searchParams = useSearchParams();
 	const alertId = searchParams.get("id");
 
@@ -313,7 +319,10 @@ const AlertDetails = () => {
 	if (errorMsg || !alert) {
 		return (
 			<div className="h-screen w-full flex flex-col items-center justify-center gap-2 text-[#817b70]">
-				<Icon icon="famicons:notifications-off" className="w-16 h-16 text-[#a6a3a3]" />
+				<Icon
+					icon="famicons:notifications-off"
+					className="w-16 h-16 text-[#a6a3a3]"
+				/>
 				<p>{errorMsg || "Alert not found."}</p>
 			</div>
 		);
@@ -378,8 +387,14 @@ const AlertDetails = () => {
 				<h1 className="Poppins-SemiBold text-xl mb-2">Maps</h1>
 				<div className="w-full h-80 rounded-xl relative overflow-hidden mb-8">
 					<Map
-						initialCenter={{ lat: alert.latitude, lng: alert.longitude }}
-						initialMarker={{ lat: alert.latitude, lng: alert.longitude }}
+						initialCenter={{
+							lat: alert.latitude,
+							lng: alert.longitude,
+						}}
+						initialMarker={{
+							lat: alert.latitude,
+							lng: alert.longitude,
+						}}
 						radiusKm={alert.danger_radius_km}
 					/>
 				</div>
@@ -388,6 +403,21 @@ const AlertDetails = () => {
 				<AlertTimeline items={timelineItems} />
 			</div>
 		</div>
+	);
+};
+
+// New default export — wraps the page in Suspense so useSearchParams()
+// inside AlertDetailsInner no longer breaks static/prerendered builds.
+const AlertDetails = () => {
+	return (
+		<Suspense
+			fallback={
+				<div className="h-screen w-full flex items-center justify-center text-[#817b70]">
+					Loading alert…
+				</div>
+			}>
+			<AlertDetailsInner />
+		</Suspense>
 	);
 };
 

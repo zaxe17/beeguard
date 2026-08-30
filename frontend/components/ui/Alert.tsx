@@ -55,7 +55,7 @@ export const PesticideAlert = ({
 					onClick();
 				}
 			}}
-			className="px-3 flex items-start rounded-2xl border hover:bg-[#fff1ad]/60 transition-all duration-100 ease-in hover:scale-102 cursor-pointer"
+			className="px-3 flex items-start rounded-2xl border hover:bg-[#fff1ad]/60 transition-all duration-150 ease-in hover:scale-102 cursor-pointer"
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 			style={{

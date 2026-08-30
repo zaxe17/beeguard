@@ -32,7 +32,7 @@ const YearFilter = ({
 				active ? "text-white" : "text-[#4A2F00]"
 			}`}>
 			<span
-				className={`absolute inset-0 bg-linear-to-r from-[#ffdb4f] to-[#eec572] transition-opacity duration-200 ease-in-out ${
+				className={`absolute inset-0 bg-linear-to-r from-[#ffdb4f] to-[#eec572] transition-opacity duration-150 ease-in-out ${
 					active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
 				}`}
 			/>

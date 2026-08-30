@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import user_profile from "@/public/assets/user_profile.png";
 import { Icon } from "@iconify/react";
-import Notification from "../popup/Notification";
+import Notification from "./popup/Notification";
 import { notificationService } from "@/services/notification";
+import { ProfilePhoto } from "./ProfilePhoto";
 
 export const UserNav = () => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -41,11 +42,7 @@ export const UserNav = () => {
 			<div className="flex items-center gap-3.5">
 				{/* USER PROFILE */}
 				<div className="border border-amber-100 w-16 h-16 rounded-full">
-					<Image
-						src={user_profile}
-						alt="user_profile"
-						className="w-full h-full"
-					/>
+					<ProfilePhoto />
 				</div>
 
 				{/* USER NAME */}

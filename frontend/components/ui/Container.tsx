@@ -7,6 +7,7 @@ interface ContainerProps {
 	height?: string;
 	borderNone?: boolean;
 	scroll?: boolean;
+	className?: string;
 }
 
 type BeeFarmProps = {
@@ -40,17 +41,18 @@ export const Container = ({
 	height,
 	borderNone,
 	scroll,
+	className,
 }: ContainerProps) => {
 	return (
 		<div
-			className={`p-1.5 flex flex-col min-h-0 ${borderNone ? "border-r-2 border-r-[#817b70]/50" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
+			className={`p-1.5 flex flex-col min-h-0 ${className ?? ""} ${borderNone ? "border-r-2 border-r-[#817b70]/50" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
 			style={{
 				boxShadow: `${borderNone ? "" : "rgba(0, 0, 0, 0.35) 0px 5px 15px"}`,
 				width: width,
 				height: height,
 			}}>
 			<div
-				className={`p-1.5 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0 ${scroll ? "scroll" : ""}`}>
+				className={`p-1.5 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 ${scroll ? "scroll" : ""}`}>
 				{children}
 			</div>
 		</div>
@@ -65,15 +67,10 @@ export const BeefarmContainer = ({
 	miles,
 }: BeeFarmProps) => {
 	return (
-		<div
-			className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad] transition-all duration-100 ease-in hover:scale-103"
-			style={{
-				boxShadow:
-					"rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px",
-			}}>
+		<div className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/40 transition-all duration-150 ease-in hover:scale-103 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
 			<div className="w-full flex gap-3 cursor-pointer">
 				{/* BEEFARM PICTURE */}
-				<div className="bg-red-600 border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">
+				<div className="border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">
 					<Image
 						src={image}
 						alt="nearby_beekeeper"

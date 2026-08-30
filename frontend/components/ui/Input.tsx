@@ -58,7 +58,7 @@ export const Input = ({
 			<label
 				htmlFor=""
 				className={`lg:text-base text-xs ${
-					error ? "text-red-600" : "text-black"
+					error ? "text-red-600" : "text-[#4a2f00]"
 				}`}>
 				{label}
 			</label>
@@ -77,7 +77,7 @@ export const Input = ({
 						);
 					}
 				}}
-				className={`text-sm w-full h-10 p-2.5 border ${
+				className={`text-sm w-full h-8 p-2.5 border ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
 				} outline-0 rounded-lg bg-white/70 ${
 					disabled ? "opacity-60 cursor-not-allowed" : ""

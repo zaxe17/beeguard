@@ -63,7 +63,7 @@ export const WarningQueenReplacment = ({ onClose }: PopupProps) => {
 					</p>
 					<CancelButton
 						label="Okay"
-						BGcolor="bg-linear-to-r from-[#ffdb4f] to-[#eec572]"
+						BGcolor="bg-transparent bg-linear-to-r from-[#ffdb4f] to-[#eec572]"
 						onClick={handleClose}
 					/>
 				</div>

@@ -42,7 +42,7 @@ const NotifCard = ({ notif, onClick }: NotifCardProps) => {
 	return (
 		<div
 			onClick={() => onClick(notif)}
-			className={`rounded-md p-2 text-sm flex justify-start items-start gap-3 hover:bg-[#fff1ad]/60 transition-all duration-100 ease-in cursor-pointer ${
+			className={`rounded-md p-2 text-sm flex justify-start items-start gap-3 hover:bg-[#fff1ad]/60 transition-all duration-150 ease-in cursor-pointer ${
 				notif.is_read ? "opacity-60" : ""
 			}`}>
 			<div

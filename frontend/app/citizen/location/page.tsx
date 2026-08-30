@@ -1,3 +1,4 @@
+import BeefarmView from "@/components/BeefarmView";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
 import Map from "@/components/ui/google-maps/Map";
 import { SearchBar } from "@/components/ui/Input";
@@ -19,7 +20,7 @@ const Location = () => {
 				</div>
 
 				{/* SCROLLABLE BEEFARM CARD */}
-				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="p-2 flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0">
 					{nearbyFarms.map((nb, i) => (
 						<div key={i}>
 							<BeefarmContainer
@@ -36,9 +37,13 @@ const Location = () => {
 			<div className="flex-1 h-full">
 				<div className="flex flex-col h-full">
 					{/* LOCATION MAP */}
-					<Map />
+					{/* GAWING h-1/3 ITO TO SEE THE BEEFARM VIEW */}
+					<div className="h-full"> 
+						<Map />
+					</div>
 
 					{/* BEEFARM INFO */}
+					<BeefarmView />
 				</div>
 			</div>
 		</div>

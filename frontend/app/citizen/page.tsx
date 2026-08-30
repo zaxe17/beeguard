@@ -1,7 +1,7 @@
 import Image, { StaticImageData } from "next/image";
 import { Button } from "@/components/ui/Button";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
-import { UserNav } from "@/components/ui/UserNav";
+import { UserNav } from "@/components/UserNav";
 
 import bee_report from "@/public/assets/bee_report.png";
 

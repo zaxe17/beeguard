@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { ModalContainer } from "./Modal";
 import { Button, CancelButton } from "../ui/Button";
 import { reportService } from "@/services/report";
+import { Icon } from "@iconify/react";
 
 type GenerateReportModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 };
 
+// ===== BEEKEEPER SIDE =====
 /**
  * Replaces the old "confirm then immediately download" flow: this
  * modal fetches the PDF as a Blob, renders it in an <iframe> so the
@@ -119,6 +121,84 @@ export const GenerateReportModal = ({
 						onClick={handleDownload}
 						disabled={loading || !blob}
 					/>
+				</div>
+			</div>
+		</ModalContainer>
+	);
+};
+
+// ===== CITIZEN SIDE ======
+// BEE SPECIES IDENTIFY
+export const BeeIdentify = ({ isOpen, onClose }: GenerateReportModalProps) => {
+	return (
+		<ModalContainer
+			open={isOpen}
+			width="w-1/4"
+			header="Bee Species Identified!"
+			onClose={onClose}>
+			<div className="flex flex-col justify-center items-center">
+				<span className="Poppins-SemiBold text-[#817b70] text-sm">
+					You are seeing:
+				</span>
+
+				{/* BEE SPECIES NAME */}
+				<span className="py-1 px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-lg">
+					Apis Cerana / Asian Honey Bee
+				</span>
+
+				{/* ACCURACY */}
+				<div className="text-[#00cc00] flex justify-center items-center gap-1 mt-3">
+					<span className="Poppins-Bold text-6xl">97%</span>
+					<div className="flex flex-col">
+						<span className="Poppins-SemiBold text-2xl leading-4">
+							Match
+						</span>
+						<span className="text-[#817b70] text-xs">
+							High Confidence
+						</span>
+						<span className="text-[#817b70] text-xs flex items-center gap-1">
+							Identification
+							<Icon
+								icon="akar-icons:circle-check-fill"
+								className="text-[#00cc00]"
+							/>
+						</span>
+					</div>
+				</div>
+
+				{/* BUTTON */}
+				<div className="w-full flex gap-3 mt-5">
+					<CancelButton onClick={onClose} />
+					<Button label="Submit Photo" />
+				</div>
+			</div>
+		</ModalContainer>
+	);
+};
+
+// SWARM NOTICE
+export const SwarmNotice = ({ isOpen, onClose }: GenerateReportModalProps) => {
+	return (
+		<ModalContainer
+			open={isOpen}
+			width="w-1/3"
+			header="Report Swarm Notice"
+			onClose={onClose}>
+			<div className="flex flex-col justify-center items-center">
+				<p className="text-[#817b70] text-center">
+					Some beekeepers may charge a fee for bee rescue services to
+					cover transportation and relocation costs. However, other
+					beekeepers may offer this service free of charge.
+				</p>
+
+				<h3 className="Poppins-SemiBold text-xl text-[#4a2f00] mt-5">
+					Do you wish to continue?
+				</h3>
+
+				{/* BUTTON */}
+				<div className="w-full flex gap-3 mt-5">
+					<CancelButton onClick={onClose} />
+					<Button label="Continue" />
 				</div>
 			</div>
 		</ModalContainer>

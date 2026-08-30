@@ -6,7 +6,7 @@ import { HiveHealthChart } from "@/components/graph/Doughnut";
 import { YieldSummaryChart } from "@/components/graph/Line";
 import { Card } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
-import { UserNav } from "@/components/ui/UserNav";
+import { UserNav } from "@/components/UserNav";
 import { Icon } from "@iconify/react";
 import {
 	BeefarmOperation,

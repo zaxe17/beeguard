@@ -7,6 +7,11 @@ type CardProps = {
 	color?: string;
 };
 
+type RateProps = {
+	total?: string;
+	title?: string;
+};
+
 export const Card = ({ icon, count, title, color }: CardProps) => {
 	return (
 		<div
@@ -35,6 +40,17 @@ export const Card = ({ icon, count, title, color }: CardProps) => {
 			<span className="Poppins-SemiBold capitalize text-sm text-center">
 				{title}
 			</span>
+		</div>
+	);
+};
+
+export const RateCard = ({ total, title }: RateProps) => {
+	return (
+		<div className="w-full border border-[#e2e2e6] rounded-full p-2 flex flex-col items-center">
+			{/* TOTAL */}
+			<span className="Poppins-Bold text-base">{total}</span>
+			{/* TITLE */}
+			<span className="Poppins-SemiBold text-xs text-[#a6a3a3]">{title}</span>
 		</div>
 	);
 };

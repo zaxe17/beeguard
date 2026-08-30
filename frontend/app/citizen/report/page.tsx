@@ -2,11 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
-import Map from "@/components/ui/google-maps/Map";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 
 import bee from "@/public/assets/bee_example.jpg";
 import { Input } from "@/components/ui/Input";
+
+// Leaflet touches `window` at module-evaluation time, so it can't be
+// server-rendered — same fix already applied in AlertModal.tsx,
+// alert/details/page.tsx, and citizen/location/page.tsx.
+const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
 
 // 1ST STEP: TAKING OR UPLOADING PHOTO
 const Camera = () => {

@@ -1,10 +1,26 @@
+"use client";
+
 import BeefarmView from "@/components/BeefarmView";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
-import Map from "@/components/ui/google-maps/Map";
+import dynamic from "next/dynamic";
 import { SearchBar } from "@/components/ui/Input";
 
 // NEARBY FARM EXAMPLE DATA
 import nearbyFarms from "@/data/beefarms.json";
+
+// Leaflet touches `window` at module-evaluation time, so it can't be
+// server-rendered — same fix already applied in AlertModal.tsx and
+// alert/details/page.tsx. This page previously did a static
+// `import Map from "..."`, which forced Next to SSR it and crashed
+// with "window is not defined" during build.
+const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
 
 const Location = () => {
 	return (
@@ -38,7 +54,7 @@ const Location = () => {
 				<div className="flex flex-col h-full">
 					{/* LOCATION MAP */}
 					{/* GAWING h-1/3 ITO TO SEE THE BEEFARM VIEW */}
-					<div className="h-full"> 
+					<div className="h-full">
 						<Map />
 					</div>
 

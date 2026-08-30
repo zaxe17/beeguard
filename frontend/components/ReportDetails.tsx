@@ -42,8 +42,8 @@ const ReportDetails = ({
 						<span
 							className="Poppins-SemiBold text-xs text-center capitalize w-22 py-0.75 rounded-full"
 							style={{
-								color: reportStatus[status].text,
-								backgroundColor: `${reportStatus[status].bg}66`,
+								color: reportStatus[status].color,
+								backgroundColor: `${reportStatus[status].color}66`,
 							}}>
 							{status}
 						</span>

@@ -41,7 +41,7 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 			<Container width="100%" height="100%" scroll>
 				{/* TITLE */}
 				<div className={`${location ? "hidden" : "block"}`}>
-					<h2 className="Poppins-Bold text-5xl text-[#4a2f00]">
+					<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
 						Report a Swarm
 					</h2>
 					<span className="Poppins-SemiBold text-[#817b70]">

@@ -82,23 +82,25 @@ const Login = () => {
 
 			{/* CONTAINER */}
 			<div className="relative h-full flex flex-wrap justify-center items-center z-10 p-5">
-				{/* LOGO */}
-				<Logo />
-
 				{/* LOGIN FORM */}
-				<div className="relative lg:w-1/2 w-full flex flex-col justify-center items-center">
-					<FormContainer width="lg:w-130">
+				<div className="relative w-full flex lg:flex-row flex-col justify-center items-center">
+					{/* LOGO */}
+					<Logo />
+
+					<FormContainer width="lg:w-130 w-full">
 						{/* FORM HEADER */}
-						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl">
+						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl lg:block hidden">
 							Welcome Back!
+							<Link href="/citizen">citizen</Link>
+							<Link href="/beekeeper">beekeeper</Link>
 						</h1>
 
-						<h2 className="Poppins-SemiBold text-[#7A6A58] lg:text-2xl text-base lg:mb-12 mb-8">
+						<h2 className="Poppins-SemiBold text-[#7A6A58] lg:text-2xl text-base lg:mb-12 mb-8 lg:block hidden">
 							Glad to see you again.
 						</h2>
 
 						{/* LOG IN INPUT */}
-						<div className="flex flex-col lg:gap-6 gap-3">
+						<div className="flex flex-col gap-6">
 							<Input
 								label="Username"
 								value={username}

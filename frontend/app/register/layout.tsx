@@ -22,12 +22,11 @@ const RegisterLayout = ({ children }: { children: React.ReactNode }) => {
 			<Background />
 
 			{/* CONTAINER */}
-			<main className="relative h-full flex justify-center items-center z-10 p-5">
-				{/* LEFT CONTAINER — LOGO */}
-				<Logo />
-
-				{/* RIGHT CONTAINER — ROLE / FORM / TERMS */}
-				<div className="relative lg:w-1/2 w-full flex flex-col justify-center items-center">
+			<main className="relative h-full flex flex-wrap justify-center items-center z-10 p-5">
+				{/* LOGIN FORM */}
+				<div className="relative w-full flex lg:flex-row flex-col justify-center items-center">
+					{/* LOGO */}
+					<Logo />
 					{children}
 				</div>
 			</main>

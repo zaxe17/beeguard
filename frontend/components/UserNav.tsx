@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -38,26 +38,25 @@ export const UserNav = () => {
 	}, []);
 
 	return (
-		<div className="w-full flex items-start justify-between">
-			<div className="flex items-center gap-3.5">
+		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5">
+			<div className="flex items-center lg:gap-3.5 gap-1">
 				{/* USER PROFILE */}
-				<div className="border border-amber-100 w-16 h-16 rounded-full">
+				<div className="border border-amber-100 lg:w-16 w-12 lg:h-16 h-12 rounded-full">
 					<ProfilePhoto />
 				</div>
 
 				{/* USER NAME */}
 				<div className="">
-					<h3 className="Poppins-Bold text-3xl">Hi, Jan Marc! 👋</h3>
-					<span className="text-[#817b70] text-sm">
+					<h3 className="Poppins-Bold lg:text-3xl text-xl">
+						Hi, Jan Marc! 👋
+					</h3>
+					<p className="text-[#817b70] lg:text-sm text-xs leading-2">
 						Let’s protect the bees together.
-					</span>
+					</p>
 				</div>
 			</div>
 
 			{/* 3 ACTION BUTTON [NOTIFICATION, MESSAGES] */}
-			{/* NOTE: wrapperRef is now actually attached (below) — previously
-			    it was declared but never assigned to any element, so
-			    click-outside-to-close silently did nothing. */}
 			<div className="flex items-center gap-3" ref={wrapperRef}>
 				{/* NOTIFICATION */}
 				<div className="relative">
@@ -68,7 +67,7 @@ export const UserNav = () => {
 					)}
 					<div
 						onClick={() => setIsOpen((prev) => !prev)}
-						className="w-10 h-10">
+						className="lg:w-10 w-8 lg:h-10 h-8">
 						<Icon
 							icon="mdi:notifications"
 							className="w-full h-full text-[#ffdb4f] cursor-pointer"
@@ -81,7 +80,7 @@ export const UserNav = () => {
 				</div>
 
 				{/* MESSAGE */}
-				<div className="w-10 h-10">
+				<div className="lg:w-10 w-8 lg:h-10 h-8">
 					<Icon
 						icon="flowbite:messages-solid"
 						className="w-full h-full text-[#ffdb4f] cursor-pointer"

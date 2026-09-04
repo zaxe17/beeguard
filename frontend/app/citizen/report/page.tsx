@@ -99,7 +99,7 @@ const Camera = () => {
 	};
 
 	return (
-		<div className="w-2/3 h-full flex flex-col justify-center items-center gap-3">
+		<div className="lg:w-2/3 w-full h-full flex flex-col justify-center items-center gap-3">
 			{/* CAMERA */}
 			<div className="w-full h-full border-3 border-[#e2e2e6] rounded-2xl overflow-hidden relative">
 				{photo ? (
@@ -354,13 +354,13 @@ const CitizenReport = () => {
 	return (
 		<div className="w-full h-full flex flex-col justify-center items-center">
 			{/* CAMERA */}
-			{/* <Camera /> */}
+			<Camera />
 
 			{/* COMPLETING DETAILS */}
 			{/* <FormDetails /> */}
 
 			{/* REVIEW REPORT */}
-			<ReviewRep />
+			{/* <ReviewRep /> */}
 		</div>
 	);
 };

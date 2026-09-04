@@ -7,6 +7,7 @@ import { SearchBar } from "@/components/ui/Input";
 
 // NEARBY FARM EXAMPLE DATA
 import nearbyFarms from "@/data/beefarms.json";
+import { Icon } from "@iconify/react";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -24,11 +25,19 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 
 const Location = () => {
 	return (
-		<div className="w-full h-full flex items-start">
+		<div className="w-full h-full flex items-start lg:flex-row flex-col">
 			{/* CONTAINER FOR BEEFARM LOCATION TAB */}
-			<Container width="30%" height="100%" borderNone>
-				<div className="w-full pt-5 px-2 flex flex-col items-center gap-4">
-					<h3 className="Poppins-SemiBold text-xl text-[#020101]">
+			<Container
+				borderNone
+				className="lg:w-[30%] w-full flex-1 lg:flex-none lg:h-full">
+				<div className="relative w-full pt-5 px-2 flex flex-col items-center gap-4">
+					{/* BACK ARROW */}
+					<Icon
+						icon="bx:arrow-back"
+						className="absolute left-0 text-2xl text-[#ffa004]"
+					/>
+
+					<h3 className="relative Poppins-SemiBold text-xl text-[#020101]">
 						Bee Farms
 					</h3>
 
@@ -50,16 +59,17 @@ const Location = () => {
 				</div>
 			</Container>
 
-			<div className="flex-1 h-full">
+			<div className="flex-1 w-full lg:h-full">
 				<div className="flex flex-col h-full">
 					{/* LOCATION MAP */}
-					{/* GAWING h-1/3 ITO TO SEE THE BEEFARM VIEW */}
-					<div className="h-full">
+					<div className="flex-1">
 						<Map />
 					</div>
 
 					{/* BEEFARM INFO */}
-					<BeefarmView />
+					<div className="flex-3 min-h-0 overflow-y-auto hidden">
+						<BeefarmView />
+					</div>
 				</div>
 			</div>
 		</div>

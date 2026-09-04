@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-		"build": "next build --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
     "chartjs-plugin-datalabels": "^2.2.0",
+    "framer-motion": "^13.1.1",
     "iconify": "^1.4.0",
     "leaflet": "^1.9.4",
     "next": "16.2.9",

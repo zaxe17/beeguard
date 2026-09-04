@@ -1,5 +1,3 @@
-// layout.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,9 +14,7 @@ import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
-import {
-	WarningQueenReplacment,
-} from "@/components/popup/PopUp";
+import { WarningQueenReplacment } from "@/components/popup/PopUp";
 import { usePathname } from "next/navigation";
 
 type ModalType =
@@ -37,7 +33,10 @@ const BeekeeperLayoutContent = ({
 }: {
 	children: React.ReactNode;
 }) => {
-	const { closeModal, isModalOpen, payload } = useModal<ModalType, HivePayload>();
+	const { closeModal, isModalOpen, payload } = useModal<
+		ModalType,
+		HivePayload
+	>();
 
 	const [targetHive, setTargetHive] = useState<Hive | null>(null);
 
@@ -68,10 +67,10 @@ const BeekeeperLayoutContent = ({
 	}, [payload?.hiveId, hiveScoped]);
 
 	return (
-		<div className="w-full h-screen flex flex-row relative">
+		<div className="w-full h-screen flex lg:flex-row flex-col-reverse relative overflow-hidden">
 			<Sidebar />
 
-			<main className="w-full flex flex-col relative">
+			<main className="w-full flex flex-col relative h-full overflow-y-auto pb-13 lg:pb-0">
 				<div className="absolute top-0 z-[-2] h-full w-full bg-white bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,219,79,0.3),rgba(255,255,255,0))]"></div>
 				{children}
 			</main>

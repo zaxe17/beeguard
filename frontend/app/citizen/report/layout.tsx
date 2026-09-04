@@ -15,7 +15,7 @@ const Steps = () => {
 
 	return (
 		<div
-			className={`w-1/2 relative items-center justify-between ${location ? "hidden" : "flex"}`}>
+			className={`lg:w-1/2 w-full relative items-center justify-between ${location ? "hidden" : "flex"}`}>
 			<div className="relative z-10 w-full flex items-center justify-between">
 				{[1, 2, 3].map((step) => (
 					<div

@@ -142,7 +142,7 @@ const TermsCondition = () => {
     return (
         <>
             <FormContainer>
-                <div className="text-center mb-7">
+                <div className="text-center lg:mb-7 mb-15">
                     <h1 className="Poppins-Bold text-[28px] text-[#ff9a00]">
                         Terms & Conditions
                     </h1>

@@ -91,8 +91,6 @@ const Login = () => {
 						{/* FORM HEADER */}
 						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl lg:block hidden">
 							Welcome Back!
-							<Link href="/citizen">citizen</Link>
-							<Link href="/beekeeper">beekeeper</Link>
 						</h1>
 
 						<h2 className="Poppins-SemiBold text-[#7A6A58] lg:text-2xl text-base lg:mb-12 mb-8 lg:block hidden">

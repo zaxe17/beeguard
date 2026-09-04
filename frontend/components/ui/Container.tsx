@@ -22,12 +22,8 @@ export const FormContainer = ({ children, width }: ContainerProps) => {
 	return (
 		<form
 			action=""
-			className={`${width} lg:p-4.75 bg-white/20 rounded-3xl backdrop-blur-md border border-white/30 flex flex-col min-h-0`}
-			style={{
-				boxShadow:
-					"0 8px 32px 0 rgba(31, 38, 135, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.4)",
-			}}>
-			<div className="p-4.75 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+			className={`${width} lg:p-4.75 lg:bg-white/20 bg-transparent rounded-3xl lg:backdrop-blur-md border border-white/30 flex flex-col min-h-0 lg:shadow-[0_8px_32px_0_rgba(31,38,135,0.15),inset_0_1px_0_0_rgba(255,255,255,0.4)]`}>
+			<div className="lg:p-4.75 py-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 				{children}
 			</div>
 		</form>
@@ -45,9 +41,8 @@ export const Container = ({
 }: ContainerProps) => {
 	return (
 		<div
-			className={`p-1.5 flex flex-col min-h-0 ${className ?? ""} ${borderNone ? "border-r-2 border-r-[#817b70]/50" : "rounded-2xl"} ${scroll ? "scroll-container" : ""}`}
+			className={`p-1.5 flex flex-col min-h-0 ${className ?? ""} ${borderNone ? "border-r-2 border-r-[#817b70]/50" : "rounded-2xl"} ${scroll ? "scroll-container" : ""} ${borderNone ? "" : "lg:shadow-[0px_5px_15px_rgba(0,0,0,0.35)] shadow-none"}`}
 			style={{
-				boxShadow: `${borderNone ? "" : "rgba(0, 0, 0, 0.35) 0px 5px 15px"}`,
 				width: width,
 				height: height,
 			}}>

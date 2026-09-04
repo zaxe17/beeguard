@@ -11,7 +11,7 @@ import { Icon } from "@iconify/react";
 const BeefarmView = () => {
 	return (
 		<div className="w-full flex-1 overflow-scroll">
-			<div className="relative w-full h-60">
+			<div className="relative w-full lg:h-60 h-50">
 				{/* COVER PHOTO */}
 				<Image
 					src={beefarm}
@@ -22,16 +22,20 @@ const BeefarmView = () => {
 				/>
 
 				{/* PROFILE PICTURE */}
-				<div className="absolute left-4 -bottom-15 w-30 h-30 rounded-full overflow-hidden border-4 border-white shadow-md">
+				<div className="hidden lg:block absolute left-4 lg:-bottom-15 -bottom-15 lg:w-30 w-20 lg:h-30 h-20 rounded-full overflow-hidden border-4 border-white shadow-md">
 					<ProfilePhoto />
 				</div>
 			</div>
 
-			<div className="flex justify-between gap-3 px-4 pt-2">
+			<div className="flex justify-between lg:flex-row flex-col gap-3 px-4 pt-2">
 				{/* LEFT SIDE */}
 				<div className="w-full">
 					{/* NAME, VERIFY STATUS */}
-					<div className="flex justify-between items-start w-full pl-33">
+					<div className="flex justify-start items-center gap-3 w-full lg:pl-33 pl-0">
+						{/* PROFILE PICTURE */}
+						<div className="block lg:hidden lg:w-30 w-20 lg:h-30 h-20 rounded-full overflow-hidden border-4 border-white shadow-md">
+							<ProfilePhoto />
+						</div>
 						{/* DISPLAY NAME AND VERIFY STATUS */}
 						<div className="flex flex-col">
 							<span className="Poppins-SemiBold text-black text-2xl">
@@ -89,17 +93,17 @@ const BeefarmView = () => {
 				</div>
 
 				{/* RIGHT SIDE */}
-				<div className="w-1/3">
+				<div className="lg:w-1/3 w-full">
 					{/* BUTTONS */}
 					<div className="flex gap-2 mt-3">
 						<Button
-							width="150px"
+							width="100%"
 							buttonType="button"
 							label="Message"
-                            bgNone
+							bgNone
 						/>
 						<Button
-							width="150px"
+							width="100%"
 							buttonType="button"
 							label="Follow"
 						/>

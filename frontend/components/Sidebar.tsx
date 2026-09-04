@@ -2,6 +2,7 @@
 
 import { Icon } from "@iconify/react";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { ProfilePhoto } from "./ProfilePhoto";
@@ -89,9 +90,9 @@ const Sidebar = () => {
 	const activeTab = isBeekeeper ? beekeeperTabs : citizenTabs;
 
 	return (
-		<nav className="bg-linear-to-b from-[#ffdb4f] to-[#d9a441] h-full shrink-0">
+		<nav className="fixed bottom-0 left-0 right-0 z-50 lg:sticky lg:top-0 lg:left-auto lg:right-auto bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0">
 			{/* NAV HEADER */}
-			<div className="px-3 pt-5 mb-10 flex items-center gap-2">
+			<div className="px-3 pt-5 mb-10 lg:flex items-center gap-2 hidden">
 				<div className="w-10 h-10 rounded-full overflow-hidden">
 					<Image
 						src={bee}
@@ -110,7 +111,7 @@ const Sidebar = () => {
 			</div>
 
 			{/* NAV TABS */}
-			<ul className="flex flex-col gap-1">
+			<ul className="flex lg:flex-col flex-row lg:gap-1 gap-0 justify-evenly">
 				{activeTab.map((tab, i) => {
 					const activeTab = tab.exact
 						? pathName === tab.route
@@ -118,11 +119,12 @@ const Sidebar = () => {
 							pathName.startsWith(`${tab.route}/`);
 
 					return (
-						<li key={i} className="group pl-3">
+						<li key={i} className="group lg:pl-3 lg:p-0 p-1.25">
 							<Link
 								href={tab.route}
-								className={`flex gap-2 items-center p-2.5 rounded-l-xl group-hover:bg-white transition-all duration-150 ease-in ${activeTab ? "bg-white" : ""}`}>
-								<div className="w-8 h-8">
+								className={`flex lg:flex-row flex-col lg:gap-2 gap-1 items-center lg:p-2.5 p-0 lg:rounded-l-xl lg:rounded-none rounded-full group-hover:bg-white transition-all duration-150 ease-in ${activeTab ? "lg:bg-white" : ""}`}>
+								{/* ===== DESKTOP ICON (walang galaw, dati na) ===== */}
+								<div className="w-8 h-8 hidden lg:block">
 									{tab.tabName !== "profile" ? (
 										<Icon
 											icon={tab.icon}
@@ -133,8 +135,46 @@ const Sidebar = () => {
 									)}
 								</div>
 
+								{/* ===== MOBILE ICON (may blob + lift animation) ===== */}
+								<div className="w-8 h-8 relative flex items-center justify-center lg:hidden lg:mb-0 mb-4">
+									{tab.tabName !== "profile" && (
+										<motion.div
+											className="absolute rounded-full bg-[#ffc95f] -z-10 p-6"
+											style={{ width: 40, height: 40 }}
+											initial={false}
+											animate={{
+												scale: activeTab ? 1 : 0,
+												y: activeTab ? -10 : 0,
+											}}
+											transition={{
+												type: "spring",
+												stiffness: 350,
+												damping: 25,
+											}}
+										/>
+									)}
+
+									{tab.tabName !== "profile" ? (
+										<motion.div
+											className="w-full h-full"
+											animate={{ y: activeTab ? -10 : 0 }}
+											transition={{
+												type: "spring",
+												stiffness: 350,
+												damping: 25,
+											}}>
+											<Icon
+												icon={tab.icon}
+												className={`w-full h-full mb-1 transition-all duration-150 ease-in ${activeTab ? "text-white" : "text-white"}`}
+											/>
+										</motion.div>
+									) : (
+										<ProfilePhoto />
+									)}
+								</div>
+
 								<span
-									className={`Poppins-Medium capitalize text-base group-hover:text-[#ffc95f] transition-all duration-150 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
+									className={`lg:block hidden Poppins-Medium capitalize lg:text-base text-sm group-hover:text-[#ffc95f] transition-all duration-150 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}>
 									{tab.tabName}
 								</span>
 							</Link>

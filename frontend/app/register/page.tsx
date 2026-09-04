@@ -40,12 +40,12 @@ const Choices = ({
 					onChange={() => onSelect(value)}
 				/>
 
-				<div className="relative lg:w-37.5 lg:h-37.5 lg:block hidden">
+				<div className="relative lg:w-37.5 lg:h-37.5 w-1 h-1 lg:block hidden">
 					<Image
 						src={icon}
 						alt="role"
 						fill
-						className="object-contain"
+						className="w-full h-full object-contain"
 						priority
 					/>
 				</div>

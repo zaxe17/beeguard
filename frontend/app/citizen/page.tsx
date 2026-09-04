@@ -10,7 +10,7 @@ import nearbyFarms from "@/data/beefarms.json";
 
 const Home = () => {
 	return (
-		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
+		<div className="w-full h-full lg:p-5 p-0 flex items-start flex-col gap-3">
 			{/* USER NAVIGAATION BAAR */}
 			<UserNav />
 
@@ -27,18 +27,20 @@ const Home = () => {
 					</div>
 
 					<div className="w-full flex justify-center items-center">
-						<Image
-							src={bee_report}
-							alt="bee_report"
-							className="w-48 h-w-48"
-						/>
+						<div className="lg:h-48 h-30 flex justify-center items-center">
+							<Image
+								src={bee_report}
+								alt="bee_report"
+								className="w-full h-full"
+							/>
+						</div>
 					</div>
 
 					<div className="flex justify-center">
 						<Button
 							label="Report Now!"
 							buttonType="button"
-							width="35%"
+							width="40%"
 						/>
 					</div>
 				</div>
@@ -48,7 +50,7 @@ const Home = () => {
 						Nearby Bee Farms
 					</span>
 
-					<div className="w-full grid grid-cols-3 gap-3">
+					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
 						{nearbyFarms.map((nb, i) => (
 							<BeefarmContainer
 								key={i}

@@ -36,37 +36,40 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 	const location = useIsPage("/citizen/report/submitted");
 
 	return (
-		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
+		<div className="w-full h-full lg:p-5 p-3 flex items-start flex-col gap-3 min-h-0">
 			{/* CONTAINER */}
 			<Container width="100%" height="100%" scroll>
-				{/* TITLE */}
-				<div className={`${location ? "hidden" : "block"}`}>
-					<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
-						Report a Swarm
-					</h2>
-					<span className="Poppins-SemiBold text-[#817b70]">
-						Take or upload a photo of the swarm.
-					</span>
-				</div>
-
-				{/* WRAPPER OF REPORT */}
-				<div className="w-full h-full pb-3 flex flex-col items-center gap-3">
-					{/* STEPS */}
-					<Steps />
-
-					{/* CONTENT */}
-					<div className="w-full flex-1 flex flex-col">
-						{children}
+				<div className="w-full h-full flex flex-col min-h-0">
+					{/* TITLE */}
+					<div
+						className={`shrink-0 ${location ? "hidden" : "block"}`}>
+						<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
+							Report a Swarm
+						</h2>
+						<span className="Poppins-SemiBold text-[#817b70]">
+							Take or upload a photo of the swarm.
+						</span>
 					</div>
 
-					{/* BUTTON */}
-					<div
-						className={`w-full flex justify-center ${location ? "hidden" : "flex"}`}>
-						<Button
-							width="50%"
-							label="Next"
-							onClick={() => openModal("swarmNotice")}
-						/>
+					{/* WRAPPER OF REPORT */}
+					<div className="w-full flex-1 min-h-0 pb-3 flex flex-col items-center gap-3">
+						{/* STEPS */}
+						<Steps />
+
+						{/* CONTENT */}
+						<div className="w-full flex-1 min-h-0 flex flex-col overflow-y-auto pt-3">
+							{children}
+						</div>
+
+						{/* BUTTON */}
+						<div
+							className={`w-full shrink-0 justify-center ${location ? "hidden" : "flex"}`}>
+							<Button
+								width="50%"
+								label="Next"
+								onClick={() => openModal("swarmNotice")}
+							/>
+						</div>
 					</div>
 				</div>
 			</Container>

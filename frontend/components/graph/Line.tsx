@@ -9,6 +9,8 @@ import {
 	LineElement,
 	Tooltip,
 	Legend,
+	ChartData,
+	ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
@@ -39,76 +41,10 @@ export type YieldSeries = {
 	color?: string;
 };
 
-type YieldSummaryChartProps = {
-	value: string;
-	valueLabel: string;
-	changeAmount: number;
-	changePercent: number;
-	categories: string[]; // supports multi-line "Harvest Season N\nMon YYYY"
-	data?: number[]; // single-line mode (Dashboard)
-	series?: YieldSeries[]; // multi-line mode (History, per hive)
-	lineColor?: string;
-	onClick?: () => void; // NEW: e.g. navigate Dashboard -> History
-	hideSummary?: boolean; // NEW: force-hide the value/change header row
-};
+// ---- Shared chart.js config, used by both YieldSummaryChart and ReportOverview ----
 
-export const YieldSummaryChart = ({
-	value,
-	valueLabel,
-	changeAmount,
-	changePercent,
-	categories,
-	data,
-	series,
-	lineColor = "#FFC93F",
-	onClick,
-	hideSummary,
-}: YieldSummaryChartProps) => {
-	const isNegative = changeAmount < 0;
-	const isMultiLine = !!series && series.length > 0;
-
-	const datasets = isMultiLine
-		? series!.map((s, i) => {
-				const color = s.color ?? DEFAULT_PALETTE[i % DEFAULT_PALETTE.length];
-				return {
-					label: s.label,
-					data: s.data,
-					borderColor: color,
-					backgroundColor: color,
-					pointBackgroundColor: color,
-					pointBorderColor: "#fff",
-					pointBorderWidth: 2,
-					pointRadius: 5,
-					pointHoverRadius: 7,
-					borderWidth: 3,
-					tension: 0.4,
-					fill: false,
-					spanGaps: true, // connect only this hive's own points
-				};
-			})
-		: [
-				{
-					label: "Total Yield (kg)",
-					data: data ?? [],
-					borderColor: lineColor,
-					backgroundColor: lineColor,
-					pointBackgroundColor: lineColor,
-					pointBorderColor: "#fff",
-					pointBorderWidth: 2,
-					pointRadius: 5,
-					pointHoverRadius: 7,
-					borderWidth: 3,
-					tension: 0.4,
-					fill: false,
-				},
-			];
-
-	const chartData = {
-		labels: categories.map((c) => c.split("\n")),
-		datasets,
-	};
-
-	const options = {
+function buildLineOptions(): ChartOptions<"line"> {
+	return {
 		responsive: true,
 		maintainAspectRatio: false,
 		plugins: {
@@ -143,7 +79,7 @@ export const YieldSummaryChart = ({
 					return context.dataIndex * 100;
 				},
 			},
-		},
+		} as any,
 		scales: {
 			y: {
 				beginAtZero: true,
@@ -152,9 +88,91 @@ export const YieldSummaryChart = ({
 			},
 			x: {
 				grid: { display: false },
-				ticks: { font: { size: 11, weight: "bold" as const }, color: "#333" },
+				ticks: {
+					font: { size: 11, weight: "bold" as const },
+					color: "#333",
+				},
 			},
 		},
+	};
+}
+
+function buildYieldDataset(
+	color: string,
+	label: string,
+	data: (number | null)[],
+) {
+	return {
+		label,
+		data,
+		borderColor: color,
+		backgroundColor: color,
+		pointBackgroundColor: color,
+		pointBorderColor: "#fff",
+		pointBorderWidth: 2,
+		pointRadius: 5,
+		pointHoverRadius: 7,
+		borderWidth: 3,
+		tension: 0.4,
+		fill: false,
+	};
+}
+
+// Small internal component so the <Line> render + wrapper markup
+// isn't duplicated between YieldSummaryChart and ReportOverview.
+function LineChartBase({ chartData }: { chartData: ChartData<"line"> }) {
+	return (
+		<div className="flex-1 flex flex-col">
+			<div className="flex-1 relative">
+				<Line data={chartData} options={buildLineOptions()} />
+			</div>
+		</div>
+	);
+}
+
+// ---- YieldSummaryChart ----
+
+type YieldSummaryChartProps = {
+	value: string;
+	valueLabel: string;
+	changeAmount: number;
+	changePercent: number;
+	categories: string[]; // supports multi-line "Harvest Season N\nMon YYYY"
+	data?: number[]; // single-line mode (Dashboard)
+	series?: YieldSeries[]; // multi-line mode (History, per hive)
+	lineColor?: string;
+	onClick?: () => void; // e.g. navigate Dashboard -> History
+	hideSummary?: boolean; // force-hide the value/change header row
+};
+
+export const YieldSummaryChart = ({
+	value,
+	valueLabel,
+	changeAmount,
+	changePercent,
+	categories,
+	data,
+	series,
+	lineColor = "#FFC93F",
+	onClick,
+	hideSummary,
+}: YieldSummaryChartProps) => {
+	const isNegative = changeAmount < 0;
+	const isMultiLine = !!series && series.length > 0;
+
+	const datasets = isMultiLine
+		? series!.map((s, i) =>
+				buildYieldDataset(
+					s.color ?? DEFAULT_PALETTE[i % DEFAULT_PALETTE.length],
+					s.label,
+					s.data,
+				),
+			)
+		: [buildYieldDataset(lineColor, "Total Yield (kg)", data ?? [])];
+
+	const chartData: ChartData<"line"> = {
+		labels: categories.map((c) => c.split("\n")) as unknown as string[],
+		datasets,
 	};
 
 	const location = useIsPage("/beekeeper/history");
@@ -188,11 +206,31 @@ export const YieldSummaryChart = ({
 				</div>
 			)}
 
-			<div className="flex-1 flex flex-col">
-				<div className="flex-1 relative">
-					<Line data={chartData} options={options} />
-				</div>
-			</div>
+			<LineChartBase chartData={chartData} />
 		</div>
 	);
+};
+
+// ---- ReportOverview ----
+// Previously referenced `chartData`/`options` that only existed inside
+// YieldSummaryChart's scope — that would throw at runtime. Give it its
+// own props/data so it's a real standalone component.
+
+type ReportOverviewProps = {
+	categories: string[];
+	data: number[];
+	lineColor?: string;
+};
+
+export const ReportOverview = ({
+	categories,
+	data,
+	lineColor = "#FFC93F",
+}: ReportOverviewProps) => {
+	const chartData: ChartData<"line"> = {
+		labels: categories.map((c) => c.split("\n")) as unknown as string[],
+		datasets: [buildYieldDataset(lineColor, "Total Yield (kg)", data)],
+	};
+
+	return <LineChartBase chartData={chartData} />;
 };

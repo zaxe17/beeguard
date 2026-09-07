@@ -165,18 +165,18 @@ const Camera = () => {
 // 2ND STEP: COMPLETING DETAILS
 const FormDetails = () => {
 	return (
-		<div className="w-7/8 h-full flex justify-between gap-4">
+		<div className="w-7/8 h-full flex lg:flex-row flex-col-reverse justify-between gap-4">
 			{/* LEFT SIDE */}
-			<div className="w-1/2 h-full flex flex-col gap-3 min-h-0">
+			<div className="lg:w-1/2 w-full lg:h-full h-auto flex flex-col gap-3 min-h-0">
 				{/* MAP */}
-				<div className="h-1/2 min-h-0 rounded-xl overflow-hidden">
+				<div className="lg:h-1/2 h-48 min-h-0 rounded-xl overflow-hidden shrink-0">
 					<Map />
 				</div>
 
 				{/* BEE PICTURE AND SPECIES NAME */}
-				<div className="h-1/2 min-h-0 flex flex-col gap-2">
+				<div className="lg:h-1/2 h-auto min-h-0 flex flex-col gap-2">
 					{/* IMAGE */}
-					<div className="w-full flex-1 min-h-0 relative rounded-xl overflow-hidden">
+					<div className="w-full h-40 lg:h-auto lg:flex-1 min-h-0 relative rounded-xl overflow-hidden shrink-0">
 						<Image
 							src={bee}
 							alt="bee"
@@ -191,7 +191,7 @@ const FormDetails = () => {
 						<span className="Poppins-SemiBold text-sm text-[#817b70]">
 							Bee Specification:
 						</span>
-						<span className="py-1 px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-lg">
+						<span className="py-1 px-3 sm:px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-sm sm:text-lg">
 							Apis Cerana / Asian Honey Bee
 						</span>
 					</div>
@@ -199,7 +199,7 @@ const FormDetails = () => {
 			</div>
 
 			{/* RIGHT SIDE */}
-			<div className="w-1/2 h-full">
+			<div className="lg:w-1/2 w-full h-full">
 				<form action="" className="h-full flex flex-col gap-3">
 					<Input label="Location" disabled />
 
@@ -279,9 +279,9 @@ const FormDetails = () => {
 // 3RD: REVIEW REPORT
 const ReviewRep = () => {
 	return (
-		<div className="w-7/8 h-full flex justify-between gap-4">
+		<div className="w-7/8 h-full flex flex-col lg:flex-row justify-between gap-4">
 			{/* LEFT SIDE */}
-			<div className="w-1/2 h-full flex flex-col gap-3 min-h-0">
+			<div className="lg:w-1/2 w-full lg:h-full h-64 flex flex-col gap-3 min-h-0 shrink-0">
 				{/* BEE PICTURE AND SPECIES NAME */}
 				<div className="h-full min-h-0 flex flex-col gap-2">
 					{/* IMAGE */}
@@ -300,7 +300,7 @@ const ReviewRep = () => {
 						<span className="Poppins-SemiBold text-sm text-[#817b70]">
 							Bee Specification:
 						</span>
-						<span className="py-1 px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-lg">
+						<span className="py-1 px-3 sm:px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-sm sm:text-lg">
 							Apis Cerana / Asian Honey Bee
 						</span>
 					</div>
@@ -308,7 +308,7 @@ const ReviewRep = () => {
 			</div>
 
 			{/* RIGHT SIDE */}
-			<div className="w-1/2 h-full">
+			<div className="lg:w-1/2 w-full h-full">
 				<form action="" className="h-full flex flex-col gap-3">
 					<Input label="Location" disabled />
 
@@ -332,7 +332,7 @@ const ReviewRep = () => {
 							disabled></textarea>
 					</div>
 
-					<div className="flex gap-3">
+					<div className="flex lg:flex-row flex-col gap-3">
 						<Input
 							label="Is anyone in danger?"
 							value="Yes"

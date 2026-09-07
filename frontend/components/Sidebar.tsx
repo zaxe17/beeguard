@@ -64,7 +64,7 @@ const beekeeperTabs = [
 	},
 	{
 		icon: "mdi:folder-open",
-		tabName: "reports",
+		tabName: "report",
 		route: "/beekeeper/report",
 		exact: false,
 	},
@@ -82,15 +82,52 @@ const beekeeperTabs = [
 	},
 ];
 
+const adminTabs = [
+	{
+		icon: "mdi:view-dashboard",
+		tabName: "dashboard",
+		route: "/admin",
+		exact: true,
+	},
+	{
+		icon: "iconamoon:profile-fill",
+		tabName: "profile",
+		route: "/admin/profile",
+		exact: false,
+	},
+	{
+		icon: "mdi:folder-open",
+		tabName: "report",
+		route: "/admin/report",
+		exact: false,
+	},
+	{
+		icon: "mdi:alert",
+		tabName: "alert",
+		route: "/admin/alert",
+		exact: false,
+	},
+	{
+		icon: "ic:round-hive",
+		tabName: "more",
+		route: "/admin/more",
+		exact: false,
+	},
+];
+
 const Sidebar = () => {
 	const pathName = usePathname();
 
 	const isBeekeeper = pathName.startsWith("/beekeeper");
-	const isBeekeeperReport = pathName.startsWith("/beekeeper/report");
-	const activeTab = isBeekeeper ? beekeeperTabs : citizenTabs;
+	const isAdmin = pathName.startsWith("/admin");
+	const activeTab = isBeekeeper
+		? beekeeperTabs
+		: isAdmin
+			? adminTabs
+			: citizenTabs;
 
 	return (
-		<nav className="fixed bottom-0 left-0 right-0 z-50 lg:sticky lg:top-0 lg:left-auto lg:right-auto bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0">
+		<nav className="fixed bottom-0 left-0 right-0 lg:z-0 z-50 lg:sticky lg:top-0 lg:left-auto lg:right-auto bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0">
 			{/* NAV HEADER */}
 			<div className="px-3 pt-5 mb-10 lg:flex items-center gap-2 hidden">
 				<div className="w-10 h-10 rounded-full overflow-hidden">
@@ -125,7 +162,7 @@ const Sidebar = () => {
 								className={`flex lg:flex-row flex-col lg:gap-2 gap-1 items-center lg:p-2.5 p-0 lg:rounded-l-xl lg:rounded-none rounded-full group-hover:bg-white transition-all duration-150 ease-in ${activeTab ? "lg:bg-white" : ""}`}>
 								{/* ===== DESKTOP ICON (walang galaw, dati na) ===== */}
 								<div className="w-8 h-8 hidden lg:block">
-									{tab.tabName !== "profile" ? (
+									{isAdmin || tab.tabName !== "profile" ? (
 										<Icon
 											icon={tab.icon}
 											className={`w-full h-full mb-1 group-hover:text-[#ffc95f] transition-all duration-150 ease-in ${activeTab ? "text-[#ffc95f]" : "text-white"}`}

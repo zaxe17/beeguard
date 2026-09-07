@@ -9,21 +9,22 @@ type TabItems = {
 
 type TabProps = {
 	tabs: TabItems[];
+	hasBg?: boolean;
 };
 
-export const Tab = ({ tabs }: TabProps) => {
-    const searchParams = useSearchParams();
+export const Tab = ({ tabs, hasBg }: TabProps) => {
+	const searchParams = useSearchParams();
 	const pathname = usePathname();
 	const router = useRouter();
 
-	const activeStatus = searchParams.get("status") || "all";
+	const activeStatus = searchParams.get("tab") || tabs[0]?.value;
 
-    const handleTabClick = (value: string) => {
+	const handleTabClick = (value: string) => {
 		const params = new URLSearchParams(searchParams.toString());
-		if (value === "all") {
-			params.delete("status");
+		if (value === tabs[0]?.value) {
+			params.delete("tab");
 		} else {
-			params.set("status", value);
+			params.set("tab", value);
 		}
 		router.push(`${pathname}?${params.toString()}`);
 	};
@@ -36,10 +37,18 @@ export const Tab = ({ tabs }: TabProps) => {
 					<li
 						key={tab.value}
 						onClick={() => handleTabClick(tab.value)}
-						className={`Poppins-SemiBold bg-transparent text-center pb-1 border-b-3 transition-all duration-150 ease-in text-[#817b70] text-sm cursor-pointer w-full ${
-							isActive
-								? "border-b-[#ffce1c] text-[#ffce1c]"
-								: "border-b-transparent hover:border-b-[#ffce1c] hover:text-[#ffce1c]"
+						className={`Poppins-SemiBold text-center text-sm cursor-pointer w-full transition-all duration-150 ease-in ${
+							hasBg
+								? `py-1.5 rounded-lg ${
+										isActive
+											? "bg-[#ffdb4f] text-[#704500]"
+											: "bg-[#e4e1ea] text-[#817b70] hover:bg-[#ffdb4f]/60"
+									}`
+								: `border-b-3 pb-1 ${
+										isActive
+											? "border-b-[#ffce1c] text-[#ffce1c]"
+											: "border-b-transparent text-[#817b70] hover:border-b-[#ffce1c] hover:text-[#ffce1c]"
+									}`
 						}`}>
 						{tab.label}
 					</li>

@@ -13,7 +13,7 @@ const tabs = [
 	{ label: "Rejected", value: "rejected" },
 ];
 
-const BeekeeperReportsInner = () => {
+const ReportsInner = () => {
 	const searchParams = useSearchParams();
 	const activeStatus = searchParams.get("tab") || "all";
 	const reportStatuses = [
@@ -56,12 +56,12 @@ const BeekeeperReportsInner = () => {
 	);
 };
 
-const BeekeeperReports = () => {
+const AdminReports = () => {
 	return (
 		<Suspense fallback={<div>Loading...</div>}>
-			<BeekeeperReportsInner />
+			<ReportsInner />
 		</Suspense>
 	);
 };
 
-export default BeekeeperReports;
+export default AdminReports;

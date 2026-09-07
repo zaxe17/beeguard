@@ -11,7 +11,7 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 	const { isModalOpen, closeModal } = useModal<ModalType>();
 
 	return (
-		<div className="w-full h-screen flex lg:flex-row flex-col-reverse relative overflow-hidden">
+		<div className="w-full h-screen flex lg:flex-row flex-col-reverse relative overflow-hidden z-10">
 			<Sidebar />
 
 			<main className="w-full flex flex-col relative z-10 h-full overflow-y-auto pb-13 lg:pb-0">

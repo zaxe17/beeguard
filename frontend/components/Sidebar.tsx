@@ -18,9 +18,9 @@ const citizenTabs = [
 		exact: true,
 	},
 	{
-		icon: "mdi:location-radius",
-		tabName: "location",
-		route: "/citizen/location",
+		icon: "lucide-lab:bee-hive",
+		tabName: "bee farm",
+		route: "/citizen/beefarm",
 		exact: false,
 	},
 	{

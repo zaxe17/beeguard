@@ -1,5 +1,6 @@
 "use client";
 
+import MobileOverlay from "@/components/MobileOverlay";
 import { Tab } from "@/components/Tab";
 import { Container } from "@/components/ui/Container";
 import { ReportCard } from "@/components/ui/ReportCard";
@@ -73,16 +74,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 			{/* RIGHT SIDE — mobile: slide-up overlay, only after a card is clicked */}
 			<AnimatePresence>
 				{mobileSelected && (
-					<motion.div
-						initial={{ y: "100%" }}
-						animate={{ y: 0 }}
-						exit={{ y: "100%" }}
-						transition={{
-							type: "spring",
-							stiffness: 300,
-							damping: 30,
-						}}
-						className="lg:hidden fixed inset-0 z-60 bg-white h-full w-full overflow-y-auto pb-15">
+					<MobileOverlay>
 						{/* BACK BUTTON */}
 						<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 							<button
@@ -97,11 +89,10 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 								Report Details
 							</span>
 						</div>
-
 						<div className="flex flex-col items-center py-4 px-4 w-full">
 							{children}
 						</div>
-					</motion.div>
+					</MobileOverlay>
 				)}
 			</AnimatePresence>
 		</div>

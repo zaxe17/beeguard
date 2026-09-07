@@ -26,7 +26,7 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 	),
 });
 
-const Location = () => {
+const BeefarmPage = () => {
 	// Only matters on mobile — desktop always shows map + list side by side.
 	const [mobileSelected, setMobileSelected] = useState(false);
 
@@ -38,7 +38,7 @@ const Location = () => {
 				className="lg:w-[30%] w-full flex-1 lg:flex-none lg:h-full">
 				<div className="relative w-full pt-5 px-2 flex flex-col items-center gap-4">
 					<h3 className="relative Poppins-SemiBold text-xl text-[#020101]">
-						Bee Farms
+						Bee Farm
 					</h3>
 
 					<SearchBar placeholder="Search location" />
@@ -114,4 +114,4 @@ const Location = () => {
 	);
 };
 
-export default Location;
+export default BeefarmPage;

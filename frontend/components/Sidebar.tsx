@@ -127,7 +127,7 @@ const Sidebar = () => {
 			: citizenTabs;
 
 	return (
-		<nav className="w-full lg:sticky lg:top-0 bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0 z-10">
+		<nav className="lg:w-fit w-full lg:sticky lg:top-0 bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0 z-10">
 			{/* NAV HEADER */}
 			<div className="px-3 pt-5 mb-10 lg:flex items-center gap-2 hidden">
 				<div className="w-10 h-10 rounded-full overflow-hidden">

@@ -18,7 +18,7 @@ const ReportDetails = ({
 		<div className="flex flex-col gap-4 w-full">
 			{/* HIVES DETAILS */}
 			<div
-				className="border-2 border-[#e2e2e6] rounded-2xl p-2.5 capitalize flex gap-5"
+				className="border-2 border-[#e2e2e6] rounded-2xl p-2.5 capitalize flex lg:flex-row flex-col gap-5"
 				style={{
 					boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
 				}}>
@@ -87,7 +87,7 @@ const ReportDetails = ({
 					</p>
 
 					{/* ACTIVITY AND DANGER */}
-					<div className="flex gap-8 items-center mt-3">
+					<div className="flex gap-15 items-center mt-3">
 						<div>
 							<h2 className="Poppins-SemiBold leading-3.5 text-sm text-[#817b70]">
 								Activity

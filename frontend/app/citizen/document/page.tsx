@@ -38,7 +38,7 @@ const Payment = ({ method }: { method: "online" | "cash" }) => {
 const Document = () => {
 	return (
 		<>
-			<h1 className="Poppins-SemiBold text-xl pb-5">Report Details</h1>
+			<h1 className="Poppins-SemiBold text-xl pb-5 lg:block hidden">Report Details</h1>
 
 			{/* DISPLAY REPORT DETAILS */}
 			<ReportDetails
@@ -56,7 +56,7 @@ const Document = () => {
 			{/* CHOOSING BEEKEEPER OFFERS */}
 			{/* <Offer /> */}
 
-			<Payment method="online" />
+			<Payment method="cash" />
 		</>
 	);
 };

@@ -67,7 +67,7 @@ const BeekeeperLayoutContent = ({
 	}, [payload?.hiveId, hiveScoped]);
 
 	return (
-		<div className="w-full h-screen flex lg:flex-row flex-col-reverse overflow-hidden">
+		<div className="w-full h-svh flex lg:flex-row flex-col-reverse overflow-hidden">
 			<Sidebar />
 
 			<main className="w-full flex-1 min-h-0 flex flex-col relative overflow-y-auto">

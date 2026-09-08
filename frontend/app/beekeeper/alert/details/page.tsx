@@ -8,6 +8,7 @@ import { Icon } from "@iconify/react";
 import dynamic from "next/dynamic";
 import { AlertContainer } from "@/components/ui/Alert";
 import { pesticideService, AlertDetail } from "@/services/pesticide";
+import Link from "next/link";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx. This
@@ -357,9 +358,24 @@ const AlertDetailsInner = () => {
 	}
 
 	return (
-		<div className="h-screen w-full flex gap-15 py-15 px-20">
+		<div className="w-full flex lg:flex-row flex-col gap-8 lg:gap-15 lg:py-15 lg:px-20 pb-5">
+			{/* BACK BUTTON HEADER — mobile only, sticky sa taas */}
+			<div className="lg:hidden sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+				<Link
+					href="/beekeeper/alert"
+					className="flex items-center shrink-0">
+					<Icon
+						icon="bx:arrow-back"
+						className="text-2xl text-[#ffa004]"
+					/>
+				</Link>
+				<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+					Alert
+				</span>
+			</div>
+
 			{/* LEFT */}
-			<div className="w-1/2 capitalize flex flex-col gap-8">
+			<div className="lg:w-1/2 w-full capitalize flex flex-col gap-8 px-4 lg:px-0">
 				<Details
 					location={alert.location}
 					date={scheduled.date}
@@ -382,7 +398,7 @@ const AlertDetailsInner = () => {
 			</div>
 
 			{/* RIGHT */}
-			<div className="w-1/2">
+			<div className="lg:w-1/2 w-full px-4 lg:px-0">
 				{/* MAPS */}
 				<h1 className="Poppins-SemiBold text-xl mb-2">Maps</h1>
 				<div className="w-full h-80 rounded-xl relative overflow-hidden mb-8">

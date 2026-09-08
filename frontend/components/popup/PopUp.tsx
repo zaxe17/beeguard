@@ -43,7 +43,7 @@ export const WarningQueenReplacment = ({ onClose }: PopupProps) => {
 		location &&
 		!dismissed &&
 		openCount > 0 && (
-			<div className="fixed h-screen w-full bg-black/50 flex justify-center items-center">
+			<div className="fixed h-screen w-full bg-black/50 flex justify-center items-center z-50">
 				<div className="w-1/4 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5 flex flex-col justify-center items-center text-center">
 					<h1 className="Poppins-Bold text-4xl">Warning</h1>
 					<div className="rounded-full w-30 h-30">

@@ -25,9 +25,9 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 	const { openModal } = useModal<ModalType>();
 
 	return (
-		<div className="h-screen w-full flex justify-center items-center">
-			<div className="h-full w-1/2 flex flex-col justify-center pt-10 pb-5">
-				<div className="flex justify-end items-center gap-3 mb-8">
+		<div className="h-screen w-full flex justify-center items-center overflow-hidden">
+			<div className="h-full lg:w-1/2 w-full flex flex-col pt-10 pb-3 min-h-0">
+				<div className="flex justify-end items-center gap-3 mb-8 shrink-0">
 					{/* ADD BUTTON */}
 					<div
 						onClick={() => openModal("addAlert")}
@@ -39,7 +39,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 					</div>
 
 					{/* SEARCHBAR ALERTS */}
-					<div className="w-1/3">
+					<div className="lg:w-1/3 w-1/2">
 						<SearchBar placeholder="Search Alerts" />
 					</div>
 
@@ -52,7 +52,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 					</div>
 				</div>
 
-				<div className="w-full flex justify-center mb-10 px-3">
+				<div className="w-full flex justify-center lg:mb-10 mb-5 px-3 shrink-0">
 					<ul className="w-full flex items-center gap-5">
 						{tabs.map((t, i) => {
 							const activeTab = pathName === t.route;
@@ -62,7 +62,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 									key={i}
 									href={t.route}
 									className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-150 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "text-[#817b70] hover:bg-[#ffdb4f]/60"}`}>
-									<li className="Poppins-SemiBold text-center text-xl ">
+									<li className="Poppins-SemiBold text-center lg:text-xl text-sm">
 										{t.label}
 									</li>
 								</Link>
@@ -71,7 +71,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 					</ul>
 				</div>
 
-				<div className="flex-1 min-h-0 flex flex-col scroll-container">
+				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto">
 					{children}
 				</div>
 			</div>

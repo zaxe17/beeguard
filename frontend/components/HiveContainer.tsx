@@ -98,22 +98,20 @@ export const HiveDetailsContainer = ({
 	const iconKey = getHiveIconKey(status);
 
 	return (
-		<div className="flex flex-col gap-4 w-md">
-			{/* QUEEN BEE REPLACEMENT WARNING — now also shows for
-			    "diseased" hives, not just weak / need-attention. A
-			    diseased hive needs this recommendation MORE, not less. */}
+		<div className="flex flex-col gap-4 w-full max-w-md">
+			{/* QUEEN BEE REPLACEMENT WARNING */}
 			{(status === "weak" ||
 				status === "need attention" ||
 				status === "diseased") && (
-				<div className="bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-2 flex flex-1 items-center justify-between">
+				<div className="bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-2 flex flex-row gap-2 items-center justify-between">
 					<div className="flex items-center gap-2">
-						<div className="w-7 h-7">
+						<div className="w-7 h-7 shrink-0">
 							<Icon
 								icon="octicon:alert-16"
 								className="w-full h-full text-[#854F0B]"
 							/>
 						</div>
-						<p className="Poppins-Bold text-[#854F0B] text-[10px] w-3/4">
+						<p className="Poppins-Bold text-[#854F0B] text-[10px] lg:w-3/4 w-full">
 							Replacing the queen bee is recommended to improve
 							the hive's health and productivity.
 						</p>
@@ -122,7 +120,7 @@ export const HiveDetailsContainer = ({
 					<button
 						type="button"
 						onClick={replacement}
-						className="Poppins-SemiBold bg-[#ffdb4f] text-[#412402] text-xs py-1 px-2 rounded-md text-nowrap cursor-pointer">
+						className="Poppins-SemiBold bg-[#ffdb4f] text-[#412402] text-xs py-1 px-2 rounded-md text-nowrap cursor-pointer shrink-0">
 						Replace Queen
 					</button>
 				</div>
@@ -130,13 +128,13 @@ export const HiveDetailsContainer = ({
 
 			{/* HIVES DETAILS */}
 			<div
-				className="border-2 border-[#e2e2e6] rounded-2xl p-5 capitalize flex gap-5"
+				className="border-2 border-[#e2e2e6] rounded-2xl p-5 capitalize flex flex-col lg:flex-row gap-5"
 				style={{
 					boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
 				}}>
 				{/* LEFT */}
 				<div
-					className="flex justify-center items-center p-10 rounded-md border"
+					className="flex justify-center items-center p-6 lg:p-10 rounded-md border shrink-0 mx-auto lg:mx-0"
 					style={{
 						backgroundColor: `${HiveIcon[iconKey].color}33`,
 						borderColor: HiveIcon[iconKey].color,
@@ -164,7 +162,7 @@ export const HiveDetailsContainer = ({
 					<h2 className="Poppins-Bold text-xl italic mb-4">{hive}</h2>
 
 					{/* LOCATION AND DATE CHECK */}
-					<div className="flex flex-col mb-15">
+					<div className="flex flex-col mb-8 lg:mb-15">
 						{location && (
 							<span className="text-[#817b70] text-sm">
 								Species:{" "}
@@ -181,7 +179,7 @@ export const HiveDetailsContainer = ({
 						</span>
 					</div>
 
-					{/* YIELD TOTAL FO THIS MONTH */}
+					{/* YIELD TOTAL FOR THIS MONTH */}
 					<h3 className="text-[#817b70] text-sm">
 						Yield(This Month)
 					</h3>
@@ -218,7 +216,7 @@ export const HiveDetailsContainer = ({
 
 			{/* BUTTONS */}
 			<div className="flex flex-col items-center justify-center gap-5">
-				<div className="w-full flex items-center justify-center gap-3">
+				<div className="w-full flex flex-col lg:flex-row items-center justify-center gap-3">
 					<Button
 						label="Monitor Hive Health"
 						onClick={hiveHealthButton}
@@ -252,7 +250,7 @@ export const HiveTabs = ({
 	return (
 		<div
 			onClick={onClick}
-			className={`border-2 rounded-2xl p-5 capitalize flex gap-5 cursor-pointer transition-all ${
+			className={`border-2 rounded-2xl lg:p-5 p-3 capitalize flex lg:gap-5 gap-3 cursor-pointer transition-all ${
 				selected ? "border-[#ffce1c] bg-[#fff8e1]" : "border-[#e2e2e6]"
 			}`}
 			style={{
@@ -263,7 +261,7 @@ export const HiveTabs = ({
 				className="flex justify-center items-center p-5 rounded-md border border-[#ffdb4f]"
 				style={{ borderColor: color, backgroundColor: `${color}33` }}>
 				<div
-					className="w-15 h-15 rounded-full flex justify-center items-center p-2"
+					className="lg:w-15 w-10 lg:h-15 h-10 rounded-full flex justify-center items-center p-2"
 					style={{ backgroundColor: `${color}4D` }}>
 					<Image
 						src={icon}
@@ -278,9 +276,11 @@ export const HiveTabs = ({
 			<div className="w-full">
 				{/* HIVE ID */}
 				<div className="flex justify-between items-center">
-					<h1 className="Poppins-Bold text-2xl">{hiveId}</h1>
+					<h1 className="Poppins-Bold lg:text-2xl text-lg">
+						{hiveId}
+					</h1>
 					<span
-						className="Poppins-SemiBold text-xs py-0.5 px-3 rounded-sm"
+						className="Poppins-SemiBold lg:text-xs text-[10px] text-center py-0.5 lg:px-3 px-1 rounded-sm"
 						style={{
 							color: color,
 							backgroundColor: `${color}4D`,
@@ -290,17 +290,23 @@ export const HiveTabs = ({
 				</div>
 
 				{/* NAME */}
-				<h2 className="Poppins-Bold text-lg italic">{hive}</h2>
+				<h2 className="Poppins-Bold lg:text-lg text-sm italic">
+					{hive}
+				</h2>
 
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
 					{location && (
 						<span className="text-[#817b70] text-xs">
-							Species: <span className="Poppins-SemiBold">{location}</span>
+							Species:{" "}
+							<span className="Poppins-SemiBold">{location}</span>
 						</span>
 					)}
 					<span className="text-[#817b70] text-xs">
-						Established: <span className="Poppins-SemiBold">{formatDateOnly(lastCheck)}</span>
+						Established:{" "}
+						<span className="Poppins-SemiBold">
+							{formatDateOnly(lastCheck)}
+						</span>
 					</span>
 				</div>
 
@@ -308,7 +314,7 @@ export const HiveTabs = ({
 				<div className="flex justify-between items-center mt-5">
 					{/* YIELD TOTAL FOR THIS MONTH */}
 					<div className="flex flex-col">
-						<h2 className="text-[#817b70] text-sm">
+						<h2 className="text-[#817b70] lg:text-sm text-xs">
 							Yield(This Month)
 						</h2>
 						<span className="Poppins-SemiBold text-sm">
@@ -318,7 +324,9 @@ export const HiveTabs = ({
 
 					{/* HEALTH STATUS */}
 					<div className="flex flex-col">
-						<h2 className="text-sm text-[#a6a3a3]">Hive State</h2>
+						<h2 className="lg:text-sm text-xs text-[#a6a3a3]">
+							Hive State
+						</h2>
 						<span className="Poppins-SemiBold text-sm">
 							{hiveState}
 						</span>

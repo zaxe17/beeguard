@@ -20,6 +20,7 @@ import { queenService } from "@/services/queen";
 
 import bee_report from "@/public/assets/bee_report.png";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 
 type ModalProps = {
 	isOpen: boolean;
@@ -175,7 +176,7 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/3"
+			width="lg:w-1/3 w-full"
 			header="Add New Hive"
 			onClose={onClose}>
 			<form
@@ -198,7 +199,7 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					onChange={(e) => setDateEstablished(e.target.value)}
 				/>
 
-				<div className="flex gap-2">
+				<div className="flex gap-2 lg:flex-row flex-col">
 					<Input
 						label="Historical Yield (kg, if any)"
 						value={histYieldKg}
@@ -320,7 +321,9 @@ export const MonitorHealth = ({
 			return;
 		}
 		if (observations.length === 0) {
-			setErrorMsg("Please select at least one physical inspection observation.");
+			setErrorMsg(
+				"Please select at least one physical inspection observation.",
+			);
 			return;
 		}
 
@@ -396,7 +399,8 @@ export const MonitorHealth = ({
 								key={label}
 								className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
 								style={{
-									boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+									boxShadow:
+										"rgba(0, 0, 0, 0.24) 0px 3px 8px",
 								}}>
 								<div className="flex justify-start items-center gap-2">
 									<input
@@ -404,7 +408,9 @@ export const MonitorHealth = ({
 										name="observations"
 										className="hidden"
 										checked={checked}
-										onChange={() => toggleObservation(label)}
+										onChange={() =>
+											toggleObservation(label)
+										}
 									/>
 									<div className="w-4.25 h-4.25 rounded-sm border border-[#a6a3a3]">
 										<Icon
@@ -764,7 +770,7 @@ export const QueenReplace = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/4"
+			width="lg:w-1/4 w-full"
 			header="Replace the Queen Bee"
 			onClose={onClose}>
 			<form
@@ -808,10 +814,13 @@ type BeeQueenModalProps = ModalProps & {
 	onReplaceQueen?: () => void;
 };
 
-const QUEEN_ALERT_TEXT: Partial<Record<HealthStatus, { title: string; message: string }>> = {
+const QUEEN_ALERT_TEXT: Partial<
+	Record<HealthStatus, { title: string; message: string }>
+> = {
 	"Needs Attention": {
 		title: "QUEEN BEE NEEDS ATTENTION",
-		message: "Consider replacing the queen bee for a more productive colony.",
+		message:
+			"Consider replacing the queen bee for a more productive colony.",
 	},
 	Weak: {
 		title: "HIVE IS WEAK",
@@ -819,7 +828,8 @@ const QUEEN_ALERT_TEXT: Partial<Record<HealthStatus, { title: string; message: s
 	},
 	Diseased: {
 		title: "HIVE IS DISEASED",
-		message: "This hive shows signs of disease. Consider replacing the queen bee.",
+		message:
+			"This hive shows signs of disease. Consider replacing the queen bee.",
 	},
 };
 
@@ -829,15 +839,18 @@ export const BeeQueenModal = ({
 	hive,
 	onReplaceQueen,
 }: BeeQueenModalProps) => {
-	if (!isOpen || !hive) return null;
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+
+	if (!mounted || !isOpen || !hive) return null;
 
 	const alertText =
 		QUEEN_ALERT_TEXT[hive.healthStatus] ??
 		QUEEN_ALERT_TEXT["Needs Attention"]!;
 
-	return (
+	return createPortal(
 		<div
-			className="fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center"
+			className="fixed inset-0 w-full h-full bg-black/50 z-10000 flex justify-center items-center"
 			onClick={onClose}>
 			<div
 				className="w-1/4 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5"
@@ -861,7 +874,7 @@ export const BeeQueenModal = ({
 
 					<p className="text-base mb-3">{alertText.message}</p>
 
-					<div className="flex items-center gap-3 w-full">
+					<div className="flex items-center lg:flex-row flex-col-reverse gap-3 w-full">
 						<CancelButton onClick={onClose} />
 						<Button
 							buttonType="button"
@@ -871,6 +884,7 @@ export const BeeQueenModal = ({
 					</div>
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 };

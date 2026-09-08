@@ -54,10 +54,10 @@ export const Input = ({
 	disabled, // NEW
 }: InputProps) => {
 	return (
-		<div className="flex flex-col w-full">
+		<div className="flex flex-col w-full gap-1">
 			<label
 				htmlFor=""
-				className={`text-base ${
+				className={`lg:text-base text-sm ${
 					error ? "text-red-600" : "text-[#4a2f00]"
 				}`}>
 				{label}
@@ -102,10 +102,10 @@ export const Select = ({
 	disabled, // NEW
 }: SelectProps) => {
 	return (
-		<div className="flex flex-col w-full">
+		<div className="flex flex-col w-full gap-1">
 			<label
 				htmlFor=""
-				className={`lg:text-base text-xs ${
+				className={`lg:text-base text-sm ${
 					error ? "text-red-600" : "text-black"
 				}`}>
 				{label}
@@ -173,7 +173,10 @@ export const SearchBar = ({ placeholder, value, onChange }: InputProps) => {
 	return (
 		<div className="w-full flex items-center bg-[#d9d9d9] py-1.5 px-2 rounded-2xl">
 			<div className="w-6 h-6">
-				<Icon icon="mdi:search" className="w-full h-full text-[#494949]" />
+				<Icon
+					icon="mdi:search"
+					className="w-full h-full text-[#494949]"
+				/>
 			</div>
 			<input
 				type="text"

@@ -31,9 +31,17 @@ const BeekeeperReportsInner = () => {
 	] as const;
 
 	return (
-		<div className="h-screen pt-10 flex justify-center">
-			<div className="w-1/2 flex flex-col min-h-0">
-				<Tab tabs={tabs} />
+		<div className="h-full flex justify-center">
+			<div className="lg:w-1/2 w-full flex flex-col min-h-0">
+				<div className="w-full pt-5 px-2 flex flex-col items-center gap-4">
+					<h3 className="Poppins-SemiBold text-xl text-[#020101] lg:hidden block">
+						Report
+					</h3>
+
+					<div className="w-full">
+						<Tab tabs={tabs} />
+					</div>
+				</div>
 
 				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto px-3 my-5">
 					<div className="mt-5 flex flex-col gap-3 pb-3">

@@ -1,5 +1,3 @@
-// page.tsx
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -13,8 +11,12 @@ import { SearchBar } from "@/components/ui/Input";
 import { Icon } from "@iconify/react";
 import { useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
-import { HIVES_CHANGED_EVENT, BeeQueenModal } from "@/components/modal/HivesModal";
+import {
+	HIVES_CHANGED_EVENT,
+	BeeQueenModal,
+} from "@/components/modal/HivesModal";
 import { analyticsService } from "@/services/analytics";
+import MobileOverlay from "@/components/MobileOverlay";
 
 type ModalType =
 	| "addHive"
@@ -28,11 +30,7 @@ type HivePayload = { hiveId: string };
 
 // Health statuses that should trigger the queen-alert popup
 // the moment the hive is tapped in the list.
-const QUEEN_ALERT_STATUSES = new Set([
-	"Needs Attention",
-	"Weak",
-	"Diseased",
-]);
+const QUEEN_ALERT_STATUSES = new Set(["Needs Attention", "Weak", "Diseased"]);
 
 function formatKg(v: number | undefined | null) {
 	return v == null ? "—" : `${v.toFixed(1)}kg`;
@@ -57,7 +55,11 @@ const Hives = () => {
 		const [hivesRes, monthlyRes] = await Promise.all([
 			hiveService.list(),
 			analyticsService.hiveMonthlyYield?.() ??
-				Promise.resolve({ success: false, message: "", data: undefined }),
+				Promise.resolve({
+					success: false,
+					message: "",
+					data: undefined,
+				}),
 		]);
 
 		if (hivesRes.success && hivesRes.data) {
@@ -94,7 +96,9 @@ const Hives = () => {
 		h.hive_name.toLowerCase().includes(search.trim().toLowerCase()),
 	);
 
-	const openHiveModal = (modal: "monitorHealth" | "addYield" | "viewHistory" | "replace") => {
+	const openHiveModal = (
+		modal: "monitorHealth" | "addYield" | "viewHistory" | "replace",
+	) => {
 		if (!selectedHive) return;
 		openModal(modal, { hiveId: selectedHive.hive_id });
 	};
@@ -109,10 +113,15 @@ const Hives = () => {
 		}
 	};
 
+	const [mobileSelected, setMobileSelected] = useState(false);
+
 	return (
-		<div className="w-full h-full flex items-start">
+		<div className="w-full h-full flex items-start relative">
 			{/* CONTAINER FOR HIVE LIST */}
-			<Container width="40%" height="100%" borderNone>
+			<Container
+				height="100%"
+				borderNone
+				className="lg:w-[40%] w-full h-full shrink-0">
 				<div className="w-full pt-5 px-2 flex flex-col gap-4">
 					<div className="flex justify-between items-center">
 						<h3 className="Poppins-SemiBold text-3xl text-[#020101]">
@@ -176,23 +185,31 @@ const Hives = () => {
 								location={h.bee_species}
 								lastCheck={h.date_established}
 								status={mapHealthStatusToUi(h.health_status)}
-								yieldThisMonth={formatKg(thisMonthKg[h.hive_id])}
+								yieldThisMonth={formatKg(
+									thisMonthKg[h.hive_id],
+								)}
 								hiveState={h.hive_state}
 								selected={h.hive_id === selectedId}
-								onClick={() => handleSelectHive(h)}
+								onClick={() => {
+									handleSelectHive(h);
+									setMobileSelected(true);
+								}}
 							/>
 						))
 					)}
 				</div>
 			</Container>
 
-			<div className="flex-1 h-full">
+			{/* RIGHT SIDE — desktop: always visible inline */}
+			<div className="hidden lg:block flex-1 h-full">
 				<div className="flex flex-col gap-10 items-center justify-center h-full">
 					<h1 className="Poppins-Bold text-5xl">Hive Details</h1>
 
 					{selectedHive ? (
 						<HiveDetailsContainer
-							hiveHealthButton={() => openHiveModal("monitorHealth")}
+							hiveHealthButton={() =>
+								openHiveModal("monitorHealth")
+							}
 							addYieldButton={() => openHiveModal("addYield")}
 							history={() => openHiveModal("viewHistory")}
 							replacement={() => openHiveModal("replace")}
@@ -201,16 +218,70 @@ const Hives = () => {
 							location={selectedHive.bee_species}
 							lastCheck={selectedHive.date_established}
 							hiveState={selectedHive.hive_state}
-							status={mapHealthStatusToUi(selectedHive.health_status)}
-							yieldThisMonth={formatKg(thisMonthKg[selectedHive.hive_id])}
+							status={mapHealthStatusToUi(
+								selectedHive.health_status,
+							)}
+							yieldThisMonth={formatKg(
+								thisMonthKg[selectedHive.hive_id],
+							)}
 						/>
 					) : (
 						<p className="text-[#a6a3a3]">
-							{loading ? "Loading..." : "Select a hive to see its details."}
+							{loading
+								? "Loading..."
+								: "Select a hive to see its details."}
 						</p>
 					)}
 				</div>
 			</div>
+
+			{/* RIGHT SIDE — mobile: slide-up overlay, only after a hive is selected */}
+			{mobileSelected && (
+				<MobileOverlay>
+					{/* BACK BUTTON */}
+					<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+						<button
+							onClick={() => setMobileSelected(false)}
+							className="flex items-center shrink-0">
+							<Icon
+								icon="bx:arrow-back"
+								className="text-2xl text-[#ffa004]"
+							/>
+						</button>
+						<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+							Hive Details
+						</span>
+					</div>
+
+					<div className="flex flex-col gap-6 items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
+						{selectedHive && (
+							<div className="w-full max-w-full">
+								<HiveDetailsContainer
+									hiveHealthButton={() =>
+										openHiveModal("monitorHealth")
+									}
+									addYieldButton={() =>
+										openHiveModal("addYield")
+									}
+									history={() => openHiveModal("viewHistory")}
+									replacement={() => openHiveModal("replace")}
+									hiveId={selectedHive.hive_id}
+									hive={selectedHive.hive_name}
+									location={selectedHive.bee_species}
+									lastCheck={selectedHive.date_established}
+									hiveState={selectedHive.hive_state}
+									status={mapHealthStatusToUi(
+										selectedHive.health_status,
+									)}
+									yieldThisMonth={formatKg(
+										thisMonthKg[selectedHive.hive_id],
+									)}
+								/>
+							</div>
+						)}
+					</div>
+				</MobileOverlay>
+			)}
 
 			{/* QUEEN ALERT POPUP — shows when a tapped hive needs attention */}
 			<BeeQueenModal
@@ -228,7 +299,9 @@ const Hives = () => {
 				onReplaceQueen={() => {
 					setShowQueenAlert(false);
 					if (queenAlertHive) {
-						openModal("replace", { hiveId: queenAlertHive.hive_id });
+						openModal("replace", {
+							hiveId: queenAlertHive.hive_id,
+						});
 					}
 				}}
 			/>

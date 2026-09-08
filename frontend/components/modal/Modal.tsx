@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { Button, CancelButton } from "../ui/Button";
+import { createPortal } from "react-dom";
 
 type ModalProps = {
 	open: boolean;
@@ -70,10 +71,7 @@ export const Modal = ({
 					)}
 
 					<div className="flex items-center gap-3 w-full">
-						<CancelButton
-							onClick={onCancel}
-							disabled={loading}
-						/>
+						<CancelButton onClick={onCancel} disabled={loading} />
 						<Button
 							buttonType="button"
 							label={loading ? "Processing..." : labelButton}
@@ -95,6 +93,9 @@ export const ModalContainer = ({
 	header,
 	onClose,
 }: ModalContainerProps) => {
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+
 	useEffect(() => {
 		if (!open) return;
 		const previous = document.body.style.overflow;
@@ -104,11 +105,11 @@ export const ModalContainer = ({
 		};
 	}, [open]);
 
-	if (!open) return null;
+	if (!mounted || !open) return null;
 
-	return (
+	return createPortal(
 		<div
-			className="fixed w-full h-full bg-black/50 z-50 flex justify-center items-center capitalize p-5"
+			className="fixed w-full h-full bg-black/50 z-10000 flex justify-center items-center capitalize p-5"
 			onClick={onClose}>
 			{/* CONTAINER */}
 			<div
@@ -125,7 +126,7 @@ export const ModalContainer = ({
 								className="w-full h-full text-[#4A2F00]"
 							/>
 						</div>
-						<h1 className="Poppins-Bold relative text-2xl text-[#4A2F00]">
+						<h1 className="Poppins-Bold relative lg:text-2xl text-xl text-[#4A2F00]">
 							{header}
 						</h1>
 					</div>
@@ -133,6 +134,7 @@ export const ModalContainer = ({
 					{children}
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 };

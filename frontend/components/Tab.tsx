@@ -30,7 +30,7 @@ export const Tab = ({ tabs, hasBg }: TabProps) => {
 	};
 
 	return (
-		<ul className="flex justify-around gap-1">
+		<ul className="flex justify-around gap-3 overflow-x-auto whitespace-nowrap">
 			{tabs.map((tab) => {
 				const isActive = activeStatus === tab.value;
 				return (

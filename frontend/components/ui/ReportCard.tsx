@@ -47,9 +47,9 @@ export const ReportCard = ({ status }: ReportProps) => {
 			{/* CONTAINER FOR INFO */}
 			<div className="w-full h-full flex flex-col jus">
 				<div className="flex justify-between items-start">
-					<h3 className="Poppins-Bold text-xl">#BG-2026-001</h3>
+					<h3 className="Poppins-Bold lg:text-xl text-base">#BG-2026-001</h3>
 					<span
-						className="Poppins-SemiBold text-xs text-center capitalize w-22 py-0.75 rounded-full"
+						className="Poppins-SemiBold lg:text-xs text-[10px] text-center capitalize w-22 py-0.75 rounded-full"
 						style={{
 							color: reportStatus[status].color,
 							backgroundColor: `${reportStatus[status].color}66`,

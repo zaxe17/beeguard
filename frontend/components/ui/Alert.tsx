@@ -78,7 +78,7 @@ export const PesticideAlert = ({
 				<div className="w-full flex flex-col text-[#817b70] text-xs capitalize">
 					<div className="flex justify-between items-center text-base">
 						<h3
-							className="Poppins-Bold text-black"
+							className="Poppins-Bold text-black lg:text-base text-sm"
 							style={{
 								color: alertLevels[status].bg,
 							}}>

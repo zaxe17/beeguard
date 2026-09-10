@@ -4,6 +4,7 @@ import { ReportCard } from "@/components/ui/ReportCard";
 import { Tab } from "@/components/Tab";
 import { useSearchParams } from "next/navigation";
 import React, { Suspense } from "react";
+import { useModal } from "@/context/ModalContext";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -12,6 +13,8 @@ const tabs = [
 	{ label: "Resolved", value: "resolved" },
 	{ label: "Rejected", value: "rejected" },
 ];
+
+type ModalType = "BeeReport";
 
 const BeekeeperReportsInner = () => {
 	const searchParams = useSearchParams();
@@ -29,6 +32,8 @@ const BeekeeperReportsInner = () => {
 		"rejected",
 		"pending",
 	] as const;
+
+	const { openModal } = useModal<ModalType>();
 
 	return (
 		<div className="h-full flex justify-center">
@@ -53,6 +58,7 @@ const BeekeeperReportsInner = () => {
 							)
 							.map((status, i) => (
 								<ReportCard
+									onClick={() => openModal("BeeReport")}
 									key={`${status}-${i}`}
 									status={status}
 								/>

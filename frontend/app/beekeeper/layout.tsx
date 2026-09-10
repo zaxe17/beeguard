@@ -9,13 +9,12 @@ import {
 	QueenReplace,
 	ViewHistory,
 } from "@/components/modal/HivesModal";
-import { GenerateReportModal } from "@/components/modal/ReportModal";
+import { BeeReport, GenerateReportModal } from "@/components/modal/ReportModal";
 import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
 import { WarningQueenReplacment } from "@/components/popup/PopUp";
-import { usePathname } from "next/navigation";
 
 type ModalType =
 	| "addHive"
@@ -24,7 +23,8 @@ type ModalType =
 	| "generate"
 	| "addAlert"
 	| "viewHistory"
-	| "replace";
+	| "replace"
+	| "BeeReport";
 
 type HivePayload = { hiveId: string };
 
@@ -39,9 +39,6 @@ const BeekeeperLayoutContent = ({
 	>();
 
 	const [targetHive, setTargetHive] = useState<Hive | null>(null);
-
-	const pathname = usePathname();
-	const location = pathname === "/beekeeper/hives";
 
 	const hiveScoped =
 		isModalOpen("monitorHealth") ||
@@ -144,6 +141,8 @@ const BeekeeperLayoutContent = ({
 			/>
 
 			<WarningQueenReplacment onClose={closeModal} />
+
+			<BeeReport isOpen={isModalOpen("BeeReport")} onClose={closeModal} />
 		</div>
 	);
 };

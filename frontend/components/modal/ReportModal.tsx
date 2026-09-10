@@ -7,8 +7,11 @@ import { ModalContainer } from "./Modal";
 import { Button, CancelButton } from "../ui/Button";
 import { reportService } from "@/services/report";
 import { Icon } from "@iconify/react";
+import ReportDetails from "../ReportDetails";
+import { Beekeeper } from "../Beekeeper";
+import { ProfilePhoto } from "../ProfilePhoto";
 
-type GenerateReportModalProps = {
+type ReportModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 };
@@ -21,10 +24,7 @@ type GenerateReportModalProps = {
  * they explicitly click "Download" — no second network request needed
  * since we already have the Blob from the preview fetch.
  */
-export const GenerateReportModal = ({
-	isOpen,
-	onClose,
-}: GenerateReportModalProps) => {
+export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 	const [loading, setLoading] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -127,9 +127,67 @@ export const GenerateReportModal = ({
 	);
 };
 
+export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
+	return (
+		<ModalContainer
+			open={isOpen}
+			width="lg:w-1/2 w-full"
+			height="h-5/6"
+			header="Report Details"
+			onClose={onClose}>
+			<ReportDetails
+				status="resolved"
+				reportId="BG-2026-001"
+				specification="Apis cerana / Asian Honey Bee"
+				location="Payatas, Quezon City"
+				date="March 29, 2026"
+				time="9:41 am"
+				details="Near basketball court, on a mango tree."
+				activity="Calm"
+				danger="Yes"
+			/>
+			<div className="flex flex-col gap-1">
+				<div className="flex items-center justify-between">
+					<span className="Poppins-SemiBold text-[#817b70]">
+						Reported By
+					</span>
+						<span className="Poppins-SemiBold text-[#817b70]">
+						Amount Offer: <span className="text-[#ff9a00]">PHP 5,000</span>
+					</span>
+				</div>
+
+				<div
+					className={`w-full flex lg:flex-row flex-col items-center gap-3 p-2 rounded-xl `}>
+					<div className="flex items-center justify-start w-full gap-2">
+						{/* PROFILE */}
+						<div className="w-15 h-15">
+							<ProfilePhoto />
+						</div>
+
+						{/* NAME AND OFFER */}
+						<div className="">
+							<h3 className="Poppins-SemiBold text-base">
+								John Evans Gutierrez
+							</h3>
+							<span className="text-sm text-[#a6a3a3]">
+								Citizen
+							</span>
+						</div>
+					</div>
+
+					{/* ACCEPT AND REJECT BUTTON */}
+					<div className="ml-auto pr-3 flex gap-2">
+						<Button label="Message" width="150px" />
+					</div>
+				</div>
+			</div>
+		</ModalContainer>
+	);
+};
+
 // ===== CITIZEN SIDE ======
 // BEE SPECIES IDENTIFY
-export const BeeIdentify = ({ isOpen, onClose }: GenerateReportModalProps) => {
+export const BeeIdentify = ({ isOpen, onClose }: ReportModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
@@ -177,7 +235,7 @@ export const BeeIdentify = ({ isOpen, onClose }: GenerateReportModalProps) => {
 };
 
 // SWARM NOTICE
-export const SwarmNotice = ({ isOpen, onClose }: GenerateReportModalProps) => {
+export const SwarmNotice = ({ isOpen, onClose }: ReportModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}

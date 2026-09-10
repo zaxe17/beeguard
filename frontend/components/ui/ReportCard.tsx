@@ -1,10 +1,11 @@
 import Image from "next/image";
 
 import bee from "@/public/assets/bee_example.jpg";
+import { useModal } from "@/context/ModalContext";
 
 export type ReportProps = {
 	status: "pending" | "progress" | "resolved" | "rejected";
-    reportId?: string;
+	reportId?: string;
 	beeName?: string;
 	specification?: string;
 	location?: string;
@@ -13,6 +14,7 @@ export type ReportProps = {
 	details?: string;
 	activity?: string;
 	danger?: string;
+	onClick?: () => void;
 };
 
 export const reportStatus = {
@@ -30,9 +32,15 @@ export const reportStatus = {
 	},
 };
 
-export const ReportCard = ({ status }: ReportProps) => {
+type ModalType = "BeeReport";
+
+export const ReportCard = ({ status, onClick }: ReportProps) => {
+	const { openModal } = useModal<ModalType>();
+
 	return (
-		<div className="border border-transparent transition-all duration-150 ease-in hover:border-[#e2e2e6] hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] hover:bg-[#fff1ad]/40 hover:scale-101 rounded-xl p-1.75 flex items-center gap-3 w-full">
+		<div
+			onClick={() => openModal("BeeReport")}
+			className="border border-transparent transition-all duration-150 ease-in hover:border-[#e2e2e6] hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] hover:bg-[#fff1ad]/40 hover:scale-101 rounded-xl p-1.75 flex items-center gap-3 w-full">
 			{/* BEE PICTURE */}
 			<div className="border border-amber-100 w-30 h-full rounded-md overflow-hidden">
 				<Image
@@ -47,7 +55,9 @@ export const ReportCard = ({ status }: ReportProps) => {
 			{/* CONTAINER FOR INFO */}
 			<div className="w-full h-full flex flex-col jus">
 				<div className="flex justify-between items-start">
-					<h3 className="Poppins-Bold lg:text-xl text-base">#BG-2026-001</h3>
+					<h3 className="Poppins-Bold lg:text-xl text-base">
+						#BG-2026-001
+					</h3>
 					<span
 						className="Poppins-SemiBold lg:text-xs text-[10px] text-center capitalize w-22 py-0.75 rounded-full"
 						style={{
@@ -67,4 +77,3 @@ export const ReportCard = ({ status }: ReportProps) => {
 		</div>
 	);
 };
-

@@ -43,7 +43,7 @@ export const Beekeeper = ({ button, ...handlers }: ButtonsProps) => {
 	return (
 		<div
 			className={`w-full flex lg:flex-row flex-col items-center gap-3 p-2 transition-all duration-150 ease-in hover:bg-[#fff1ad]/40 rounded-xl ${button === "message" ? "bg-[#fff1ad]/40 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]" : "hover:bg-[#fff1ad]/40"}`}>
-			<div className="flex items-center justify-start w-full">
+			<div className="flex items-center justify-start w-full gap-2">
 				{/* PROFILE */}
 				<div className="w-15 h-15">
 					<ProfilePhoto />

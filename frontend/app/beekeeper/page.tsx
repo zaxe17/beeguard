@@ -23,6 +23,7 @@ import {
 	YieldTrend,
 } from "@/services/analytics";
 import { pesticideService, AlertRecord } from "@/services/pesticide";
+import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import { HIVES_CHANGED_EVENT } from "@/components/modal/HivesModal";
 
@@ -75,14 +76,6 @@ function formatKg(v: number | undefined | null) {
 	return `${(v ?? 0).toFixed(1)}kg`;
 }
 
-function toAlertLocation(a: AlertRecord): string {
-	if (a.affected_area) return a.affected_area;
-	const lat = Number(a.latitude);
-	const lng = Number(a.longitude);
-	if (Number.isNaN(lat) || Number.isNaN(lng)) return "Unknown location";
-	return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-}
-
 const Beekeeper = () => {
 	const router = useRouter();
 	const [loading, setLoading] = useState(true);
@@ -91,6 +84,9 @@ const Beekeeper = () => {
 	const [trend, setTrend] = useState<YieldTrend>({ categories: [], data: [] });
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	// Exact-location cache for alerts that have no affected_area.
+	const resolvedLocations = useAlertLocations(alerts);
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -271,7 +267,7 @@ const Beekeeper = () => {
 								{recentAlerts.map((a) => (
 									<PesticideAlert
 										key={a.alert_id}
-										location={toAlertLocation(a)}
+										location={getAlertLocation(a, resolvedLocations)}
 										date={new Date(a.scheduled_date).toLocaleDateString()}
 										time={new Date(a.scheduled_date).toLocaleTimeString([], {
 											hour: "2-digit",

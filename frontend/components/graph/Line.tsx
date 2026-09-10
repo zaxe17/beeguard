@@ -56,14 +56,25 @@ function buildLineOptions(): ChartOptions<"line"> {
 			tooltip: { enabled: true },
 		},
 		animations: {
+			// NOTE: these delay callbacks used to stash a "have I
+			// already delayed this point" flag directly on the shared
+			// `context` object (context.xStarted / context.yStarted).
+			// That's mutable state living outside React/Chart.js's own
+			// lifecycle — if the chart unmounts (e.g. navigating to a
+			// different page) while an animation frame tied to that
+			// mutated context is still queued, the callback can fire
+			// afterward and reach into internal chart/scale objects
+			// that no longer exist, throwing "Cannot read properties
+			// of undefined (reading '_labels')". Removing the mutation
+			// (just re-computing the delay from dataIndex every time,
+			// which is cheap and stateless) avoids that failure mode.
 			x: {
 				type: "number" as const,
 				easing: "easeOutQuart" as const,
 				duration: 1200,
 				from: NaN,
-				delay: (context: any) => {
-					if (context.type !== "data" || context.xStarted) return 0;
-					context.xStarted = true;
+				delay(context: any) {
+					if (context.type !== "data") return 0;
 					return context.dataIndex * 100;
 				},
 			},
@@ -71,11 +82,11 @@ function buildLineOptions(): ChartOptions<"line"> {
 				type: "number" as const,
 				easing: "easeOutQuart" as const,
 				duration: 1200,
-				from: (context: any) =>
-					context.chart.scales.y.getPixelForValue(0),
-				delay: (context: any) => {
-					if (context.type !== "data" || context.yStarted) return 0;
-					context.yStarted = true;
+				from(context: any) {
+					return context.chart.scales.y.getPixelForValue(0);
+				},
+				delay(context: any) {
+					if (context.type !== "data") return 0;
 					return context.dataIndex * 100;
 				},
 			},

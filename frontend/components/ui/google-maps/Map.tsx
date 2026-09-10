@@ -8,6 +8,7 @@ import {
 	TileLayer,
 	Marker,
 	Circle,
+	AttributionControl,
 	useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
@@ -81,7 +82,14 @@ const Map = ({
 			center={[center.lat, center.lng]}
 			zoom={14}
 			scrollWheelZoom
-			style={{ width: "100%", height: "100%" }}>
+			style={{ width: "100%", height: "100%" }}
+			// Disable the default attribution control (which shows a
+			// "Leaflet | © OpenStreetMap contributors" link) so we can
+			// add our own below with the "Leaflet" branding turned off —
+			// the OpenStreetMap credit itself stays, since that one's
+			// required by their tile usage terms.
+			attributionControl={false}>
+			<AttributionControl position="bottomright" prefix={false} />
 			<TileLayer
 				attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

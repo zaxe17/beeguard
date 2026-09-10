@@ -1,8 +1,31 @@
 # queen_service.py
 
 """
-Queen Bee Replacement Recommendation Engine — Feature 3.
-(docstring unchanged — see original for full rules R1-R6)
+Queen Bee Replacement Recommendation Engine.
+
+Health_status (Healthy / Needs Attention / Weak / Diseased) is now
+decided by services.harvest_health at harvest-entry time (see
+YieldService.add_harvest) or by the standalone Monitor Hive Health
+flow (HiveService.record_physical_inspection). This service no longer
+computes its own yield percentage — evaluate_hive() purely REACTS to
+whatever health_status is already on the hive, plus two independent
+signals that stay exactly as before:
+
+  R1 — Queen age: regardless of health_status, once the queen has
+       been installed for >= Config.QUEEN_MAX_AGE_DAYS, automatic
+       Replace.
+  R_DECLINING_AFTER_WARN — a hive already flagged "Needs Attention"
+       whose latest harvest is LOWER than the one before it: automatic
+       Replace (confirmed: this still applies even though the
+       "Needs Attention" itself may now have come from the new
+       harvest-health engine rather than the old pct rule).
+  Otherwise: Diseased -> Replace, Weak/Needs Attention -> Replace,
+       Healthy -> Normal.
+
+yield_baseline_kg / yield_current_kg / yield_pct are still returned in
+the result for display purposes (current year's cumulative vs its
+resolved annual baseline — see services.harvest_health), but they no
+longer drive `level`/`reason_code` here.
 """
 import datetime as dt
 
@@ -12,18 +35,18 @@ from models.hive import HiveModel
 from models.yield_record import YieldModel
 from models.hive_maintenance import HiveMaintenanceModel
 from models.queen_recommendation import QueenRecommendationModel
+from services.harvest_health import (
+    get_harvest_year,
+    total_harvest_for_year,
+    resolve_annual_baseline,
+)
 
 
 R_QUEEN_TOO_OLD        = "QUEEN_AGE_EXCEEDED"
-R_YIELD_BELOW_60       = "YIELD_BELOW_60_PCT"
 R_DECLINING_AFTER_WARN = "DECLINING_AFTER_ATTENTION"
-R_YIELD_BELOW_80       = "YIELD_BELOW_80_PCT"
 R_HEALTH_DISEASED      = "HEALTH_STATUS_DISEASED"
 R_HEALTH_FLAGGED       = "HEALTH_STATUS_FLAGGED"
 R_NORMAL               = "NORMAL"
-
-HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE = {"Diseased", "Weak"}
-YIELD_RECOVERY_THRESHOLD_PCT = 100.0
 
 
 def _queen_age_days(hive: dict, today: dt.date | None = None) -> int | None:
@@ -34,20 +57,6 @@ def _queen_age_days(hive: dict, today: dt.date | None = None) -> int | None:
     if isinstance(installed, dt.datetime):
         installed = installed.date()
     return (today - installed).days
-
-
-def _baseline_kg(hive: dict, conn=None) -> float | None:
-    row = YieldModel.find_baseline(hive["hive_id"], conn=conn)
-    if row and row.get("yield_kg") is not None:
-        return float(row["yield_kg"])
-    hy = hive.get("historical_yield_kg")
-    return float(hy) if hy is not None else None
-
-
-def _pct(current: float, baseline: float) -> float:
-    if not baseline or baseline <= 0:
-        return 0.0
-    return round((current / baseline) * 100.0, 2)
 
 
 def _as_date(v):
@@ -62,45 +71,22 @@ class QueenService:
     @staticmethod
     def evaluate_hive(hive_id: str, *,
                        persist: bool = True,
-                       conn=None,
-                       just_replaced_queen: bool = False) -> dict:
-        """
-        `just_replaced_queen`: True only for the follow-up evaluation
-        that QueenService.confirm_replacement() runs right after it
-        sets health_status back to "Healthy".
-
-        At that exact moment, the only harvest on file for this hive
-        is still the OLD one from before the replacement — no new
-        harvest has come in yet under the new queen. If left on, the
-        yield-vs-baseline rules (R_YIELD_BELOW_60 / R_YIELD_BELOW_80)
-        would judge the brand-new queen using data that predates her,
-        almost always still reading "low" — which immediately opened
-        a fresh Monitor/Replace recommendation and undid the resolve
-        that confirm_replacement() had just done, keeping the
-        beekeeper's open-recommendations count from ever going down.
-
-        Setting this True skips ONLY those two yield-threshold checks
-        for this one evaluation, so the hive is judged on queen_age
-        (freshly 0, won't trigger) and the just-reset health_status
-        ("Healthy", won't trigger the health-flagged rules either) —
-        correctly resolving to "Normal" until a real post-replacement
-        harvest comes in. Every other caller (dashboard refresh, batch
-        evaluation, a new harvest being logged) leaves this False, so
-        the yield rules keep applying normally everywhere else.
-        """
+                       conn=None) -> dict:
         hive = HiveModel.find_by_id(hive_id, conn=conn)
         if not hive:
             raise ValueError(f"Hive not found: {hive_id}")
 
         beekeeper_id = hive["beekeeper_id"]
         queen_age    = _queen_age_days(hive)
-        baseline     = _baseline_kg(hive, conn=conn)
-
-        latest       = YieldModel.latest_non_baseline(hive_id, conn=conn)
-        current_kg   = float(latest["yield_kg"]) if latest else None
-        pct          = _pct(current_kg, baseline) if (current_kg and baseline) else None
-
         current_health = hive.get("health_status")
+
+        # Informational only (display) — current year's cumulative vs
+        # its resolved annual baseline. Does NOT drive level/reason
+        # below; that's the harvest_health engine's job at entry time.
+        year = get_harvest_year(dt.date.today())
+        current_kg = total_harvest_for_year(hive_id, year) or None
+        baseline = resolve_annual_baseline(hive, year)
+        pct = round((current_kg / baseline) * 100.0, 2) if (current_kg and baseline) else None
 
         level, code, reason = "Normal", R_NORMAL, "Hive is performing within expected parameters."
 
@@ -111,24 +97,6 @@ class QueenService:
                 f"Queen age exceeded {Config.QUEEN_MAX_AGE_DAYS} days "
                 f"(currently {queen_age} days)."
             )
-
-        if level != "Replace" and pct is not None and not just_replaced_queen:
-            if pct <= Config.YIELD_REPLACE_THRESHOLD_PCT:
-                level = "Replace"
-                code  = R_YIELD_BELOW_60
-                reason = (
-                    f"Latest harvest {current_kg:.2f} kg is "
-                    f"{pct:.1f}% of the historical baseline "
-                    f"{baseline:.2f} kg (threshold "
-                    f"{Config.YIELD_REPLACE_THRESHOLD_PCT:.0f}%)."
-                )
-            elif pct <= 80.0:
-                level = "Monitor"
-                code  = R_YIELD_BELOW_80
-                reason = (
-                    f"Latest harvest {current_kg:.2f} kg is "
-                    f"{pct:.1f}% of baseline {baseline:.2f} kg — trending down."
-                )
 
         if level == "Normal" and current_health == "Needs Attention":
             last_two = YieldModel.last_n_non_baseline(hive_id, 2, conn=conn)
@@ -148,9 +116,9 @@ class QueenService:
                 code  = R_HEALTH_DISEASED
                 reason = "Hive is currently marked 'Diseased' — queen replacement recommended."
             elif current_health in ("Weak", "Needs Attention"):
-                level = "Monitor"
+                level = "Replace"
                 code  = R_HEALTH_FLAGGED
-                reason = f"Hive is currently marked '{current_health}' — monitor closely."
+                reason = f"Hive is currently marked '{current_health}' — queen replacement recommended."
 
         result = {
             "hive_id":            hive_id,
@@ -171,23 +139,10 @@ class QueenService:
         if own_conn:
             conn = Database.get_connection()
         try:
-            if (
-                code == R_YIELD_BELOW_60
-                and current_health not in HEALTH_STATUSES_PROTECTED_FROM_YIELD_CHANGE
-                and current_health != "Needs Attention"
-            ):
-                HiveModel.update_health_status(
-                    hive_id, beekeeper_id, "Needs Attention", conn=conn
-                )
-            elif (
-                pct is not None
-                and pct >= YIELD_RECOVERY_THRESHOLD_PCT
-                and current_health == "Needs Attention"
-            ):
-                HiveModel.update_health_status(
-                    hive_id, beekeeper_id, "Healthy", conn=conn
-                )
-
+            # NOTE: health_status is no longer mutated here — it's set
+            # directly by YieldService.add_harvest (via harvest_health)
+            # or HiveService.record_physical_inspection. This step only
+            # manages the recommendation row.
             latest_open = QueenRecommendationModel.latest_open_for_hive(hive_id, conn=conn)
             same = (
                 latest_open
@@ -195,7 +150,19 @@ class QueenService:
                 and latest_open["reason_code"] == code
             )
             if not same:
-                if latest_open and latest_open["level"] != "Normal":
+                # Resolve whatever was open before — including a
+                # "Normal" row. Leaving Normal rows permanently
+                # unresolved (the old behavior) meant a stale open
+                # Normal row could sit there indefinitely; a LATER
+                # Weak/Replace evaluation would then get resolved on
+                # its own turn, but list_history_for_beekeeper() picks
+                # "latest by evaluated_at" across ALL rows regardless
+                # of resolved_at — so that now-resolved Replace row
+                # (chronologically newer) kept outranking the
+                # still-open, no-longer-current Normal row, showing
+                # "Replace" in the History tab even after the hive had
+                # genuinely gone back to Healthy.
+                if latest_open:
                     QueenRecommendationModel.resolve_with_conn(
                         conn, latest_open["recommendation_id"]
                     )
@@ -240,11 +207,9 @@ class QueenService:
         try:
             HiveModel.update_queen_installed(conn, hive_id, installed_on)
             HiveModel.update_health_status(hive_id, beekeeper_id, "Healthy", conn=conn)
-            # Reset the cumulative symptom tracker (see
-            # HiveMaintenanceModel.record_reset's docstring) so the
-            # NEXT Physical Inspection starts counting symptoms fresh
-            # instead of merging with ones reported before this
-            # replacement.
+            # Reset the cumulative symptom tracker used by the
+            # STANDALONE Monitor Hive Health flow (see
+            # HiveMaintenanceModel.record_reset's docstring).
             HiveMaintenanceModel.record_reset(conn, hive_id, installed_on)
             conn.commit()
         except Exception:
@@ -258,13 +223,11 @@ class QueenService:
             if r["resolved_at"] is None and r["level"] in ("Monitor", "Replace"):
                 QueenRecommendationModel.resolve(r["recommendation_id"], beekeeper_id)
 
-        # just_replaced_queen=True: stops the still-stale (pre-
-        # replacement) yield numbers from immediately reopening a
-        # Monitor/Replace recommendation right after we just resolved
-        # the old one above. See evaluate_hive()'s docstring.
-        return QueenService.evaluate_hive(
-            hive_id, persist=True, just_replaced_queen=True
-        )
+        # No special-casing needed here anymore — evaluate_hive() no
+        # longer derives health_status from yield data, so there's
+        # nothing stale left to reopen a Replace/Monitor recommendation
+        # the instant we just resolved it above.
+        return QueenService.evaluate_hive(hive_id, persist=True)
 
     # ── NEW: Read-side for the History tab's queen-replacement grid ─
     @staticmethod

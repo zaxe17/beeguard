@@ -450,6 +450,13 @@ export const AddYield = ({
 }: HiveScopedModalProps) => {
 	const [harvestDate, setHarvestDate] = useState("");
 	const [yieldKg, setYieldKg] = useState("");
+	// NEW: the harvest's own physical-sign check — required now,
+	// same options/toggle behavior as the standalone Monitor Hive
+	// Health modal above, kept as this component's own local state
+	// (MonitorHealth's inspection session stays fully independent).
+	const [observations, setObservations] = useState<InspectionObservation[]>(
+		[],
+	);
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -457,9 +464,28 @@ export const AddYield = ({
 		if (isOpen) {
 			setHarvestDate("");
 			setYieldKg("");
+			setObservations([]);
 			setErrorMsg(null);
 		}
 	}, [isOpen, hive?.hiveId]);
+
+	// Same mutual-exclusion behavior as MonitorHealth's toggle:
+	// "Normal / Healthy" clears any symptom checkboxes and vice versa.
+	const toggleObservation = (label: InspectionObservation) => {
+		setObservations((prev) => {
+			const isChecked = prev.includes(label);
+
+			if (label === NORMAL_LABEL) {
+				return isChecked ? [] : [NORMAL_LABEL];
+			}
+
+			const withoutNormal = prev.filter((o) => o !== NORMAL_LABEL);
+			if (isChecked) {
+				return withoutNormal.filter((o) => o !== label);
+			}
+			return [...withoutNormal, label];
+		});
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -474,12 +500,19 @@ export const AddYield = ({
 			setErrorMsg("Please enter a valid yield amount.");
 			return;
 		}
+		if (observations.length === 0) {
+			setErrorMsg(
+				"Please select at least one physical inspection observation.",
+			);
+			return;
+		}
 
 		setSubmitting(true);
 		try {
 			const res = await yieldService.addHarvest(hive.hiveId, {
 				yield_kg: kg,
 				yield_date: harvestDate || null,
+				observations,
 			});
 
 			if (!res.success) {
@@ -494,8 +527,9 @@ export const AddYield = ({
 
 			setSubmitting(false);
 
-			// NEW: new harvest affects Dashboard tiles, yield trend, and
-			// possibly a queen recommendation — refresh everywhere.
+			// NEW: new harvest affects Dashboard tiles, yield trend,
+			// health_status, and possibly a queen recommendation —
+			// refresh everywhere.
 			notifyHivesChanged();
 
 			onConfirm?.();
@@ -541,6 +575,48 @@ export const AddYield = ({
 					value={yieldKg}
 					onChange={(e) => setYieldKg(e.target.value)}
 				/>
+
+				<label className="lg:text-base text-xs text-black">
+					Physical Inspection
+				</label>
+				<p className="text-[10px] text-[#817b70] -mt-2">
+					Select all that apply for this harvest.
+				</p>
+				<div className="grid grid-cols-2 gap-2 mb-3">
+					{PhysicalInspectionOptions.map((label) => {
+						const checked = observations.includes(label);
+						return (
+							<label
+								key={label}
+								className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
+								style={{
+									boxShadow:
+										"rgba(0, 0, 0, 0.24) 0px 3px 8px",
+								}}>
+								<div className="flex justify-start items-center gap-2">
+									<input
+										type="checkbox"
+										name="yield-observations"
+										className="hidden"
+										checked={checked}
+										onChange={() =>
+											toggleObservation(label)
+										}
+									/>
+									<div className="w-4.25 h-4.25 rounded-sm border border-[#a6a3a3]">
+										<Icon
+											icon="iconamoon:check-bold"
+											className="hidden w-full h-full text-[#4A2F00] group-has-[input:checked]:block"
+										/>
+									</div>
+									<span className="Poppins-SemiBold text-xs">
+										{label}
+									</span>
+								</div>
+							</label>
+						);
+					})}
+				</div>
 
 				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 

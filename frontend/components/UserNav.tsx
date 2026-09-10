@@ -7,8 +7,18 @@ import { Icon } from "@iconify/react";
 import Notification from "./popup/Notification";
 import { notificationService } from "@/services/notification";
 import { ProfilePhoto } from "./ProfilePhoto";
+import { useAuth } from "@/context/AuthContext";
+
+// Shows only the first two words of the logged-in user's full name
+// (e.g. "John Evans Lacuas Gutierrez" -> "John Evans"). Falls back to
+// just the first word when there's no second one (e.g. "Cher").
+function getDisplayName(fullName: string): string {
+	const parts = fullName.trim().split(/\s+/).filter(Boolean);
+	return parts.slice(0, 2).join(" ");
+}
 
 export const UserNav = () => {
+	const { user } = useAuth();
 	const [isOpen, setIsOpen] = useState(false);
 	const [unreadCount, setUnreadCount] = useState(0);
 	const wrapperRef = useRef<HTMLDivElement>(null);
@@ -37,6 +47,11 @@ export const UserNav = () => {
 			document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
+	// `user` is null while AuthContext is still loading/refreshing —
+	// falls back to an empty string for that brief moment rather than
+	// showing a wrong/placeholder name.
+	const displayName = user?.name ? getDisplayName(user.name) : "";
+
 	return (
 		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5">
 			<div className="flex items-center lg:gap-3.5 gap-1">
@@ -48,7 +63,7 @@ export const UserNav = () => {
 				{/* USER NAME */}
 				<div className="">
 					<h3 className="Poppins-Bold lg:text-3xl text-xl">
-						Hi, Jan Marc! 👋
+						Hi, {displayName}! 👋
 					</h3>
 					<p className="text-[#817b70] lg:text-sm text-xs leading-2">
 						Let’s protect the bees together.

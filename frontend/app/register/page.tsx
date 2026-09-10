@@ -1,139 +1,195 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image, { StaticImageData } from "next/image";
 
-import { FormContainer } from "@/components/ui/Container";
+import Background from "@/components/Background";
+import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/Button";
+import { FormContainer } from "@/components/ui/Container";
+import { CheckBox, Input } from "@/components/ui/Input";
+import { authService } from "@/services/auth";
+import { useAuth } from "@/context/AuthContext";
 
-interface ChoicesProps {
-	icon: string | StaticImageData;
-	role?: string;
-	desc?: ReactNode;
-	value: "citizen" | "beekeeper";
-	checked: boolean;
-	onSelect: (v: "citizen" | "beekeeper") => void;
-}
+// localStorage key for "Remember Me" — client-only, this file already
+// has "use client" at the top so window/localStorage is safe here.
+// Nothing clears this on logout by itself; it only gets overwritten or
+// removed the NEXT time someone submits the login form (kept/updated
+// if "Remember me" is checked, removed if it's unchecked).
+const REMEMBER_ME_KEY = "beeguard_remembered_credentials";
 
-const Choices = ({
-	icon,
-	role,
-	desc,
-	value,
-	checked,
-	onSelect,
-}: ChoicesProps) => {
-	return (
-		<label
-			className="lg:w-120 w-full bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer"
-			style={{
-				boxShadow:
-					"rgba(0, 0, 0, 0.07) 0px 1px 2px, rgba(0, 0, 0, 0.07) 0px 2px 4px, rgba(0, 0, 0, 0.07) 0px 4px 8px, rgba(0, 0, 0, 0.07) 0px 8px 16px, rgba(0, 0, 0, 0.07) 0px 16px 32px, rgba(0, 0, 0, 0.07) 0px 32px 64px",
-			}}>
-			<div className="flex justify-between items-center lg:gap-5 gap-2">
-				<input
-					type="radio"
-					name="role"
-					className="hidden"
-					checked={checked}
-					onChange={() => onSelect(value)}
-				/>
-
-				<div className="relative lg:w-37.5 lg:h-37.5 w-1 h-1 lg:block hidden">
-					<Image
-						src={icon}
-						alt="role"
-						fill
-						className="w-full h-full object-contain"
-						priority
-					/>
-				</div>
-
-				<div>
-					<div className="flex items-center gap-3">
-						<h2 className="Poppins-Bold lg:text-3xl text-2xl">
-							{role}
-						</h2>
-						<div className="relative lg:hidden block w-8 h-8">
-							<Image
-								src={icon}
-								alt="role"
-								fill
-								className="object-contain"
-								priority
-							/>
-						</div>
-					</div>
-
-					<p className="text-[#a6a3a3] lg:text-sm text-xs">{desc}</p>
-				</div>
-
-				<div className="w-7 h-7 rounded-full border-2 border-[#a6a3a3] flex items-center justify-center group-has-[input:checked]:border-[#ffc95f]">
-					<div className="w-7 h-7 rounded-full bg-[#ffc95f] scale-0 group-has-[input:checked]:scale-100 transition-all flex justify-center items-center">
-						<div className="radio-checked"></div>
-					</div>
-				</div>
-			</div>
-		</label>
-	);
-};
-
-const Register = () => {
+const Login = () => {
 	const router = useRouter();
-	const [role, setRole] = useState<"citizen" | "beekeeper">("citizen");
+	const { refresh } = useAuth();
 
-	const goNext = () => {
-		if (typeof window !== "undefined") {
-			sessionStorage.setItem("beeguard_role", role);
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [remember, setRemember] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	// Prefill from whatever was saved the last time "Remember me" was
+	// checked — this is what makes the fields still show up filled in
+	// even after the user has logged out and come back to this page.
+	useEffect(() => {
+		const saved = localStorage.getItem(REMEMBER_ME_KEY);
+		if (!saved) return;
+		try {
+			const { username: savedUsername, password: savedPassword } = JSON.parse(saved);
+			if (savedUsername) setUsername(savedUsername);
+			if (savedPassword) setPassword(savedPassword);
+			setRemember(true);
+		} catch {
+			// Malformed/old data shouldn't break the page — just drop it.
+			localStorage.removeItem(REMEMBER_ME_KEY);
 		}
-		router.push("/register/form");
+	}, []);
+
+	const handleSubmit = async (e?: FormEvent) => {
+		e?.preventDefault();
+		setErrorMsg(null);
+
+		if (!username.trim() || !password) {
+			setErrorMsg("Please enter your username and password.");
+			return;
+		}
+
+		setSubmitting(true);
+
+		// No role is sent — the backend auto-detects which account table
+		// the identifier belongs to (citizen / beekeeper / admin) and
+		// returns the resolved role in res.data.user.role.
+		const res = await authService.login({
+			identifier: username.trim(),
+			password,
+			remember_me: remember,
+		});
+
+		// Backend returns success:true (with status 403) even when the
+		// account exists but email isn't verified yet — it's not a
+		// "wrong credentials" case, so it must be checked BEFORE we
+		// treat res.success as a real login success.
+		const data = res.data as
+			| { requires_verification?: boolean; email?: string; role?: string }
+			| undefined;
+
+		if (data?.requires_verification) {
+			sessionStorage.setItem(
+				"beeguard_pending_verification",
+				JSON.stringify({ email: data.email, role: data.role }),
+			);
+			setSubmitting(false);
+			router.push("/register/verification");
+			return;
+		}
+
+		if (res.success) {
+			// Only persist/clear the saved credentials once login actually
+			// succeeded — no point remembering a login attempt that never
+			// went through.
+			if (remember) {
+				localStorage.setItem(
+					REMEMBER_ME_KEY,
+					JSON.stringify({ username: username.trim(), password }),
+				);
+			} else {
+				localStorage.removeItem(REMEMBER_ME_KEY);
+			}
+
+			const resolvedRole = res.data?.user?.role;
+			await refresh();
+			if (resolvedRole === "citizen") router.push("/citizen");
+			else if (resolvedRole === "beekeeper")
+				router.push("/beekeeper"); // TODO: replace when beekeeper dashboard exists
+			else router.push("/admin"); // TODO: admin dashboard route
+			setSubmitting(false);
+			return;
+		}
+
+		setErrorMsg(res.message || "Invalid credentials.");
+		setSubmitting(false);
 	};
 
 	return (
-		<FormContainer>
-			<div className="text-center lg:mb-12 mb-8">
-				<h1 className="Poppins-Bold lg:text-4xl text-2xl">I am a</h1>
-				<span className="text-[#a6a3a3] text-base">
-					Please select how you want to continue
-				</span>
+		<div className="relative bg-white h-screen overflow-hidden">
+			{/* BACKGROUND */}
+			<Background />
+
+			{/* CONTAINER */}
+			<div className="relative h-full flex flex-wrap justify-center items-center z-10 p-5">
+				{/* LOGIN FORM */}
+				<div className="relative w-full flex lg:flex-row flex-col justify-center items-center">
+					{/* LOGO */}
+					<Logo />
+
+					<FormContainer width="lg:w-130 w-full">
+						{/* FORM HEADER */}
+						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl lg:block hidden">
+							Welcome Back!
+						</h1>
+
+						<h2 className="Poppins-SemiBold text-[#7A6A58] lg:text-2xl text-base lg:mb-12 mb-8 lg:block hidden">
+							Glad to see you again.
+						</h2>
+
+						{/* LOG IN INPUT */}
+						<div className="flex flex-col gap-6">
+							<Input
+								label="Username"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
+							/>
+							<Input
+								label="Password"
+								type="password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+							/>
+							<div className="flex justify-between">
+								<CheckBox
+									label="Remember me"
+									checked={remember}
+									onCheckedChange={setRemember}
+								/>
+								<Link
+									href=""
+									className="hover:underline text-[#ff9a00] font-extrabold lg:text-lg text-sm">
+									Forgot Password?
+								</Link>
+							</div>
+						</div>
+
+						{errorMsg && (
+							<p className="text-sm text-red-600 mt-4">
+								{errorMsg}
+							</p>
+						)}
+
+						<div className="flex flex-col gap-4 mt-10 text-center">
+							{/* SUBMIT BUTTON */}
+							<Button
+								buttonType="button"
+								label={submitting ? "Signing in..." : "Sign In"}
+								onClick={() => handleSubmit()}
+								disabled={submitting}
+							/>
+
+							{/* SIGN UP ROUTE */}
+							<span className="">
+								Don&apos;t have an account?{" "}
+								<Link
+									href="/register"
+									className="hover:underline text-[#ff9a00] font-bold">
+									Sign Up
+								</Link>
+							</span>
+						</div>
+					</FormContainer>
+				</div>
 			</div>
-
-			<div className="flex flex-col gap-6 lg:mb-12 mb-8">
-				<Choices
-					icon="/assets/citizen.png"
-					role="Citizen"
-					value="citizen"
-					checked={role === "citizen"}
-					onSelect={setRole}
-					desc={
-						<>
-							A community member who helps protect bees by
-							reporting sightings, supporting conservation, and
-							connecting with local beekeepers.
-						</>
-					}
-				/>
-
-				<Choices
-					icon="/assets/bee.png"
-					role="Beekeeper"
-					value="beekeeper"
-					checked={role === "beekeeper"}
-					onSelect={setRole}
-					desc={
-						<>
-							A person who manages and cares for bee colonies,
-							maintains hives, and harvests honey while promoting
-							bee health and conservation.
-						</>
-					}
-				/>
-			</div>
-
-			<Button buttonType="button" label="Next" onClick={goNext} />
-		</FormContainer>
+		</div>
 	);
 };
 
-export default Register;
+export default Login;

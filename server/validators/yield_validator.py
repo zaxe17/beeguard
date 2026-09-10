@@ -3,6 +3,14 @@ Validators for yield (harvest) payloads.
 """
 import datetime as dt
 
+NORMAL_LABEL = "Normal / Healthy"
+VALID_INSPECT = {
+    NORMAL_LABEL,
+    "Presence of Queen Cells",
+    "Reduction of Open Brood",
+    "Emaciated Queen",
+}
+
 
 def _parse_date(v):
     if isinstance(v, dt.date):
@@ -40,6 +48,32 @@ def validate_add_harvest(payload: dict) -> tuple[dict, dict]:
             errors["yield_date"] = "yield_date cannot be in the future."
         else:
             cleaned["yield_date"] = yd
+
+    # observations — REQUIRED now: the Add Yield form always carries
+    # its own physical-sign check alongside the harvest amount, same
+    # options as the standalone Monitor Hive Health modal.
+    obs_raw = payload.get("observations")
+    if not isinstance(obs_raw, list) or len(obs_raw) == 0:
+        errors["observations"] = (
+            f"observations must be a non-empty list containing one or "
+            f"more of {sorted(VALID_INSPECT)}."
+        )
+    else:
+        seen: list[str] = []
+        invalid_found = False
+        for o in obs_raw:
+            if o not in VALID_INSPECT:
+                invalid_found = True
+                break
+            if o not in seen:
+                seen.append(o)
+
+        if invalid_found:
+            errors["observations"] = f"observations must only contain values from {sorted(VALID_INSPECT)}."
+        elif NORMAL_LABEL in seen and len(seen) > 1:
+            errors["observations"] = "'Normal / Healthy' cannot be combined with other symptoms."
+        else:
+            cleaned["observations"] = seen
 
     return cleaned, errors
 

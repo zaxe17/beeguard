@@ -2,12 +2,13 @@
 
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import dynamic from "next/dynamic";
 import { AlertContainer } from "@/components/ui/Alert";
 import { pesticideService, AlertDetail } from "@/services/pesticide";
+import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 import Link from "next/link";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
@@ -22,6 +23,13 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 		</div>
 	),
 });
+
+// Matches a bare "lat, lng" string like "14.4911, 121.0190" — the
+// backend's fallback format for `AlertDetail.location` when the alert
+// has no affected_area on file. Used to decide whether we should
+// resolve an exact "Barangay, City" ourselves instead of showing the
+// coordinates as-is.
+const RAW_COORDS_PATTERN = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/;
 
 type DetailsProps = {
 	location?: string;
@@ -309,6 +317,28 @@ const AlertDetailsInner = () => {
 		};
 	}, [alertId]);
 
+	// `alert.location` comes from the backend already as a string — if
+	// it's just the raw "lat, lng" fallback (no affected_area was on
+	// file), resolve it into "Barangay, City" ourselves via the same
+	// shared hook the Dashboard/Alert list pages use. If it's already
+	// a real address, leave it alone.
+	const locatable = useMemo(() => {
+		if (!alert) return [];
+		const isRawCoords = RAW_COORDS_PATTERN.test(alert.location.trim());
+		return [
+			{
+				latitude: alert.latitude,
+				longitude: alert.longitude,
+				affected_area: isRawCoords ? null : alert.location,
+			},
+		];
+	}, [alert]);
+
+	const resolvedLocations = useAlertLocations(locatable);
+	const displayLocation = alert
+		? getAlertLocation(locatable[0], resolvedLocations)
+		: "";
+
 	if (loading) {
 		return (
 			<div className="h-screen w-full flex items-center justify-center text-[#817b70]">
@@ -377,7 +407,7 @@ const AlertDetailsInner = () => {
 			{/* LEFT */}
 			<div className="lg:w-1/2 w-full capitalize flex flex-col gap-8 px-4 lg:px-0">
 				<Details
-					location={alert.location}
+					location={displayLocation}
 					date={scheduled.date}
 					time={scheduled.time}
 					desc={alert.description ?? undefined}

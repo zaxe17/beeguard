@@ -30,6 +30,7 @@ def add_harvest(hive_id):
         result = YieldService.add_harvest(
             g.user_id, hive_id,
             yield_kg=cleaned["yield_kg"],
+            observation_labels=cleaned["observations"],
             yield_date=cleaned["yield_date"],
         )
     except PermissionError as e:

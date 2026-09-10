@@ -7,14 +7,7 @@ import { useRouter } from "next/navigation";
 import { PesticideAlert } from "@/components/ui/Alert";
 import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import { pesticideService, AlertRecord } from "@/services/pesticide";
-
-function toDisplayLocation(a: AlertRecord): string {
-	if (a.affected_area) return a.affected_area;
-	const lat = Number(a.latitude);
-	const lng = Number(a.longitude);
-	if (Number.isNaN(lat) || Number.isNaN(lng)) return "Unknown location";
-	return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-}
+import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -32,6 +25,10 @@ const Alert = () => {
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	// Exact-location cache for alerts that have no affected_area —
+	// see hooks/useAlertLocation.ts.
+	const resolvedLocations = useAlertLocations(alerts);
 
 	const loadAlerts = useCallback(async () => {
 		setLoading(true);
@@ -82,7 +79,7 @@ const Alert = () => {
 				sorted.map((a) => (
 					<PesticideAlert
 						key={a.alert_id}
-						location={toDisplayLocation(a)}
+						location={getAlertLocation(a, resolvedLocations)}
 						date={toDisplayDate(a)}
 						time={toDisplayTime(a)}
 						status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}

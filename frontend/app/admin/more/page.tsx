@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Icon } from "@iconify/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type ViewKey = "main" | "notification" | "backuprestore" | "about";
 type DetailKey = "notification" | "backuprestore" | "about" | null;
@@ -132,8 +133,8 @@ const MorePageContent = () => {
 				height="100%"
 				borderNone
 				className="lg:w-[35%] w-full h-full shrink-0">
-				<div className="w-full flex justify-center mt-5">
-					<div className="w-4/5 flex flex-col gap-3">
+				<div className="w-full h-full flex justify-center mt-5">
+					<div className="w-4/5 h-full flex flex-col gap-3">
 						<SettingsTabs
 							label="Notification Settings"
 							icon="ic:baseline-notifications"
@@ -151,6 +152,12 @@ const MorePageContent = () => {
 							icon="fa7-solid:circle-info"
 							onClick={() => setContent("about")}
 						/>
+						<Link href="/" className="mt-auto mb-10">
+							<SettingsTabs
+								label="Log Out"
+								icon="heroicons-outline:logout"
+							/>
+						</Link>
 					</div>
 				</div>
 			</Container>

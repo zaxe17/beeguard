@@ -10,6 +10,7 @@ import { SettingsTabs, SwitchTab } from "../Tab";
 import { Icon } from "@iconify/react";
 import MobileOverlay from "../MobileOverlay";
 import { Suspense } from "react";
+import Link from "next/link";
 
 type ViewKey = "main" | "settings" | "about";
 type DetailKey = "personal" | "password" | "privacy" | "terms" | null;
@@ -35,8 +36,8 @@ const MainProfileSettings = ({
 				name="Jan Marc S. Jacolbia"
 				email="janmarcsjacolbia17@gmail.com"
 			/>
-			<div className="w-full flex justify-center mt-5">
-				<div className="lg:w-2/3 w-full flex flex-col gap-3">
+			<div className="w-full h-full flex justify-center mt-5">
+				<div className="lg:w-2/3 w-full h-full flex flex-col gap-3">
 					<SettingsTabs
 						label="Settings"
 						icon="mdi:cog"
@@ -47,6 +48,12 @@ const MainProfileSettings = ({
 						icon="fa7-solid:circle-info"
 						onClick={() => onSelect("about")}
 					/>
+					<Link href="/" className="mt-auto mb-10">
+						<SettingsTabs
+							label="Log Out"
+							icon="heroicons-outline:logout"
+						/>
+					</Link>
 				</div>
 			</div>
 		</Container>

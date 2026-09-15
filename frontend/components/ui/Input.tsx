@@ -51,8 +51,21 @@ export const Input = ({
 	type,
 	error,
 	capitalize,
-	disabled, // NEW
+	disabled,
 }: InputProps) => {
+	const [showPassword, setShowPassword] = useState(false);
+
+	// Auto-detect password fields based on label — no need to explicitly pass type="password"
+	const isPasswordField =
+		type === "password" ||
+		(typeof label === "string" && label.toLowerCase().includes("password"));
+
+	const resolvedType = isPasswordField
+		? showPassword
+			? "text"
+			: "password"
+		: type || "text";
+
 	return (
 		<div className="flex flex-col w-full gap-1">
 			<label
@@ -62,30 +75,51 @@ export const Input = ({
 				}`}>
 				{label}
 			</label>
-			<input
-				type={type || "text"}
-				name={name}
-				id={id}
-				placeholder={placeholder}
-				value={value}
-				onChange={onChange}
-				disabled={disabled}
-				onInput={(e) => {
-					if (capitalize) {
-						e.currentTarget.value = capitalizeWords(
-							e.currentTarget.value,
-						);
-					}
-				}}
-				className={`text-sm w-full lg:h-8 h-10 p-2.5 border ${
-					error ? "border-red-600" : "border-[#a6a3a3]"
-				} outline-0 rounded-lg bg-white/70 ${
-					disabled ? "opacity-60 cursor-not-allowed" : ""
-				} [appearance:textfield]
+			<div className="relative w-full">
+				<input
+					type={resolvedType}
+					name={name}
+					id={id}
+					placeholder={placeholder}
+					value={value}
+					onChange={onChange}
+					disabled={disabled}
+					onInput={(e) => {
+						if (capitalize) {
+							e.currentTarget.value = capitalizeWords(
+								e.currentTarget.value,
+							);
+						}
+					}}
+					className={`text-sm w-full lg:h-8 h-10 p-2.5 ${
+						isPasswordField ? "pr-9" : ""
+					} border ${
+						error ? "border-red-600" : "border-[#a6a3a3]"
+					} outline-0 rounded-lg bg-white/70 ${
+						disabled ? "opacity-60 cursor-not-allowed" : ""
+					} [appearance:textfield]
     				[&::-webkit-outer-spin-button]:appearance-none
    					[&::-webkit-inner-spin-button]:appearance-none`}
-				style={{ width: `${width}px`, height: `${height}px` }}
-			/>
+					style={{ width: `${width}px`, height: `${height}px` }}
+				/>
+
+				{isPasswordField && !disabled && (
+					<button
+						type="button"
+						onClick={() => setShowPassword((prev) => !prev)}
+						className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#817b70] hover:text-[#4a2f00]"
+						tabIndex={-1}>
+						<Icon
+							icon={
+								showPassword
+									? "mdi:eye-off-outline"
+									: "mdi:eye-outline"
+							}
+							className="w-4.5 h-4.5"
+						/>
+					</button>
+				)}
+			</div>
 		</div>
 	);
 };

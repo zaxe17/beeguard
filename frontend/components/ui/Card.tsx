@@ -70,11 +70,11 @@ export const RateCard = ({ total, title }: RateProps) => {
 export const TotalStatusCard = ({ icon, count, title, color, month }: TotalProps) => {
 	return (
 		<div
-			className="w-full border border-[#a6a3a3] rounded-2xl p-3 flex gap-3 h-25"
+			className="w-full border border-[#a6a3a3] rounded-2xl p-3 flex justify-center items-center lg:flex-row flex-col gap-3 lg:h-25"
 			style={{ boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px" }}>
 			{/* ICON */}
 			<div
-				className="rounded-lg aspect-square p-3"
+				className="rounded-lg w-20 aspect-square p-3"
 				style={{ backgroundColor: `${color}4D` }}>
 				<Icon
 					icon={icon}
@@ -83,21 +83,21 @@ export const TotalStatusCard = ({ icon, count, title, color, month }: TotalProps
 				/>
 			</div>
 
-			<div className="flex flex-col">
+			<div className="w-full flex flex-col">
 				{/* CARD TITLE */}
 				<span
-					className={`Poppins-SemiBold text-xl`}
+					className="Poppins-SemiBold lg:text-xl text-sm"
 					style={{ color: color }}>
 					{title}
 				</span>
 
 				{/* TOTAL COUNT */}
-				<span className="Poppins-SemiBold capitalize text-xl">
+				<span className="Poppins-SemiBold capitalize lg:text-xl text-base">
 					{count}
 				</span>
 
 				{/* PERCENT OF THIS MONTH */}
-				<span className="Poppins-SemiBold capitalize text-sm text-[#00cc00] flex items-center gap-1">
+				<span className="Poppins-SemiBold capitalize text-xs text-[#00cc00] flex items-center gap-1">
 					<div className="">
 						<Icon
 							icon="akar-icons:triangle-up-fill"

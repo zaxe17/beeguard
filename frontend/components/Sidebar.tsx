@@ -38,7 +38,7 @@ const citizenTabs = [
 	{
 		icon: "iconamoon:profile-fill",
 		tabName: "profile",
-		route: "/",
+		route: "/citizen/profile",
 		exact: false,
 	},
 ];
@@ -77,7 +77,7 @@ const beekeeperTabs = [
 	{
 		icon: "iconamoon:profile-fill",
 		tabName: "profile",
-		route: "/",
+		route: "/beekeeper/profile",
 		exact: false,
 	},
 ];
@@ -127,7 +127,7 @@ const Sidebar = () => {
 			: citizenTabs;
 
 	return (
-		<nav className="lg:w-fit w-full lg:sticky lg:top-0 bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0 z-10">
+		<nav className="lg:w-fit w-full lg:sticky lg:top-0 bg-linear-to-b from-[#ffdb4f] to-[#d9a441] lg:h-full shrink-0 z-9999">
 			{/* NAV HEADER */}
 			<div className="px-3 pt-5 mb-10 lg:flex items-center gap-2 hidden">
 				<div className="w-10 h-10 rounded-full overflow-hidden">
@@ -161,7 +161,7 @@ const Sidebar = () => {
 								href={tab.route}
 								className={`flex lg:flex-row flex-col lg:gap-2 gap-1 items-center lg:p-2.5 p-0 lg:rounded-l-xl lg:rounded-none rounded-full group-hover:bg-white transition-all duration-150 ease-in ${activeTab ? "lg:bg-white" : ""}`}>
 								{/* ===== DESKTOP ICON (walang galaw, dati na) ===== */}
-								<div className="w-8 h-8 hidden lg:block">
+								<div className="w-7 h-7 hidden lg:block">
 									{isAdmin || tab.tabName !== "profile" ? (
 										<Icon
 											icon={tab.icon}
@@ -174,7 +174,7 @@ const Sidebar = () => {
 
 								{/* ===== MOBILE ICON (may blob + lift animation) ===== */}
 								<div className="w-8 h-8 relative flex items-center justify-center lg:hidden lg:mb-0 mb-4">
-									{tab.tabName !== "profile" && (
+									{(isAdmin || tab.tabName !== "profile") && (
 										<motion.div
 											className="absolute rounded-full bg-[#ffc95f] -z-10 p-6"
 											style={{ width: 40, height: 40 }}
@@ -191,7 +191,7 @@ const Sidebar = () => {
 										/>
 									)}
 
-									{tab.tabName !== "profile" ? (
+									{isAdmin || tab.tabName !== "profile" ? (
 										<motion.div
 											className="w-full h-full"
 											animate={{ y: activeTab ? -10 : 0 }}

@@ -210,8 +210,8 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 	return (
 		<ModalContainer
 			open={open}
-			width="w-1/3"
-			header="Add New Hive"
+			width="lg:w-1/3 w-full"
+			header="Add New Alert"
 			onClose={onClose}>
 			{/* MAP — shows the selected point and a live radius circle
 			    that updates as the slider or pesticide type changes. */}

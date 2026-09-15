@@ -1,7 +1,7 @@
 "use client";
 
 import MobileOverlay from "@/components/MobileOverlay";
-import { Tab } from "@/components/Tab";
+import { NavTab } from "@/components/Tab";
 import { Container } from "@/components/ui/Container";
 import { ReportCard } from "@/components/ui/ReportCard";
 import { Icon } from "@iconify/react";
@@ -38,7 +38,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 
 					{/* TAB BUTTONS */}
 					<div className="w-full">
-						<Tab tabs={tabs} />
+						<NavTab tabs={tabs} />
 					</div>
 				</div>
 

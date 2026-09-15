@@ -86,7 +86,7 @@ const BeefarmView = () => {
 
 					{/* STATUS RATES */}
 					<div className="w-full flex gap-3 mt-3">
-						<RateCard total="120" title="Successful Rescue" />
+						<RateCard total="120" title="Rescued" />
 						<RateCard total="57" title="Hives" />
 						<RateCard total="5.0" title="Ratings" />
 					</div>

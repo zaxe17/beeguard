@@ -1,9 +1,9 @@
 "use client";
 
-import { Tab } from "@/components/Tab";
+import { NavTab } from "@/components/Tab";
 import { useSearchParams } from "next/navigation";
 import React, { Suspense } from "react";
-import Users from "@/components/Users";
+import { Users } from "@/components/Users";
 import { SearchBar } from "@/components/ui/Input";
 import { Icon } from "@iconify/react";
 import { report } from "process";
@@ -91,11 +91,11 @@ const ProfileContainerInner = () => {
 	] as const;
 
 	return (
-		<div className="h-screen pt-10 flex justify-center">
-			<div className="w-1/2 flex flex-col min-h-0">
+		<div className="h-screen pt-10 flex justify-center px-5 overflow-hidden">
+			<div className="lg:w-1/2 w-full flex flex-col min-h-0">
 				<div className="flex justify-end items-center gap-3 mb-8">
 					{/* SEARCHBAR */}
-					<div className="w-1/3">
+					<div className="lg:w-1/3 w-full">
 						<SearchBar placeholder="Search Users" />
 					</div>
 
@@ -109,9 +109,9 @@ const ProfileContainerInner = () => {
 				</div>
 
 				{/* TABS */}
-				<Tab tabs={tabs} hasBg />
+				<NavTab tabs={tabs} hasBg />
 
-				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto px-3 my-5">
+				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto lg:px-3 px-0 my-5">
 					<div className="mt-5 flex flex-col gap-3 pb-3">
 						{dummyReports
 							.filter(

@@ -210,7 +210,7 @@ const Notification = ({ onNotificationRead, onClose }: NotificationProps) => {
 			<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 				<button
 					onClick={onClose}
-					className="flex items-center shrink-0">
+					className="absolute flex items-center shrink-0">
 					<Icon
 						icon="bx:arrow-back"
 						className="text-2xl text-[#ffa004]"

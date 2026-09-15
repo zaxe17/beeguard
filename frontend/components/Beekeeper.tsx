@@ -1,13 +1,19 @@
+"use client";
+
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { Button, CancelButton } from "@/components/ui/Button";
+import { Icon } from "@iconify/react";
+import { StarRating } from "./ui/StarRating";
+import { useState } from "react";
 
-type ButtonVariant = "respond" | "message";
+type ButtonVariant = "respond" | "message" | "resolved";
 
 interface ButtonsProps {
 	button?: ButtonVariant;
 	onAccept?: () => void;
 	onReject?: () => void;
 	onMessage?: () => void;
+	onSubmitRating?: (rating: number) => void;
 }
 
 const BUTTON_CONFIG: Record<ButtonVariant, React.FC<ButtonsProps>> = {
@@ -17,9 +23,9 @@ const BUTTON_CONFIG: Record<ButtonVariant, React.FC<ButtonsProps>> = {
 				BGcolor="bg-[#e2e2e6]"
 				label="Reject"
 				onClick={onReject}
-				width="120px"
+				width="lg:w-30 w-full"
 			/>
-			<Button label="Accept" onClick={onAccept} width="120px" />
+			<Button label="Accept" onClick={onAccept} width="lg:w-30 w-full" />
 		</>
 	),
 	message: ({ onMessage }) => (
@@ -33,11 +39,15 @@ const BUTTON_CONFIG: Record<ButtonVariant, React.FC<ButtonsProps>> = {
 			<Button label="Message" onClick={onMessage} width="150px" />
 		</>
 	),
+	resolved: () => null, // handled separately below (needs rating state)
 };
 
 export const Beekeeper = ({ button, ...handlers }: ButtonsProps) => {
+	const [rating, setRating] = useState(0);
+
 	if (!button) return null;
 
+	const isResolved = button === "resolved";
 	const Variant = BUTTON_CONFIG[button];
 
 	return (
@@ -57,12 +67,25 @@ export const Beekeeper = ({ button, ...handlers }: ButtonsProps) => {
 					<span className="text-sm text-[#a6a3a3]">
 						Offer: <span className="text-[#ff9a00]">PHP 5,000</span>
 					</span>
+
+					{/* ONLY SHOW RATING WHEN RESOLVED */}
+					{isResolved && (
+						<StarRating value={rating} onChange={setRating} />
+					)}
 				</div>
 			</div>
 
-			{/* ACCEPT AND REJECT BUTTON */}
-			<div className="ml-auto pr-3 flex gap-2">
-				{<Variant {...handlers} />}
+			{/* RIGHT SIDE BUTTONS */}
+			<div className="lg:w-auto w-full ml-auto flex gap-2">
+				{isResolved ? (
+					<Button
+						label="Submit"
+						onClick={() => handlers.onSubmitRating?.(rating)}
+						width="lg:w-30 w-full"
+					/>
+				) : (
+					<Variant {...handlers} />
+				)}
 			</div>
 		</div>
 	);

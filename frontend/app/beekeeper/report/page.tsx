@@ -1,7 +1,7 @@
 "use client";
 
 import { ReportCard } from "@/components/ui/ReportCard";
-import { Tab } from "@/components/Tab";
+import { NavTab } from "@/components/Tab";
 import { useSearchParams } from "next/navigation";
 import React, { Suspense } from "react";
 import { useModal } from "@/context/ModalContext";
@@ -44,7 +44,7 @@ const BeekeeperReportsInner = () => {
 					</h3>
 
 					<div className="w-full">
-						<Tab tabs={tabs} />
+						<NavTab tabs={tabs} />
 					</div>
 				</div>
 

@@ -361,7 +361,7 @@ export const MonitorHealth = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/3"
+			width="lg:w-1/3 w-full"
 			header="Monitor Hive Health"
 			onClose={onClose}>
 			<form
@@ -543,7 +543,8 @@ export const AddYield = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/4"
+			width="lg:w-1/4 w-full"
+			height="max-h-[80vh]"
 			header="Add Yield"
 			onClose={onClose}>
 			<form
@@ -698,87 +699,94 @@ export const ViewHistory = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/3"
+			width="lg:w-1/3 w-full"
 			height="h-full"
 			header="Transaction History"
 			onClose={onClose}>
-			{/* TABS */}
-			<div className="w-full flex justify-between items-center gap-3">
-				<button
-					type="button"
-					onClick={() => setActiveTab("monitoring")}
-					className={`Poppins-SemiBold w-full p-2 rounded-lg ${
-						activeTab === "monitoring"
-							? "bg-[#FFC700]"
-							: "bg-[#e2e2e6]"
-					}`}>
-					Monitoring
-				</button>
-				<button
-					type="button"
-					onClick={() => setActiveTab("harvest")}
-					className={`Poppins-SemiBold w-full p-2 rounded-lg ${
-						activeTab === "harvest"
-							? "bg-[#FFC700]"
-							: "bg-[#e2e2e6]"
-					}`}>
-					Harvest
-				</button>
-			</div>
+			<div className="flex flex-col gap-3">
+				{/* TABS */}
+				<div className="w-full flex justify-between items-center gap-3">
+					<button
+						type="button"
+						onClick={() => setActiveTab("monitoring")}
+						className={`Poppins-SemiBold w-full p-2 rounded-lg ${
+							activeTab === "monitoring"
+								? "bg-[#FFC700]"
+								: "bg-[#e2e2e6]"
+						}`}>
+						Monitoring
+					</button>
+					<button
+						type="button"
+						onClick={() => setActiveTab("harvest")}
+						className={`Poppins-SemiBold w-full p-2 rounded-lg ${
+							activeTab === "harvest"
+								? "bg-[#FFC700]"
+								: "bg-[#e2e2e6]"
+						}`}>
+						Harvest
+					</button>
+				</div>
 
-			{hiveSummary && (
-				<HiveTrans
-					hiveId={hiveSummary.hiveId}
-					hive={hiveSummary.hive}
-					location={hiveSummary.species}
-					lastCheck=""
-					status={hiveSummary.status}
-					hiveState={hiveSummary.hiveState}
-				/>
-			)}
-
-			<div className="border-2 border-[#e2e2e6] rounded-xl p-2 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0">
-				{loading ? (
-					<p className="text-center text-sm text-[#817b70] p-4">
-						Loading...
-					</p>
-				) : Object.keys(grouped).length === 0 ? (
-					<p className="text-center text-sm text-[#817b70] p-4">
-						No{" "}
-						{activeTab === "monitoring" ? "monitoring" : "harvest"}{" "}
-						records yet.
-					</p>
-				) : (
-					<table className="w-full border-collapse">
-						<tbody>
-							{Object.entries(grouped).map(([month, entries]) => (
-								<React.Fragment key={month}>
-									<tr className="border-b border-[#e0e0e0]">
-										<td
-											colSpan={2}
-											className="Poppins-Bold text-sm px-4 py-3 uppercase text-[#4A2F00]">
-											{month}
-										</td>
-									</tr>
-									{entries.map((entry, idx) => (
-										<tr
-											key={`${month}-${idx}`}
-											className="border-b border-[#e0e0e0] last:border-b-0">
-											<td className="px-4 py-3 text-sm text-center text-[#6b6b6b]">
-												{entry.date}
-											</td>
-											<td className="px-4 py-3 text-sm text-center text-[#6b6b6b]">
-												{activeTab === "monitoring"
-													? entry.status
-													: entry.yield}
-											</td>
-										</tr>
-									))}
-								</React.Fragment>
-							))}
-						</tbody>
-					</table>
+				{hiveSummary && (
+					<HiveTrans
+						hiveId={hiveSummary.hiveId}
+						hive={hiveSummary.hive}
+						location={hiveSummary.species}
+						lastCheck=""
+						status={hiveSummary.status}
+						hiveState={hiveSummary.hiveState}
+					/>
 				)}
+
+				<div className="border-2 border-[#e2e2e6] rounded-xl p-2 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0">
+					{loading ? (
+						<p className="text-center text-sm text-[#817b70] p-4">
+							Loading...
+						</p>
+					) : Object.keys(grouped).length === 0 ? (
+						<p className="text-center text-sm text-[#817b70] p-4">
+							No{" "}
+							{activeTab === "monitoring"
+								? "monitoring"
+								: "harvest"}{" "}
+							records yet.
+						</p>
+					) : (
+						<table className="w-full border-collapse">
+							<tbody>
+								{Object.entries(grouped).map(
+									([month, entries]) => (
+										<React.Fragment key={month}>
+											<tr className="border-b border-[#e0e0e0]">
+												<td
+													colSpan={2}
+													className="Poppins-Bold text-sm px-4 py-3 uppercase text-[#4A2F00]">
+													{month}
+												</td>
+											</tr>
+											{entries.map((entry, idx) => (
+												<tr
+													key={`${month}-${idx}`}
+													className="border-b border-[#e0e0e0] last:border-b-0">
+													<td className="px-4 py-3 text-sm text-center text-[#6b6b6b]">
+														{entry.date}
+													</td>
+													<td className="px-4 py-3 text-sm text-center text-[#6b6b6b]">
+														{activeTab ===
+														"monitoring"
+															? entry.status
+															: entry.yield}
+													</td>
+												</tr>
+											))}
+										</React.Fragment>
+									),
+								)}
+							</tbody>
+						</table>
+					)}
+				</div>
 			</div>
 		</ModalContainer>
 	);

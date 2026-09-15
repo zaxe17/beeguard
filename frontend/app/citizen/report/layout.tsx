@@ -67,7 +67,7 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 							<Button
 								width="50%"
 								label="Next"
-								onClick={() => openModal("swarmNotice")}
+								onClick={() => openModal("beeIdentify")}
 							/>
 						</div>
 					</div>

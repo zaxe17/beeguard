@@ -9,7 +9,7 @@ import { SearchBar } from "@/components/ui/Input";
 
 import { Icon } from "@iconify/react";
 import { PesticideAlert } from "@/components/ui/Alert";
-import { Tab } from "@/components/Tab";
+import { NavTab } from "@/components/Tab";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -69,17 +69,17 @@ const AlertInner = () => {
 	);
 
 	return (
-		<div className="w-full h-full flex items-start lg:flex-row flex-col">
+		<div className="w-full h-full flex items-start lg:flex-row flex-col-reverse">
 			{/* CONTAINER FOR BEEFARM LOCATION TAB */}
 			<Container
 				borderNone
 				className="lg:w-[35%] w-full flex-1 lg:flex-none lg:h-full">
-				<div className="relative w-full pt-5 px-2 flex items-center justify-end gap-3 mb-3">
+				<div className="relative w-full pt-5 px-2 lg:flex hidden items-center justify-end gap-3 mb-3">
 					{/* BACK ARROW */}
-					<Icon
+					{/* <Icon
 						icon="bx:arrow-back"
 						className="absolute left-0 text-2xl text-[#ffa004] lg:hidden block"
-					/>
+					/> */}
 
 					<div className="flex items-center gap-3">
 						{/* ADD BUTTON */}
@@ -103,7 +103,7 @@ const AlertInner = () => {
 					</div>
 				</div>
 
-				<Tab tabs={tabs} hasBg />
+				<NavTab tabs={tabs} hasBg />
 
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
@@ -134,13 +134,30 @@ const AlertInner = () => {
 			<div className="flex-1 w-full lg:h-full z-0">
 				<div className="flex flex-col h-full">
 					{/* LOCATION MAP */}
+					<div className="relative w-full py-2 px-2 lg:hidden flex items-center justify-end gap-3">
+						<div className="w-full flex items-center gap-3">
+							{/* ADD BUTTON */}
+							<div className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer shrink-0">
+								<Icon
+									icon="tdesign:add"
+									className="w-full h-full text-white"
+								/>
+							</div>
+
+							{/* SEARCHBAR ALERTS */}
+							<SearchBar placeholder="Search Alerts" />
+
+							{/* FILTER ICON */}
+							<div className="w-10 h-10 cursor-pointer shrink-0">
+								<Icon
+									icon="mdi:filter-variant"
+									className="w-full h-full text-[#817b70]"
+								/>
+							</div>
+						</div>
+					</div>
 					<div className="flex-1">
 						<Map />
-					</div>
-
-					{/* BEEFARM INFO */}
-					<div className="flex-3 min-h-0 overflow-y-auto hidden">
-						<BeefarmView />
 					</div>
 				</div>
 			</div>

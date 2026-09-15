@@ -29,9 +29,7 @@ const RegistrationForm = () => {
 	const router = useRouter();
 
 	// Regions — no generic on useFetch; cast the result instead.
-	const { data: regionsData } = useFetch(
-		"https://psgc.cloud/api/regions",
-	);
+	const { data: regionsData } = useFetch("https://psgc.cloud/api/regions");
 	const regions = (regionsData as PsgcItem[] | null | undefined) ?? [];
 
 	const [role, setRole] = useState<"citizen" | "beekeeper">("citizen");
@@ -164,8 +162,7 @@ const RegistrationForm = () => {
 	}, [form.city]);
 
 	const regionOptions = useMemo(
-		() =>
-			regions.map((r: PsgcItem) => ({ label: r.name, value: r.code })),
+		() => regions.map((r: PsgcItem) => ({ label: r.name, value: r.code })),
 		[regions],
 	);
 	const cityOptions = useMemo(
@@ -249,7 +246,11 @@ const RegistrationForm = () => {
 		}
 	};
 
-	const FieldError = ({ name }: { name: keyof RegistrationDraft | "form" }) =>
+	const FieldError = ({
+		name,
+	}: {
+		name: keyof RegistrationDraft | "form";
+	}) =>
 		errors[name] ? (
 			<span className="text-[11px] text-red-600 mt-0.5">
 				{errors[name]}
@@ -257,7 +258,7 @@ const RegistrationForm = () => {
 		) : null;
 
 	return (
-		<FormContainer width="lg:w-4/5">
+		<FormContainer width="lg:w-1/2">
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}
@@ -277,7 +278,9 @@ const RegistrationForm = () => {
 							}
 							height={30}
 							value={form.first_name}
-							onChange={(e) => update("first_name", e.target.value)}
+							onChange={(e) =>
+								update("first_name", e.target.value)
+							}
 							error={!!errors.first_name}
 							capitalize
 						/>
@@ -288,7 +291,9 @@ const RegistrationForm = () => {
 							label={<>Middle Name</>}
 							height={30}
 							value={form.middle_name}
-							onChange={(e) => update("middle_name", e.target.value)}
+							onChange={(e) =>
+								update("middle_name", e.target.value)
+							}
 							capitalize
 						/>
 					</div>
@@ -302,7 +307,9 @@ const RegistrationForm = () => {
 							}
 							height={30}
 							value={form.last_name}
-							onChange={(e) => update("last_name", e.target.value)}
+							onChange={(e) =>
+								update("last_name", e.target.value)
+							}
 							error={!!errors.last_name}
 							capitalize
 						/>
@@ -366,7 +373,9 @@ const RegistrationForm = () => {
 							options={regionOptions}
 							height={30}
 							value={form.region}
-							onSelectChange={(e) => onRegionChange(e.target.value)}
+							onSelectChange={(e) =>
+								onRegionChange(e.target.value)
+							}
 							error={!!errors.region}
 							capitalize
 						/>
@@ -376,7 +385,7 @@ const RegistrationForm = () => {
 						<Select
 							label={
 								<>
-									City / Municipality{" "}
+									City
 									<span className="text-[#ff0000]">*</span>
 								</>
 							}
@@ -401,7 +410,9 @@ const RegistrationForm = () => {
 							options={barangayOptions}
 							height={30}
 							value={form.barangay}
-							onSelectChange={(e) => onBarangayChange(e.target.value)}
+							onSelectChange={(e) =>
+								onBarangayChange(e.target.value)
+							}
 							error={!!errors.barangay}
 							capitalize
 							disabled={!form.city || loadingBarangays}
@@ -436,7 +447,9 @@ const RegistrationForm = () => {
 							type="text"
 							height={30}
 							value={form.contact_no}
-							onChange={(e) => update("contact_no", e.target.value)}
+							onChange={(e) =>
+								update("contact_no", e.target.value)
+							}
 							error={!!errors.contact_no}
 						/>
 						<FieldError name="contact_no" />
@@ -505,12 +518,16 @@ const RegistrationForm = () => {
 								label={
 									<>
 										Farm Name{" "}
-										<span className="text-[#ff0000]">*</span>
+										<span className="text-[#ff0000]">
+											*
+										</span>
 									</>
 								}
 								height={30}
 								value={form.farm_name || ""}
-								onChange={(e) => update("farm_name", e.target.value)}
+								onChange={(e) =>
+									update("farm_name", e.target.value)
+								}
 								error={!!errors.farm_name}
 							/>
 							<FieldError name="farm_name" />
@@ -520,7 +537,9 @@ const RegistrationForm = () => {
 								label={
 									<>
 										Apiary Type{" "}
-										<span className="text-[#ff0000]">*</span>
+										<span className="text-[#ff0000]">
+											*
+										</span>
 									</>
 								}
 								options={APIARY_TYPES}

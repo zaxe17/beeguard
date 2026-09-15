@@ -120,77 +120,76 @@ const Beekeeper = () => {
 	const reportStatuses = ["pending", "progress", "resolved"] as const;
 
 	return (
-		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
-			<UserNav />
-
-			{/* TOP */}
-			<div className="w-full flex gap-3">
-				<div className="w-full flex flex-col gap-3">
-					<h2 className="Poppins-SemiBold text-[#a6a3a3] text-2xl">
-						Dashboard
-					</h2>
-
-					<div className="w-full flex gap-3">
-						{statusCard.map((c, i) => (
-							<TotalStatusCard
-								key={i}
-								icon={c.icon}
-								count={c.count}
-								title={c.title}
-								color={c.color}
-							/>
-						))}
-					</div>
-				</div>
-
-				{/* <div className="w-2/3 flex items-stretch gap-3">
-					<GraphContainer title="hive health">
-						<HiveHealthChart data={hiveHealthChartData} />
-					</GraphContainer>
-
-					<GraphContainer title="yield summary">
-						<YieldSummaryChart
-							value="142.5kg"
-							valueLabel="Yield This Month"
-							changeAmount={12.3}
-							changePercent={9.4}
-							categories={["Jan", "Feb", "Mar", "Apr", "May"]}
-							data={[80, 95, 110, 125, 142.5]}
-						/>
-					</GraphContainer>
-				</div> */}
+		<div className="w-full h-full lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3">
+			<div className="lg:static sticky top-0 z-20 w-full bg-[#fffdf5] lg:bg-transparent lg:pb-0 pb-2">
+				<UserNav />
 			</div>
 
-			<div className="w-full flex-1 flex items-stretch gap-3 min-h-0">
-				<Container width="100%" height="100%" scroll>
-					<div className="w-full h-full flex flex-col items-start">
-						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
-							Reports Overview
-						</span>
+			{/* TOP */}
+			<div className="w-full flex flex-col gap-3 lg:px-0 px-5 shrink-0">
+				<h2 className="Poppins-SemiBold text-[#a6a3a3] text-2xl">
+					Dashboard
+				</h2>
 
-						<ReportOverview
-							categories={["Jan", "Feb", "Mar", "Apr", "May"]}
-							data={[80, 95, 110, 125, 142.5]}
+				<div className="w-full grid lg:grid-cols-4 grid-cols-2 gap-3">
+					{statusCard.map((c, i) => (
+						<TotalStatusCard
+							key={i}
+							icon={c.icon}
+							count={c.count}
+							title={c.title}
+							color={c.color}
 						/>
-					</div>
-				</Container>
+					))}
+				</div>
+			</div>
 
-				<Container width="100%" height="100%" scroll>
-					<div className="w-full h-full flex flex-col items-start px-2">
-						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center">
-							Recent Swarm Reports
-							<span
-								className="text-xs text-[#ffce1c] cursor-pointer"
-								onClick={() => console.log("view all alerts")}>
-								view all
+			<div className="w-full lg:flex-1 flex lg:flex-row flex-col items-stretch gap-3 min-h-0 px-0 lg:pb-0 pb-5">
+				<div className="w-full h-100 shrink-0 lg:h-auto lg:shrink lg:flex-1 min-h-0">
+					<Container width="100%" height="100%" scroll>
+						<div className="w-full h-full flex flex-col items-start">
+							<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
+								Reports Overview
 							</span>
-						</span>
 
-						{reportStatuses.map((status) => (
-							<ReportCard key={status} status={status} />
-						))}
-					</div>
-				</Container>
+							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0">
+								<ReportOverview
+									categories={[
+										"Jan",
+										"Feb",
+										"Mar",
+										"Apr",
+										"May",
+									]}
+									data={[80, 95, 110, 125, 142.5]}
+								/>
+							</div>
+						</div>
+					</Container>
+				</div>
+
+				<div className="w-full h-100 shrink-0 lg:h-auto lg:shrink lg:flex-1 min-h-0">
+					<Container width="100%" height="100%" scroll>
+						<div className="w-full h-full flex flex-col items-start">
+							<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
+								Recent Swarm Reports
+								<span
+									className="text-xs text-[#ffce1c] cursor-pointer"
+									onClick={() =>
+										console.log("view all alerts")
+									}>
+									view all
+								</span>
+							</span>
+
+							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0">
+								{reportStatuses.map((status) => (
+									<ReportCard key={status} status={status} />
+								))}
+							</div>
+						</div>
+					</Container>
+				</div>
 			</div>
 		</div>
 	);

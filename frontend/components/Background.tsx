@@ -11,7 +11,7 @@ const Background = () => {
 				src={comb}
 				alt="Left Comb"
 				width={600}
-				className="absolute -left-85 -top-70 h-auto"
+				className="absolute lg:-left-85 -left-55 -top-70 h-auto"
 				priority
 			/>
 
@@ -20,7 +20,7 @@ const Background = () => {
 				src={comb}
 				alt="Right Comb"
 				width={600}
-				className="absolute -right-85 -bottom-70 h-auto"
+				className="absolute lg:-right-85 -right-55 -bottom-70 h-auto"
 				priority
 			/>
 

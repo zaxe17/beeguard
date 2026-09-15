@@ -140,7 +140,10 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				<span className="text-[#817b70]">Status</span>
 				{row.replaced ? (
 					<span className="Poppins-SemiBold text-[#00cc00] flex items-center gap-1">
-						<Icon icon="mdi:check-decagram" className="w-3.5 h-3.5" />
+						<Icon
+							icon="mdi:check-decagram"
+							className="w-3.5 h-3.5"
+						/>
 						Replaced
 					</span>
 				) : row.level === "Normal" ? (
@@ -281,14 +284,16 @@ const History = () => {
 							<>
 								<YieldSummaryChart
 									value={formatKg(
-										summary?.yield_totals.this_month.total_kg,
+										summary?.yield_totals.this_month
+											.total_kg,
 									)}
 									valueLabel="Yield This Month"
 									changeAmount={
 										summary?.yield_totals.change_amount ?? 0
 									}
 									changePercent={
-										summary?.yield_totals.change_percent ?? 0
+										summary?.yield_totals.change_percent ??
+										0
 									}
 									categories={displayLabels}
 									series={displaySeries}
@@ -326,12 +331,12 @@ const History = () => {
 								className="w-16 h-16 text-[#a6a3a3]"
 							/>
 							<p className="text-sm text-[#817b70] mt-2">
-								No hives yet — add a hive to start tracking queen
-								replacements.
+								No hives yet — add a hive to start tracking
+								queen replacements.
 							</p>
 						</div>
 					) : (
-						<div className="w-full grid grid-cols-3 gap-3">
+						<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
 							{queenHistory.map((row) => (
 								<BQHistoryCard key={row.hive_id} row={row} />
 							))}

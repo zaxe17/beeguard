@@ -131,7 +131,9 @@ export const ModalContainer = ({
 						</h1>
 					</div>
 
-					{children}
+					<div className="w-full flex-1 min-h-0 overflow-y-auto py-2 px-1">
+						{children}
+					</div>
 				</div>
 			</div>
 		</div>,

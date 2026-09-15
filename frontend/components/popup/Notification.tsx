@@ -3,12 +3,13 @@
 import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { notificationService, NotificationRecord } from "@/services/notification";
+import {
+	notificationService,
+	NotificationRecord,
+} from "@/services/notification";
+import MobileOverlay from "@/components/MobileOverlay";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
-// notification_type is a plain string on the backend/service, not a
-// closed union — keyed lookup with a fallback so any future type
-// (e.g. a new notification_type added later) still renders sensibly
-// instead of a TS error or a missing style.
 const typeStyle: Record<string, { icon: string; color: string }> = {
 	pesticide_alert: {
 		icon: "mingcute:alert-fill",
@@ -75,12 +76,13 @@ const NotifCard = ({ notif, onClick }: NotifCardProps) => {
 };
 
 type NotificationProps = {
-	// Called after a read-state change so UserNav can refresh the
-	// badge count without this popup needing to own that state.
 	onNotificationRead?: () => void;
+	// NEW — needed for the mobile overlay's back button
+	onClose?: () => void;
 };
 
-const Notification = ({ onNotificationRead }: NotificationProps) => {
+// Shared logic + content — used by both desktop dropdown and mobile overlay
+const useNotifications = (onNotificationRead?: () => void) => {
 	const router = useRouter();
 	const [notifs, setNotifs] = useState<NotificationRecord[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -109,9 +111,6 @@ const Notification = ({ onNotificationRead }: NotificationProps) => {
 						: n,
 				),
 			);
-			// Fire-and-forget — optimistic update above already reflects
-			// it; a failure here just means it re-shows as unread next
-			// time the list is fetched, which is an acceptable fallback.
 			notificationService.markRead(notif.notification_id);
 			onNotificationRead?.();
 		}
@@ -129,40 +128,114 @@ const Notification = ({ onNotificationRead }: NotificationProps) => {
 
 	const hasUnread = notifs.some((n) => !n.is_read);
 
+	return { notifs, loading, hasUnread, handleClick, handleMarkAllRead };
+};
+
+const NotificationList = ({
+	notifs,
+	loading,
+	handleClick,
+}: {
+	notifs: NotificationRecord[];
+	loading: boolean;
+	handleClick: (notif: NotificationRecord) => void;
+}) => {
+	if (loading) {
+		return (
+			<p className="text-center text-xs text-[#817b70] p-4">Loading…</p>
+		);
+	}
+	if (notifs.length === 0) {
+		return (
+			<p className="text-center text-xs text-[#817b70] p-4">
+				No notifications yet.
+			</p>
+		);
+	}
 	return (
-		<div
-			className="absolute w-90 z-10 bg-white rounded-xl right-0 my-3 p-2 flex flex-col overflow-hidden scroll-container"
-			style={{
-				maxHeight: "calc(100vh - 100px)",
-				boxShadow:
-					"rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px",
-			}}>
-			<div className="flex justify-between items-center mb-3 px-2">
-				<h2 className="Poppins-Bold text-2xl text-[#4A2F00]">Notification</h2>
+		<>
+			{notifs.map((n) => (
+				<NotifCard
+					key={n.notification_id}
+					notif={n}
+					onClick={handleClick}
+				/>
+			))}
+		</>
+	);
+};
+
+const Notification = ({ onNotificationRead, onClose }: NotificationProps) => {
+	const isDesktop = useIsDesktop();
+	const { notifs, loading, hasUnread, handleClick, handleMarkAllRead } =
+		useNotifications(onNotificationRead);
+
+	if (isDesktop) {
+		return (
+			<div
+				className="absolute w-90 z-10 bg-white rounded-xl right-0 my-3 p-2 lg:flex hidden flex-col overflow-hidden scroll-container"
+				style={{
+					maxHeight: "calc(100vh - 100px)",
+					boxShadow:
+						"rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px",
+				}}>
+				<div className="flex justify-between items-center mb-3 px-2">
+					<h2 className="Poppins-Bold text-2xl text-[#4A2F00]">
+						Notification
+					</h2>
+					{hasUnread && (
+						<span
+							className="text-xs text-[#ffce1c] cursor-pointer"
+							onClick={handleMarkAllRead}>
+							mark all read
+						</span>
+					)}
+				</div>
+
+				<div className="flex flex-col gap-2 p-1.5 flex-1 min-h-0 scroll overflow-y-auto">
+					<NotificationList
+						notifs={notifs}
+						loading={loading}
+						handleClick={handleClick}
+					/>
+				</div>
+			</div>
+		);
+	}
+
+	// MOBILE — slide-up overlay
+	return (
+		<MobileOverlay>
+			{/* BACK BUTTON */}
+			<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+				<button
+					onClick={onClose}
+					className="flex items-center shrink-0">
+					<Icon
+						icon="bx:arrow-back"
+						className="text-2xl text-[#ffa004]"
+					/>
+				</button>
+				<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+					Notification
+				</span>
+			</div>
+
+			<div className="flex flex-col gap-2 p-3 w-full">
 				{hasUnread && (
 					<span
-						className="text-xs text-[#ffce1c] cursor-pointer"
+						className="text-xs text-[#ffce1c] cursor-pointer shrink-0"
 						onClick={handleMarkAllRead}>
 						mark all read
 					</span>
 				)}
+				<NotificationList
+					notifs={notifs}
+					loading={loading}
+					handleClick={handleClick}
+				/>
 			</div>
-
-			{/* NOTIFICATION CONTENT */}
-			<div className="flex flex-col gap-2 p-1.5 flex-1 min-h-0 scroll overflow-y-auto">
-				{loading ? (
-					<p className="text-center text-xs text-[#817b70] p-4">Loading…</p>
-				) : notifs.length === 0 ? (
-					<p className="text-center text-xs text-[#817b70] p-4">
-						No notifications yet.
-					</p>
-				) : (
-					notifs.map((n) => (
-						<NotifCard key={n.notification_id} notif={n} onClick={handleClick} />
-					))
-				)}
-			</div>
-		</div>
+		</MobileOverlay>
 	);
 };
 

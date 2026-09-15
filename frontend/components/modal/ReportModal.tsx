@@ -10,6 +10,8 @@ import { Icon } from "@iconify/react";
 import ReportDetails from "../ReportDetails";
 import { Beekeeper } from "../Beekeeper";
 import { ProfilePhoto } from "../ProfilePhoto";
+import MobileOverlay from "@/components/MobileOverlay";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 type ReportModalProps = {
 	isOpen: boolean;
@@ -90,7 +92,7 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 			height="h-5/6"
 			header="Yield History Report"
 			onClose={onClose}>
-			<div className="w-full flex-1 flex flex-col gap-3 min-h-0">
+			<div className="w-full h-full flex-1 flex flex-col gap-3 min-h-0">
 				{loading ? (
 					<div className="flex-1 flex items-center justify-center">
 						<p className="text-sm text-[#817b70]">
@@ -127,14 +129,9 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 	);
 };
 
-export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
+const BeeReportContent = () => {
 	return (
-		<ModalContainer
-			open={isOpen}
-			width="lg:w-1/2 w-full"
-			height="h-5/6"
-			header="Report Details"
-			onClose={onClose}>
+		<>
 			<ReportDetails
 				status="resolved"
 				reportId="BG-2026-001"
@@ -147,25 +144,22 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 				danger="Yes"
 			/>
 			<div className="flex flex-col gap-1">
-				<div className="flex items-center justify-between">
+				<div className="flex flex-row items-center justify-between gap-1">
 					<span className="Poppins-SemiBold text-[#817b70]">
 						Reported By
 					</span>
-						<span className="Poppins-SemiBold text-[#817b70]">
-						Amount Offer: <span className="text-[#ff9a00]">PHP 5,000</span>
+					<span className="Poppins-SemiBold text-[#817b70]">
+						Amount Offer:{" "}
+						<span className="text-[#ff9a00]">PHP 5,000</span>
 					</span>
 				</div>
 
-				<div
-					className={`w-full flex lg:flex-row flex-col items-center gap-3 p-2 rounded-xl `}>
+				<div className="w-full flex lg:flex-row flex-col items-center gap-3 p-2 rounded-xl">
 					<div className="flex items-center justify-start w-full gap-2">
-						{/* PROFILE */}
-						<div className="w-15 h-15">
+						<div className="w-15 h-15 shrink-0">
 							<ProfilePhoto />
 						</div>
-
-						{/* NAME AND OFFER */}
-						<div className="">
+						<div>
 							<h3 className="Poppins-SemiBold text-base">
 								John Evans Gutierrez
 							</h3>
@@ -175,13 +169,53 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 						</div>
 					</div>
 
-					{/* ACCEPT AND REJECT BUTTON */}
-					<div className="ml-auto pr-3 flex gap-2">
-						<Button label="Message" width="150px" />
+					<div className="lg:ml-auto lg:pr-3 lg:w-auto w-full flex gap-2">
+						<Button label="Message" width="150px w-full" />
 					</div>
 				</div>
 			</div>
-		</ModalContainer>
+		</>
+	);
+};
+
+export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
+	const isDesktop = useIsDesktop();
+
+	if (!isOpen) return null;
+
+	if (isDesktop) {
+		return (
+			<ModalContainer
+				open={isOpen}
+				width="lg:w-1/2 w-full"
+				height="lg:h-5/6 h-full"
+				header="Report Details"
+				onClose={onClose}>
+				<BeeReportContent />
+			</ModalContainer>
+		);
+	}
+
+	return (
+		<MobileOverlay>
+			<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+				<button
+					onClick={onClose}
+					className="flex items-center shrink-0">
+					<Icon
+						icon="bx:arrow-back"
+						className="text-2xl text-[#ffa004]"
+					/>
+				</button>
+				<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+					Report Details
+				</span>
+			</div>
+
+			<div className="flex flex-col gap-6 py-6 px-4 w-full max-w-full overflow-x-hidden">
+				<BeeReportContent />
+			</div>
+		</MobileOverlay>
 	);
 };
 
@@ -191,7 +225,7 @@ export const BeeIdentify = ({ isOpen, onClose }: ReportModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/4"
+			width="lg:w-1/4 w-full"
 			header="Bee Species Identified!"
 			onClose={onClose}>
 			<div className="flex flex-col justify-center items-center">
@@ -239,7 +273,7 @@ export const SwarmNotice = ({ isOpen, onClose }: ReportModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="w-1/3"
+			width="lg:w-1/3 w-full"
 			header="Report Swarm Notice"
 			onClose={onClose}>
 			<div className="flex flex-col justify-center items-center">

@@ -3,12 +3,12 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { HiveTabs } from "@/components/HiveContainer";
-import { Tab } from "@/components/Tab";
+import { NavTab } from "@/components/Tab";
 import { Button } from "@/components/ui/Button";
 import { Container, FormContainer } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
 import { ReportCard } from "@/components/ui/ReportCard";
-import Users from "@/components/Users";
+import { Users } from "@/components/Users";
 
 const tabs = [
 	{ label: "Personal Information", value: "information" },
@@ -19,7 +19,7 @@ const tabs = [
 // USER INFORMATION
 const Information = () => {
 	return (
-		<FormContainer width="w-2/3">
+		<FormContainer width="w-1/3">
 			<div className="flex flex-col gap-3">
 				<Input label="Full Name" />
 				<Input label="Username" />
@@ -40,22 +40,22 @@ const Information = () => {
 // USER FARM AND HIVE DETAILS
 const FarmHives = () => {
 	return (
-		<Container width="w-2/3">
+		<Container width="w-3/4">
 			<div className="flex flex-col gap-3 h-full min-h-0">
-				<div className="w-full flex items-center justify-center">
-					<div className="w-2/3">
+				<div className="w-full flex items-center justify-start">
+					<div className="w-1/3">
 						<Input label="Full Name" />
 						<Input label="Apiary Type" />
 					</div>
 				</div>
 
-				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="p-2 grid grid-cols-2 flex-1 gap-3 overflow-y-auto overflow-x-hidden min-h-0">
 					<HiveTabs
 						hiveId="HV-000005"
 						hive="Laywone"
 						location="Layone"
 						lastCheck="August 7, 2026"
-						status="need attention"
+						status="healthy"
 						yieldThisMonth="0.0kg"
 						hiveState="Active"
 					/>
@@ -73,7 +73,7 @@ const FarmHives = () => {
 						hive="Laywone"
 						location="Layone"
 						lastCheck="August 7, 2026"
-						status="need attention"
+						status="diseased"
 						yieldThisMonth="0.0kg"
 						hiveState="Active"
 					/>
@@ -86,7 +86,7 @@ const FarmHives = () => {
 // USER ACTIVITY
 const Activity = () => {
 	return (
-		<Container width="w-2/3">
+		<Container width="w-1/2">
 			<div className="flex flex-col gap-3 h-full min-h-0">
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
 					{Array.from({ length: 14 }).map((_, i) => (
@@ -115,10 +115,12 @@ const UserInner = () => {
 			</div>
 
 			<div className="w-full flex-1 min-h-0 flex flex-col items-center">
-				<div className="w-2/3 h-full min-h-0 flex flex-col">
-					<Tab tabs={tabs} />
+				<div className="w-full h-full min-h-0 flex flex-col items-center">
+					<div className="w-2/3">
+						<NavTab tabs={tabs} />
+					</div>
 
-					<div className="flex-1 min-h-0 flex flex-col justify-start items-center mt-10">
+					<div className="w-full flex-1 min-h-0 flex flex-col justify-start items-center mt-10">
 						{activeTab === "information" && <Information />}
 						{activeTab === "farmhive" && <FarmHives />}
 						{activeTab === "activity" && <Activity />}

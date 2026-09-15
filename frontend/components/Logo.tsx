@@ -15,9 +15,10 @@ const Logo = () => {
 			</h1>
 			<span className="Poppins-SemiBold lg:text-4xl text-2xl">
 				save the bees
-				<Link href="/citizen">citizen</Link>
-				<Link href="/beekeeper">beekeeper</Link>
 			</span>
+			<Link href="/citizen">citizen</Link>
+			<Link href="/beekeeper">beekeeper</Link>
+			<Link href="/admin">admin</Link>
 		</div>
 	);
 };

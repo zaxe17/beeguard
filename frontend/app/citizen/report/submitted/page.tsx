@@ -6,7 +6,7 @@ const ReportSubmit = () => {
 	return (
 		<div className="w-full h-full p-5 flex items-center justify-center flex-col gap-3">
 			{/* ICON */}
-			<div className="w-30 h-30 border-8 border-[#00cc00]/40 rounded-full">
+			<div className="lg:w-30 w-20 lg:h-30 h-20 border-8 border-[#00cc00]/40 rounded-full">
 				<Icon
 					icon="akar-icons:circle-check-fill"
 					className="w-full h-full text-[#00cc00]"
@@ -14,7 +14,7 @@ const ReportSubmit = () => {
 			</div>
 
 			{/* TITLE */}
-			<h1 className="Poppins-Bold text-[#1f6f5f] text-6xl">
+			<h1 className="Poppins-Bold text-[#1f6f5f] lg:text-6xl text-4xl text-center">
 				Report Submitted!
 			</h1>
 
@@ -33,9 +33,9 @@ const ReportSubmit = () => {
 			</h3>
 
 			{/* BUTTON FOR VIEW REPORT */}
-			<Button width="40%" label="View Reports" />
+			<Button width="lg:w-1/3 w-1/2" label="View Reports" />
 			{/* BACK HOME FOR HOME */}
-			<Link href="" className="Poppins-Bold underline text-[#a6a3a3]">
+			<Link href="/citizen" className="Poppins-Bold underline text-[#a6a3a3]">
 				Back to Home
 			</Link>
 		</div>

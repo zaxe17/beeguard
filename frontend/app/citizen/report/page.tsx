@@ -101,7 +101,7 @@ const Camera = () => {
 	return (
 		<div className="lg:w-2/3 w-full h-full flex flex-col justify-center items-center gap-3">
 			{/* CAMERA */}
-			<div className="w-full h-full border-3 border-[#e2e2e6] rounded-2xl overflow-hidden relative">
+			<div className="w-full aspect-square border-3 border-[#e2e2e6] rounded-2xl overflow-hidden relative">
 				{photo ? (
 					// eslint-disable-next-line @next/next/no-img-element
 					<img

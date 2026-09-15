@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { TermsConditionPage } from "@/components/Page/TermsCondition";
 import { SettingsTabs, SwitchTab } from "@/components/Tab";
 import { Button } from "@/components/ui/Button";
@@ -100,7 +101,7 @@ const BackupRestore = () => {
 	);
 };
 
-const MorePage = () => {
+const MorePageContent = () => {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const pathname = usePathname();
@@ -160,6 +161,19 @@ const MorePage = () => {
 				</div>
 			</div>
 		</div>
+	);
+};
+
+const MorePage = () => {
+	return (
+		<Suspense
+			fallback={
+				<div className="w-full h-full flex items-center justify-center">
+					Loading...
+				</div>
+			}>
+			<MorePageContent />
+		</Suspense>
 	);
 };
 

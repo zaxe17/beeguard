@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { SettingsTabs, SwitchTab } from "../Tab";
 import { Icon } from "@iconify/react";
 import MobileOverlay from "../MobileOverlay";
+import { Suspense } from "react";
 
 type ViewKey = "main" | "settings" | "about";
 type DetailKey = "personal" | "password" | "privacy" | "terms" | null;
@@ -189,7 +190,7 @@ const ChangePassword = () => {
 	);
 };
 
-const ProfileSettingsPage = () => {
+const ProfileSettingsContent = () => {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const pathname = usePathname();
@@ -271,6 +272,19 @@ const ProfileSettingsPage = () => {
 				</MobileOverlay>
 			)}
 		</div>
+	);
+};
+
+const ProfileSettingsPage = () => {
+	return (
+		<Suspense
+			fallback={
+				<div className="w-full h-full flex items-center justify-center">
+					Loading...
+				</div>
+			}>
+			<ProfileSettingsContent />
+		</Suspense>
 	);
 };
 

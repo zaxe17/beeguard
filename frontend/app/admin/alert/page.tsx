@@ -75,18 +75,12 @@ const AlertInner = () => {
 				borderNone
 				className="lg:w-[35%] w-full flex-1 lg:flex-none lg:h-full">
 				<div className="relative w-full pt-5 px-2 lg:flex hidden items-center justify-end gap-3 mb-3">
-					{/* BACK ARROW */}
-					{/* <Icon
-						icon="bx:arrow-back"
-						className="absolute left-0 text-2xl text-[#ffa004] lg:hidden block"
-					/> */}
-
 					<div className="flex items-center gap-3">
 						{/* ADD BUTTON */}
 						<div className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer shrink-0">
 							<Icon
 								icon="tdesign:add"
-								className="w-full h-full text-white"
+								className="w-8 h-8 text-white"
 							/>
 						</div>
 

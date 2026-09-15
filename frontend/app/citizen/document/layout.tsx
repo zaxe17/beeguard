@@ -5,9 +5,10 @@ import { NavTab } from "@/components/Tab";
 import { Container } from "@/components/ui/Container";
 import { ReportCard } from "@/components/ui/ReportCard";
 import { Icon } from "@iconify/react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useSearchParams } from "next/navigation";
-import React, { Suspense, useState } from "react";
+import { AnimatePresence } from "framer-motion";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import React, { Suspense } from "react";
+import { dummyReports } from "@/data/reports";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -18,11 +19,27 @@ const tabs = [
 
 const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 	const searchParams = useSearchParams();
-	const activeStatus = searchParams.get("tab") || "all";
-	const reportStatuses = ["pending", "progress", "resolved"] as const;
+	const router = useRouter();
+	const pathname = usePathname();
 
-	// Only matters on mobile — desktop always shows both sides.
-	const [mobileSelected, setMobileSelected] = useState(false);
+	const activeStatus = searchParams.get("tab") || "all";
+	const selectedReportId = searchParams.get("report");
+
+	const filteredReports = dummyReports.filter(
+		(report) => activeStatus === "all" || activeStatus === report.status,
+	);
+
+	const handleSelectReport = (reportId: string) => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("report", reportId);
+		router.push(`${pathname}?${params.toString()}`);
+	};
+
+	const handleCloseMobile = () => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("report");
+		router.push(`${pathname}?${params.toString()}`);
+	};
 
 	return (
 		<div className="w-full h-full flex items-start relative">
@@ -44,22 +61,17 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
-					{/* CHILDREN FOR TABS */}
 					<div className="flex flex-col">
-						{reportStatuses
-							.filter(
-								(status) =>
-									activeStatus === "all" ||
-									activeStatus === status,
-							)
-							.map((status) => (
-								<div
-									key={status}
-									onClick={() => setMobileSelected(true)}
-									className="cursor-pointer">
-									<ReportCard status={status} />
-								</div>
-							))}
+						{filteredReports.map((report) => (
+							<div
+								key={report.reportId}
+								onClick={() =>
+									handleSelectReport(report.reportId)
+								}
+								className="cursor-pointer">
+								<ReportCard status={report.status} />
+							</div>
+						))}
 					</div>
 				</div>
 			</Container>
@@ -73,13 +85,13 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 
 			{/* RIGHT SIDE — mobile: slide-up overlay, only after a card is clicked */}
 			<AnimatePresence>
-				{mobileSelected && (
+				{selectedReportId && (
 					<MobileOverlay>
 						{/* BACK BUTTON */}
 						<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 							<button
-								onClick={() => setMobileSelected(false)}
-								className="flex items-center shrink-0">
+								onClick={handleCloseMobile}
+								className="absolute flex items-center shrink-0">
 								<Icon
 									icon="bx:arrow-back"
 									className="text-2xl text-[#ffa004]"

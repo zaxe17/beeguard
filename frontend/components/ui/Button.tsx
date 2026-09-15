@@ -64,7 +64,7 @@ export const CancelButton = ({
 			onClick={onClick}
 			type="button"
 			disabled={disabled}
-			className={`flex justify-center items-center py-1.5 px-3 rounded-xl border border-[#a6a3a3] border-solid text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${BGcolor}`}
+			className={`${width} flex justify-center items-center py-1.5 px-3 rounded-xl border border-[#a6a3a3] border-solid text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${BGcolor}`}
 			style={{
 				width: width || "100%",
 				color: textColor,

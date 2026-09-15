@@ -26,20 +26,20 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 
 	return (
 		<div className="h-screen w-full flex justify-center items-center overflow-hidden">
-			<div className="h-full lg:w-1/2 w-full flex flex-col pt-10 pb-3 min-h-0">
-				<div className="flex justify-end items-center gap-3 mb-8 shrink-0">
+			<div className="h-full lg:w-1/2 w-full flex flex-col lg:pt-10 pt-5 pb-3 min-h-0">
+				<div className="flex justify-end items-center gap-3 px-2 mb-5 shrink-0">
 					{/* ADD BUTTON */}
 					<div
 						onClick={() => openModal("addAlert")}
 						className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer">
 						<Icon
 							icon="tdesign:add"
-							className="w-full h-full text-white"
+							className="w-8 h-8 text-white"
 						/>
 					</div>
 
 					{/* SEARCHBAR ALERTS */}
-					<div className="lg:w-1/3 w-1/2">
+					<div className="lg:w-1/3 w-full">
 						<SearchBar placeholder="Search Alerts" />
 					</div>
 

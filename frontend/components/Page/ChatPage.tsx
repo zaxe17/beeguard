@@ -7,6 +7,7 @@ import { Container } from "../ui/Container";
 import { SearchBar } from "../ui/Input";
 import { ProfilePhoto } from "../ProfilePhoto";
 import MobileOverlay from "@/components/MobileOverlay";
+import { useQueryParamState } from "@/hooks/useQueryParamState";
 
 type ChatUser = {
 	id: string;
@@ -130,7 +131,12 @@ const ChatPage = () => {
 	// get segment after "/" — "citizen", "admin", o "beekeeper"
 	const role = pathname.split("/")[1];
 
-	const selectedId = searchParams.get("chat");
+	const {
+		value: selectedId,
+		setValue: setChatParam,
+		clearValue: closeChat,
+	} = useQueryParamState("chat");
+
 	const selectedUser = users.find((u) => u.id === selectedId) ?? null;
 	const mobileSelected = Boolean(selectedId);
 	const activeConversation = selectedId
@@ -138,11 +144,7 @@ const ChatPage = () => {
 		: [];
 
 	const handleSelectUser = (user: ChatUser) => {
-		router.push(`/${role}/messages?chat=${user.id}`);
-	};
-
-	const closeChat = () => {
-		router.push(`/${role}/messages`);
+		setChatParam(user.id);
 	};
 
 	const ConversationView = () => (

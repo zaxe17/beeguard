@@ -77,7 +77,9 @@ const NotifCard = ({ notif, onClick }: NotifCardProps) => {
 
 type NotificationProps = {
 	onNotificationRead?: () => void;
-	// NEW — needed for the mobile overlay's back button
+	// Called kapag pinindot yung back button sa mobile overlay.
+	// Ang parent (UserNav) ang bahala kung paano ito sasarhan
+	// (sa mobile: aalisin yung "?notif=open" sa URL).
 	onClose?: () => void;
 };
 

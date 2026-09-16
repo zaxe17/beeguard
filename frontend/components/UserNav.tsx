@@ -11,18 +11,31 @@ import { useAuth } from "@/context/AuthContext";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryParamState } from "@/hooks/useQueryParamState";
 
 function getDisplayName(fullName: string): string {
 	const parts = fullName.trim().split(/\s+/).filter(Boolean);
 	return parts.slice(0, 2).join(" ");
 }
 
+const NOTIF_PARAM = "notif";
+const NOTIF_OPEN_VALUE = "open";
+
 export const UserNav = () => {
 	const { user } = useAuth();
-	const [isOpen, setIsOpen] = useState(false);
+	const [isOpen, setIsOpen] = useState(false); // desktop dropdown lang
 	const [unreadCount, setUnreadCount] = useState(0);
 	const wrapperRef = useRef<HTMLDivElement>(null);
 	const isDesktop = useIsDesktop();
+
+	const {
+		value: notifParam,
+		setValue: openNotifParam,
+		clearValue: closeNotifParam,
+	} = useQueryParamState(NOTIF_PARAM);
+
+	const isMobileNotifOpen = notifParam === NOTIF_OPEN_VALUE;
+	const isNotificationVisible = isDesktop ? isOpen : isMobileNotifOpen;
 
 	const refreshUnreadCount = useCallback(async () => {
 		const res = await notificationService.unreadCount();
@@ -33,7 +46,6 @@ export const UserNav = () => {
 		refreshUnreadCount();
 	}, [refreshUnreadCount]);
 
-	// SINGLE click-outside effect
 	useEffect(() => {
 		if (!isDesktop) return;
 
@@ -53,13 +65,28 @@ export const UserNav = () => {
 
 	const displayName = user?.name ? getDisplayName(user.name) : "";
 
-	// FOR ROUTER IN MESSAGES
 	const location = usePathname();
 	const messagesRoute = location.startsWith("/citizen")
 		? "/citizen"
 		: location.startsWith("/beekeeper")
 			? "/beekeeper"
 			: "/admin";
+
+	const handleBellClick = () => {
+		if (isDesktop) {
+			setIsOpen((prev) => !prev);
+			return;
+		}
+		openNotifParam(NOTIF_OPEN_VALUE);
+	};
+
+	const handleNotificationClose = () => {
+		if (isDesktop) {
+			setIsOpen(false);
+			return;
+		}
+		closeNotifParam();
+	};
 
 	return (
 		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5 z-9999">
@@ -86,7 +113,7 @@ export const UserNav = () => {
 						</span>
 					)}
 					<div
-						onClick={() => setIsOpen((prev) => !prev)}
+						onClick={handleBellClick}
 						className="lg:w-10 w-8 lg:h-10 h-8">
 						<Icon
 							icon="mdi:notifications"
@@ -94,10 +121,10 @@ export const UserNav = () => {
 						/>
 					</div>
 
-					{isOpen && (
+					{isNotificationVisible && (
 						<Notification
 							onNotificationRead={refreshUnreadCount}
-							onClose={() => setIsOpen(false)}
+							onClose={handleNotificationClose}
 						/>
 					)}
 				</div>

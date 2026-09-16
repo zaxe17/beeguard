@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { Container } from "@/components/ui/Container";
 import {
 	HiveDetailsContainer,
@@ -17,6 +17,7 @@ import {
 } from "@/components/modal/HivesModal";
 import { analyticsService } from "@/services/analytics";
 import MobileOverlay from "@/components/MobileOverlay";
+import { useQueryParamState } from "@/hooks/useQueryParamState";
 
 type ModalType =
 	| "addHive"
@@ -32,14 +33,19 @@ type HivePayload = { hiveId: string };
 // the moment the hive is tapped in the list.
 const QUEEN_ALERT_STATUSES = new Set(["Needs Attention", "Weak", "Diseased"]);
 
+const HIVE_PARAM = "hive";
+
 function formatKg(v: number | undefined | null) {
 	return v == null ? "—" : `${v.toFixed(1)}kg`;
 }
 
-const Hives = () => {
+const HivesInner = () => {
 	const { openModal } = useModal<ModalType, HivePayload>();
 
 	const [hives, setHives] = useState<Hive[]>([]);
+	// `selectedId` — laging may value pag may laman ang list (desktop
+	// default). Hindi ito URL-driven kasi hindi natin gustong ma-reset
+	// ang desktop selection tuwing sasara ang mobile overlay.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [thisMonthKg, setThisMonthKg] = useState<Record<string, number>>({});
 	const [loading, setLoading] = useState(true);
@@ -49,6 +55,16 @@ const Hives = () => {
 	// be dismissed without losing the current selection.
 	const [queenAlertHive, setQueenAlertHive] = useState<Hive | null>(null);
 	const [showQueenAlert, setShowQueenAlert] = useState(false);
+
+	// "?hive=<id>" — ginagamit lang para malaman kung bukas ba ang
+	// mobile overlay (at kung refresh-safe/back-button-safe ito),
+	// hiwalay sa `selectedId` na nagre-remain para sa desktop view.
+	const {
+		value: hiveParam,
+		setValue: openHiveParam,
+		clearValue: closeHiveParam,
+	} = useQueryParamState(HIVE_PARAM);
+	const mobileSelected = hiveParam !== null;
 
 	const loadAll = useCallback(async () => {
 		setLoading(true);
@@ -103,17 +119,17 @@ const Hives = () => {
 		openModal(modal, { hiveId: selectedHive.hive_id });
 	};
 
-	// Handles a tap on a hive tab in the list: selects it, and if its
-	// health status needs attention, pops up the queen-alert modal.
+	// Handles a tap on a hive tab in the list: selects it, opens the
+	// mobile overlay via URL, and if its health status needs attention,
+	// pops up the queen-alert modal.
 	const handleSelectHive = (hive: Hive) => {
 		setSelectedId(hive.hive_id);
+		openHiveParam(hive.hive_id);
 		if (QUEEN_ALERT_STATUSES.has(hive.health_status)) {
 			setQueenAlertHive(hive);
 			setShowQueenAlert(true);
 		}
 	};
-
-	const [mobileSelected, setMobileSelected] = useState(false);
 
 	return (
 		<div className="w-full h-full flex items-start relative">
@@ -190,10 +206,7 @@ const Hives = () => {
 								)}
 								hiveState={h.hive_state}
 								selected={h.hive_id === selectedId}
-								onClick={() => {
-									handleSelectHive(h);
-									setMobileSelected(true);
-								}}
+								onClick={() => handleSelectHive(h)}
 							/>
 						))
 					)}
@@ -241,7 +254,7 @@ const Hives = () => {
 					{/* BACK BUTTON */}
 					<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 						<button
-							onClick={() => setMobileSelected(false)}
+							onClick={closeHiveParam}
 							className="absolute flex items-center shrink-0">
 							<Icon
 								icon="bx:arrow-back"
@@ -306,6 +319,14 @@ const Hives = () => {
 				}}
 			/>
 		</div>
+	);
+};
+
+const Hives = () => {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<HivesInner />
+		</Suspense>
 	);
 };
 

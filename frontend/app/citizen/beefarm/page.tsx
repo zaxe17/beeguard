@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import BeefarmView from "@/components/BeefarmView";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
 import dynamic from "next/dynamic";
@@ -9,8 +8,9 @@ import { SearchBar } from "@/components/ui/Input";
 // NEARBY FARM EXAMPLE DATA
 import nearbyFarms from "@/data/beefarms.json";
 import { Icon } from "@iconify/react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import MobileOverlay from "@/components/MobileOverlay";
+import { useQueryParamState } from "@/hooks/useQueryParamState";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -26,9 +26,24 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 	),
 });
 
+const FARM_PARAM = "farm";
+
 const BeefarmPage = () => {
+	// URL-driven state — kagaya ng "?notif=open" sa UserNav at
+	// "?chat=<id>" sa ChatPage. Bentahe: gumagana ang browser back button,
+	// at pwedeng i-refresh/share ang URL habang naka-open ang farm.
+	const {
+		value: selectedFarmParam,
+		setValue: openFarmParam,
+		clearValue: closeFarmParam,
+	} = useQueryParamState(FARM_PARAM);
+
 	// Only matters on mobile — desktop always shows map + list side by side.
-	const [mobileSelected, setMobileSelected] = useState(false);
+	const mobileSelected = selectedFarmParam !== null;
+
+	const handleFarmClick = (index: number) => {
+		openFarmParam(String(index));
+	};
 
 	return (
 		<div className="w-full h-full flex items-start lg:flex-row flex-col relative">
@@ -49,7 +64,7 @@ const BeefarmPage = () => {
 					{nearbyFarms.map((nb, i) => (
 						<div
 							key={i}
-							onClick={() => setMobileSelected(true)}
+							onClick={() => handleFarmClick(i)}
 							className="cursor-pointer">
 							<BeefarmContainer
 								image={nb.image}
@@ -85,7 +100,7 @@ const BeefarmPage = () => {
 							{/* BACK BUTTON */}
 							<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6] shrink-0">
 								<button
-									onClick={() => setMobileSelected(false)}
+									onClick={closeFarmParam}
 									className="absolute flex items-center shrink-0">
 									<Icon
 										icon="bx:arrow-back"

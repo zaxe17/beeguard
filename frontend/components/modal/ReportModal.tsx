@@ -1,5 +1,3 @@
-// components/modal/ReportModal.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,7 +6,6 @@ import { Button, CancelButton } from "../ui/Button";
 import { reportService } from "@/services/report";
 import { Icon } from "@iconify/react";
 import ReportDetails from "../ReportDetails";
-import { Beekeeper } from "../Beekeeper";
 import { ProfilePhoto } from "../ProfilePhoto";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";

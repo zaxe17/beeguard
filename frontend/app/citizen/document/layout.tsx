@@ -6,9 +6,9 @@ import { Container } from "@/components/ui/Container";
 import { ReportCard } from "@/components/ui/ReportCard";
 import { Icon } from "@iconify/react";
 import { AnimatePresence } from "framer-motion";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense } from "react";
 import { dummyReports } from "@/data/reports";
+import { useQueryParamState } from "@/hooks/useQueryParamState";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -18,28 +18,23 @@ const tabs = [
 ];
 
 const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
-	const searchParams = useSearchParams();
-	const router = useRouter();
-	const pathname = usePathname();
+	// "?tab=..." — ginagamit na lang natin yung value dito, hindi na
+	// kailangan i-set/clear sa page na ito (ang NavTab component na
+	// mismo ang gumagawa niyan internally, ayon sa dating code).
+	const { value: activeStatusParam } = useQueryParamState("tab");
+	const activeStatus = activeStatusParam || "all";
 
-	const activeStatus = searchParams.get("tab") || "all";
-	const selectedReportId = searchParams.get("report");
+	// "?report=<id>" — set kapag pinili yung card, clear kapag
+	// bumalik sa mobile overlay.
+	const {
+		value: selectedReportId,
+		setValue: openReport,
+		clearValue: closeReport,
+	} = useQueryParamState("report");
 
 	const filteredReports = dummyReports.filter(
 		(report) => activeStatus === "all" || activeStatus === report.status,
 	);
-
-	const handleSelectReport = (reportId: string) => {
-		const params = new URLSearchParams(searchParams.toString());
-		params.set("report", reportId);
-		router.push(`${pathname}?${params.toString()}`);
-	};
-
-	const handleCloseMobile = () => {
-		const params = new URLSearchParams(searchParams.toString());
-		params.delete("report");
-		router.push(`${pathname}?${params.toString()}`);
-	};
 
 	return (
 		<div className="w-full h-full flex items-start relative">
@@ -65,9 +60,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 						{filteredReports.map((report) => (
 							<div
 								key={report.reportId}
-								onClick={() =>
-									handleSelectReport(report.reportId)
-								}
+								onClick={() => openReport(report.reportId)}
 								className="cursor-pointer">
 								<ReportCard status={report.status} />
 							</div>
@@ -90,7 +83,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 						{/* BACK BUTTON */}
 						<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 							<button
-								onClick={handleCloseMobile}
+								onClick={closeReport}
 								className="absolute flex items-center shrink-0">
 								<Icon
 									icon="bx:arrow-back"

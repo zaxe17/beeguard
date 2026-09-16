@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { BeeIdentify, SwarmNotice } from "@/components/modal/ReportModal";
 import { ModalProvider, useModal } from "@/context/ModalContext";
@@ -20,13 +20,10 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 			</main>
 
 			{/* ===== REPORT PAGE MODAL ===== */}
-			{/* BEE SPECIES */}
 			<BeeIdentify
 				isOpen={isModalOpen("beeIdentify")}
 				onClose={closeModal}
 			/>
-
-			{/* SWARM NOTICE */}
 			<SwarmNotice
 				isOpen={isModalOpen("swarmNotice")}
 				onClose={closeModal}
@@ -38,7 +35,9 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 const CitizenLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<CitizenLayoutContent>{children}</CitizenLayoutContent>
+			<Suspense fallback={null}>
+				<CitizenLayoutContent>{children}</CitizenLayoutContent>
+			</Suspense>
 		</ModalProvider>
 	);
 };

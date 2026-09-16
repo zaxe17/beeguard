@@ -9,6 +9,8 @@ import { notificationService } from "@/services/notification";
 import { ProfilePhoto } from "./ProfilePhoto";
 import { useAuth } from "@/context/AuthContext";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 function getDisplayName(fullName: string): string {
 	const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -51,6 +53,14 @@ export const UserNav = () => {
 
 	const displayName = user?.name ? getDisplayName(user.name) : "";
 
+	// FOR ROUTER IN MESSAGES
+	const location = usePathname();
+	const messagesRoute = location.startsWith("/citizen")
+		? "/citizen"
+		: location.startsWith("/beekeeper")
+			? "/beekeeper"
+			: "/admin";
+
 	return (
 		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5 z-9999">
 			<div className="flex items-center lg:gap-3.5 gap-1">
@@ -92,12 +102,14 @@ export const UserNav = () => {
 					)}
 				</div>
 
-				<div className="lg:w-10 w-8 lg:h-10 h-8">
+				<Link
+					href={`${messagesRoute}/messages`}
+					className="lg:w-10 w-8 lg:h-10 h-8">
 					<Icon
 						icon="flowbite:messages-solid"
 						className="w-full h-full text-[#ffdb4f] cursor-pointer"
 					/>
-				</div>
+				</Link>
 			</div>
 		</div>
 	);

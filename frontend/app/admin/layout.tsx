@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 
@@ -43,7 +44,9 @@ const AdminLayoutContent = ({ children }: { children: React.ReactNode }) => {
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<AdminLayoutContent>{children}</AdminLayoutContent>
+			<Suspense fallback={null}>
+				<AdminLayoutContent>{children}</AdminLayoutContent>
+			</Suspense>
 		</ModalProvider>
 	);
 };

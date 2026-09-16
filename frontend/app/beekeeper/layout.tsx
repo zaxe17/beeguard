@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AddAlert } from "@/components/modal/AlertModal";
 import {
 	AddHiveModal,
@@ -150,7 +150,9 @@ const BeekeeperLayoutContent = ({
 const BeekeeperLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<BeekeeperLayoutContent>{children}</BeekeeperLayoutContent>
+			<Suspense fallback={null}>
+				<BeekeeperLayoutContent>{children}</BeekeeperLayoutContent>
+			</Suspense>
 		</ModalProvider>
 	);
 };

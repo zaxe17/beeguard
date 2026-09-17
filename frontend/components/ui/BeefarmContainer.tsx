@@ -83,12 +83,12 @@ export const BeefarmOperation = ({
 				<div className="w-full flex-1 flex flex-col justify-between">
 					<div>
 						<div className="flex justify-between items-center">
-							<h3 className="Poppins-Bold text-lg line-clamp-2">
+							<h3 className="Poppins-Bold text-lg line-clamp-1">
 								{location}
 							</h3>
 
                             {/* PROGRESS STATUS */}
-                            <span className="bg-[#4abd3e]/40 text-[#1f6f5f] text-xs py-1 px-3 rounded-md">In Progress</span>
+                            <span className="bg-[#4abd3e]/40 text-[#1f6f5f] text-xs py-1 px-3 rounded-md text-nowrap">In Progress</span>
 						</div>
 
 						<p className="text-xs text-[#817b70] font-bold line-clamp-2">

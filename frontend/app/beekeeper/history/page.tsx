@@ -255,7 +255,7 @@ const History = () => {
 
 	return (
 		<div className="h-full w-full min-h-0 flex justify-center items-center overflow-hidden">
-			<div className="flex flex-col h-full w-full min-h-0 overflow-y-auto">
+			<div className="flex flex-col h-full w-full min-h-0 overflow-y-auto lg:scrollbar-auto scrollbar-none">
 				{/* LINE GRAPH */}
 				<div className="h-2/3 w-full flex flex-col justify-center pt-10 p-5">
 					{/* FILTER BUTTON */}

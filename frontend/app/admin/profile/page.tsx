@@ -7,6 +7,7 @@ import { Users } from "@/components/Users";
 import { SearchBar } from "@/components/ui/Input";
 import { Icon } from "@iconify/react";
 import { report } from "process";
+import Link from "next/link";
 
 const tabs = [
 	{ label: "All (1,248)", value: "all" },
@@ -111,7 +112,7 @@ const ProfileContainerInner = () => {
 				{/* TABS */}
 				<NavTab tabs={tabs} hasBg />
 
-				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto lg:px-3 px-0 my-5">
+				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto lg:px-3 px-0 my-5 lg:scrollbar-auto scrollbar-none">
 					<div className="mt-5 flex flex-col gap-3 pb-3">
 						{dummyReports
 							.filter(
@@ -120,14 +121,16 @@ const ProfileContainerInner = () => {
 									activeStatus === report.role,
 							)
 							.map((report, i) => (
-								<Users
-									key={`${report.status}-${i}`}
-									name={report.name}
-									role={report.role}
-									email={report.email}
-									phoneNo={report.phoneNo}
-									status={report.status}
-								/>
+								<Link href="/admin/profile/user">
+									<Users
+										key={`${report.status}-${i}`}
+										name={report.name}
+										role={report.role}
+										email={report.email}
+										phoneNo={report.phoneNo}
+										status={report.status}
+									/>
+								</Link>
 							))}
 					</div>
 				</div>

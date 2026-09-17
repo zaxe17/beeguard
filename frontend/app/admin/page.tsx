@@ -120,7 +120,7 @@ const Beekeeper = () => {
 	const reportStatuses = ["pending", "progress", "resolved"] as const;
 
 	return (
-		<div className="w-full h-full lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3">
+		<div className="w-full h-full lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3 lg:scrollbar-auto scrollbar-none">
 			<div className="lg:static sticky top-0 z-20 w-full bg-[#fffdf5] lg:bg-transparent lg:pb-0 pb-2">
 				<UserNav />
 			</div>

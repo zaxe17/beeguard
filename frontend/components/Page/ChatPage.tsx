@@ -162,7 +162,7 @@ const ChatPage = () => {
 
 			{/* CONVERSATION BODY */}
 			<div className="flex-1 min-h-0 flex flex-col justify-end">
-				<div className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3">
+				<div className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
 					{activeConversation.map((entry, i) =>
 						entry.type === "date" ? (
 							<DateTimeMessage key={i} />
@@ -210,7 +210,7 @@ const ChatPage = () => {
 				</div>
 
 				{/* SCROLLABLE MESSAGE LIST */}
-				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{users.map((u) => (
 						<div key={u.id} onClick={() => handleSelectUser(u)}>
 							<UserMessageCard
@@ -261,7 +261,7 @@ const ChatPage = () => {
 
 						{/* CONVERSATION BODY */}
 						<div className="flex-1 min-h-0 flex flex-col justify-end">
-							<div className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3">
+							<div className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
 								{activeConversation.map((entry, i) =>
 									entry.type === "date" ? (
 										<DateTimeMessage key={i} />

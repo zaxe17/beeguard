@@ -175,7 +175,7 @@ const HivesInner = () => {
 				</div>
 
 				{/* SCROLLABLE HIVE LIST */}
-				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading ? (
 						<p className="text-center text-sm text-[#817b70] p-4">
 							Loading hives...

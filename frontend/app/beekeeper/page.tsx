@@ -168,7 +168,7 @@ const Beekeeper = () => {
 	);
 
 	return (
-		<div className="w-full lg:h-full h-auto lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3">
+		<div className="w-full lg:h-full h-auto lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3 scrollbar-none">
 			<div className="lg:static sticky top-0 z-20 w-full bg-[#fffdf5] lg:bg-transparent lg:pb-0 pb-2">
 				<UserNav />
 			</div>

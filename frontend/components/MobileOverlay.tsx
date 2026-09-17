@@ -16,7 +16,7 @@ const MobileOverlay = ({ children }: { children: React.ReactNode }) => {
 				animate={{ y: 0 }}
 				exit={{ y: "100%" }}
 				transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				className="lg:hidden fixed inset-0 z-9999 bg-white h-full w-full overflow-y-auto">
+				className="lg:hidden fixed inset-0 z-9999 bg-white h-full w-full overflow-y-auto scrollbar-none">
 				{children}
 			</motion.div>
 		</AnimatePresence>,

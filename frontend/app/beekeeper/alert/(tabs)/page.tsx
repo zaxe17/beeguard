@@ -62,7 +62,7 @@ const Alert = () => {
 	);
 
 	return (
-		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3">
+		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
 					Loading alerts...

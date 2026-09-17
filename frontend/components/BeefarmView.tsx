@@ -10,7 +10,7 @@ import { Icon } from "@iconify/react";
 
 const BeefarmView = () => {
 	return (
-		<div className="w-full flex-1 overflow-scroll">
+		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none">
 			<div className="relative w-full lg:h-60 h-50">
 				{/* COVER PHOTO */}
 				<Image

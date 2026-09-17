@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
@@ -18,7 +18,13 @@ export const metadata: Metadata = {
 	title: "BeeGuard",
 	description: "Beekeeping management and swarm coordination platform",
 	manifest: "/manifest.json",
-	// themeColor: "#ffce1c",
+};
+
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
 };
 
 export default function RootLayout({
@@ -37,10 +43,6 @@ export default function RootLayout({
 					integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
 					crossOrigin="anonymous"
 					referrerPolicy="no-referrer"
-				/>
-				<meta
-					name="viewport"
-					content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
 				/>
 			</head>
 			<body className="min-h-full flex flex-col">

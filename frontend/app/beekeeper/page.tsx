@@ -230,7 +230,7 @@ const Beekeeper = () => {
 			)}
 
 			{/* LOWER CONTAINER */}
-			<div className="w-full lg:flex-1 flex lg:flex-row flex-col items-stretch lg:gap-3 gap-0 lg:min-h-0 min-h-150 px-0 pb-5">
+			<div className="w-full lg:flex-1 flex lg:flex-row flex-col items-stretch lg:gap-3 gap-0 lg:min-h-0 min-h-200 px-0">
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">

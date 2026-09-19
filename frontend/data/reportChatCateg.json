@@ -1,0 +1,34 @@
+[
+	{
+		"value": "spam",
+		"label": "Spam"
+	},
+	{
+		"value": "harassment",
+		"label": "Harassment or Bullying"
+	},
+	{
+		"value": "scam_or_fraud",
+		"label": "Scam or Fraud"
+	},
+	{
+		"value": "inappropriate_content",
+		"label": "Inappropriate Content"
+	},
+	{
+		"value": "hate_speech",
+		"label": "Hate Speech"
+	},
+	{
+		"value": "threats",
+		"label": "Threats or Violence"
+	},
+	{
+		"value": "impersonation",
+		"label": "Impersonation"
+	},
+	{
+		"value": "other",
+		"label": "Other"
+	}
+]

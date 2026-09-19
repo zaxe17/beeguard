@@ -1,27 +1,25 @@
 "use client";
 
+import { useModal } from "@/context/ModalContext";
 import { Icon } from "@iconify/react";
 import { motion } from "framer-motion";
 import React, { useRef, useState } from "react";
+
+type ModalType = "DeleteChat" | "ReportChat";
 
 type MenuTabProps = {
 	icon: string;
 	label: string;
 	onClick?: (e: React.MouseEvent) => void;
 	danger?: boolean;
+	modalName?: string;
 };
 
-const TabMenu = [
-	{ icon: "fluent:mail-unread-16-regular", label: "Mark as unread" },
-	{ icon: "fluent:archive-16-regular", label: "Archive" },
-	{ icon: "fluent:delete-12-regular", label: "Delete", danger: true },
-	{ icon: "tabler:message-report", label: "Report" },
-];
-
-const AddTabMenu = [
-	{ icon: "bx:image-add", label: "Image" },
-	{ icon: "fluent:archive-16-regular", label: "Location" },
-];
+// MOBILE — long-press bottom sheet
+type MessageBottomSheetProps = {
+	onClose: () => void;
+	onAction?: (label: string) => void;
+};
 
 type MessagePopupMenuProps = {
 	top?: number;
@@ -35,6 +33,28 @@ type MessagePopupContainerProps = {
 	translateX?: string;
 	children?: React.ReactNode;
 };
+
+const TabMenu = [
+	{ icon: "fluent:mail-unread-16-regular", label: "Mark as unread" },
+	{ icon: "fluent:archive-16-regular", label: "Archive" },
+	{
+		icon: "fluent:delete-12-regular",
+		label: "Delete",
+		danger: true,
+		modalName: "DeleteChat" as const,
+	},
+	{
+		icon: "tabler:message-report",
+		label: "Report",
+
+		modalName: "ReportChat" as const,
+	},
+];
+
+const AddTabMenu = [
+	{ icon: "bx:image-add", label: "Image" },
+	{ icon: "gravity-ui:location-arrow-fill", label: "Location" },
+];
 
 const MenuTab = ({ icon, label, onClick, danger }: MenuTabProps) => {
 	return (
@@ -71,6 +91,8 @@ export const MessagePopupMenu = ({
 	left,
 	onAction,
 }: MessagePopupMenuProps) => {
+	const { openModal } = useModal<ModalType>();
+
 	return (
 		<MessagePopupContainer
 			left={left}
@@ -85,6 +107,9 @@ export const MessagePopupMenu = ({
 					onClick={(e) => {
 						e.stopPropagation();
 						onAction?.(tabCon.label);
+						if (tabCon.modalName) {
+							openModal(tabCon.modalName);
+						}
 					}}
 				/>
 			))}
@@ -92,16 +117,12 @@ export const MessagePopupMenu = ({
 	);
 };
 
-// MOBILE — long-press bottom sheet
-type MessageBottomSheetProps = {
-	onClose: () => void;
-	onAction?: (label: string) => void;
-};
-
 export const MessageBottomSheet = ({
 	onClose,
 	onAction,
 }: MessageBottomSheetProps) => {
+	const { openModal } = useModal<ModalType>();
+
 	return (
 		<div className="fixed inset-0 z-1000 flex items-end pb-10">
 			<motion.div
@@ -131,6 +152,9 @@ export const MessageBottomSheet = ({
 						onClick={(e) => {
 							e.stopPropagation();
 							onAction?.(tabCon.label);
+							if (tabCon.modalName) {
+								openModal(tabCon.modalName);
+							}
 						}}
 						className={`flex items-center gap-3 w-full py-3 px-2 rounded-lg active:bg-[#fff4c7] ${tabCon.danger ? "text-red-600" : "text-[#4a2f00]"}`}>
 						<Icon icon={tabCon.icon} className="w-5 h-5" />

@@ -64,7 +64,7 @@ const FarmHives = () => {
 						hive="Laywone"
 						location="Layone"
 						lastCheck="August 7, 2026"
-						status="need attention"
+						status="needs attention"
 						yieldThisMonth="0.0kg"
 						hiveState="Active"
 					/>

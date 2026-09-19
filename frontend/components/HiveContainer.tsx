@@ -17,7 +17,7 @@ const HiveIcon = {
 		icon: Icons.hive,
 		color: "#ffdb4f",
 	},
-	need_attention: {
+	needs_attention: {
 		icon: Icons.hive3,
 		color: "#f89d36",
 	},
@@ -32,7 +32,7 @@ export type HiveProps = {
 	hive?: string;
 	location?: string;
 	lastCheck?: string;
-	status: "healthy" | "weak" | "need attention" | "diseased";
+	status: "healthy" | "weak" | "needs attention" | "diseased";
 	yieldThisMonth?: string;
 	hiveState?: string;
 	selected?: boolean;
@@ -55,7 +55,7 @@ export function mapHealthStatusToUi(health: HealthStatus): HiveProps["status"] {
 		case "Weak":
 			return "weak";
 		case "Needs Attention":
-			return "need attention";
+			return "needs attention";
 		case "Diseased":
 			return "diseased";
 		default:
@@ -101,7 +101,7 @@ export const HiveDetailsContainer = ({
 		<div className="flex flex-col gap-4 w-full max-w-md">
 			{/* QUEEN BEE REPLACEMENT WARNING */}
 			{(status === "weak" ||
-				status === "need attention" ||
+				status === "needs attention" ||
 				status === "diseased") && (
 				<div className="bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-2 flex flex-row gap-2 items-center justify-between">
 					<div className="flex items-center gap-2">

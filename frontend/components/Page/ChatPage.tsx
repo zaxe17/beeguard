@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { UserMessageCard, BubbleChat, DateTimeMessage } from "../ui/Chat";
@@ -8,6 +9,7 @@ import { SearchBar } from "../ui/Input";
 import { ProfilePhoto } from "../ProfilePhoto";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useQueryParamState } from "@/hooks/useQueryParamState";
+import { ChatOptionMenu } from "../popup/MessagePopup";
 
 type ChatUser = {
 	id: string;
@@ -30,7 +32,7 @@ type ChatDateSeparator = {
 
 type ChatEntry = ChatBubble | ChatDateSeparator;
 
-const users: ChatUser[] = [
+const initialUsers: ChatUser[] = [
 	{
 		id: "john-evans",
 		name: "John Evans Gutierrez",
@@ -131,6 +133,8 @@ const ChatPage = () => {
 	// get segment after "/" — "citizen", "admin", o "beekeeper"
 	const role = pathname.split("/")[1];
 
+	const [users, setUsers] = useState<ChatUser[]>(initialUsers);
+
 	const {
 		value: selectedId,
 		setValue: setChatParam,
@@ -143,8 +147,21 @@ const ChatPage = () => {
 		? (conversations[selectedId] ?? [])
 		: [];
 
+	const markAsRead = (userId: string) => {
+		setUsers((prev) =>
+			prev.map((u) => (u.id === userId ? { ...u, read: true } : u)),
+		);
+	};
+
+	const markAsUnread = (userId: string) => {
+		setUsers((prev) =>
+			prev.map((u) => (u.id === userId ? { ...u, read: false } : u)),
+		);
+	};
+
 	const handleSelectUser = (user: ChatUser) => {
 		setChatParam(user.id);
+		markAsRead(user.id);
 	};
 
 	const ConversationView = () => (
@@ -179,18 +196,17 @@ const ChatPage = () => {
 
 			{/* INPUT MESSAGE */}
 			<div className="w-full p-2 flex flex-row items-center gap-1 shrink-0">
-				<div className="w-8 h-8">
-					<Icon
-						icon="bitcoin-icons:photo-filled"
-						className="w-8 h-8"
-					/>
-				</div>
+				<ChatOptionMenu />
+
 				<textarea
 					placeholder="Message..."
 					className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
 				/>
 				<div className="w-8 h-8">
-					<Icon icon="basil:send-solid" className="w-8 h-8" />
+					<Icon
+						icon="basil:send-solid"
+						className="w-8 h-8 text-[#ffdb4f]"
+					/>
 				</div>
 			</div>
 		</>
@@ -219,6 +235,7 @@ const ChatPage = () => {
 								name={u.name}
 								location={u.location}
 								message={u.message}
+								onMarkUnread={() => markAsUnread(u.id)}
 							/>
 						</div>
 					))}
@@ -278,12 +295,7 @@ const ChatPage = () => {
 
 						{/* INPUT MESSAGE */}
 						<div className="w-full p-2 flex flex-row items-center gap-1 shrink-0">
-							<div className="w-8 h-8">
-								<Icon
-									icon="bitcoin-icons:photo-filled"
-									className="w-8 h-8"
-								/>
-							</div>
+							<ChatOptionMenu />
 							<textarea
 								placeholder="Message..."
 								className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
@@ -291,7 +303,7 @@ const ChatPage = () => {
 							<div className="w-8 h-8">
 								<Icon
 									icon="basil:send-solid"
-									className="w-8 h-8"
+									className="w-8 h-8 text-[#ffdb4f]"
 								/>
 							</div>
 						</div>

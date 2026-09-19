@@ -641,7 +641,7 @@ type ViewHistoryProps = ModalProps & {
 		hiveId: string;
 		hive: string;
 		species: string;
-		status: "healthy" | "weak" | "need attention" | "diseased";
+		status: "healthy" | "weak" | "needs attention" | "diseased";
 		hiveState: string;
 	};
 };

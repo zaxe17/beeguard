@@ -9,10 +9,39 @@ import ReportDetails from "../ReportDetails";
 import { ProfilePhoto } from "../ProfilePhoto";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { useModal } from "@/context/ModalContext";
 
 type ReportModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
+};
+
+type ModalType = "BeeReport";
+type ReportStatus = "pending" | "progress" | "resolved" | "rejected";
+
+const renderActions = (status: ReportStatus) => {
+	switch (status) {
+		case "pending":
+			return (
+				<>
+					<Button label="Offer" width="w-40" />
+					<Button label="Message" width="w-40" />
+				</>
+			);
+		case "progress":
+			return (
+				<>
+					<Button label="Message" width="w-40" />
+					<Button label="Mark as Resolved" width="w-45" />
+				</>
+			);
+		case "resolved":
+			return <Button label="Message" width="w-40" />;
+		case "rejected":
+			return <Button label="Rejected" width="w-40" disabled />;
+		default:
+			return null;
+	}
 };
 
 // ===== BEEKEEPER SIDE =====
@@ -126,11 +155,11 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 	);
 };
 
-const BeeReportContent = () => {
+const BeeReportContent = ({ status }: { status: ReportStatus }) => {
 	return (
 		<>
 			<ReportDetails
-				status="resolved"
+				status={status}
 				reportId="BG-2026-001"
 				specification="Apis cerana / Asian Honey Bee"
 				location="Payatas, Quezon City"
@@ -145,10 +174,12 @@ const BeeReportContent = () => {
 					<span className="Poppins-SemiBold text-[#817b70]">
 						Reported By
 					</span>
-					<span className="Poppins-SemiBold text-[#817b70]">
-						Amount Offer:{" "}
-						<span className="text-[#ff9a00]">PHP 5,000</span>
-					</span>
+					{status === "pending" && (
+						<span className="Poppins-SemiBold text-[#817b70]">
+							Amount Offer:{" "}
+							<span className="text-[#ff9a00]">PHP 5,000</span>
+						</span>
+					)}
 				</div>
 
 				<div className="w-full flex lg:flex-row flex-col items-center gap-3 p-2 rounded-xl">
@@ -166,8 +197,8 @@ const BeeReportContent = () => {
 						</div>
 					</div>
 
-					<div className="lg:ml-auto lg:pr-3 lg:w-auto w-full flex gap-2">
-						<Button label="Message" width="150px w-full" />
+					<div className="lg:ml-auto lg:pr-3 lg:w-auto w-full flex items-center gap-2">
+						{renderActions(status)}
 					</div>
 				</div>
 			</div>
@@ -177,8 +208,11 @@ const BeeReportContent = () => {
 
 export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 	const isDesktop = useIsDesktop();
+	const { payload } = useModal<ModalType, { status: string }>();
 
 	if (!isOpen) return null;
+
+	const status = (payload?.status ?? "pending") as ReportStatus;
 
 	if (isDesktop) {
 		return (
@@ -188,7 +222,7 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 				height="lg:h-5/6 h-full"
 				header="Report Details"
 				onClose={onClose}>
-				<BeeReportContent />
+				<BeeReportContent status={status} />
 			</ModalContainer>
 		);
 	}
@@ -210,7 +244,7 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 			</div>
 
 			<div className="flex flex-col gap-6 py-6 px-4 w-full max-w-full overflow-x-hidden">
-				<BeeReportContent />
+				<BeeReportContent status={status} />
 			</div>
 		</MobileOverlay>
 	);

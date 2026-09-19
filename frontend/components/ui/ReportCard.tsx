@@ -35,11 +35,9 @@ export const reportStatus = {
 type ModalType = "BeeReport";
 
 export const ReportCard = ({ status, onClick }: ReportProps) => {
-	const { openModal } = useModal<ModalType>();
-
 	return (
 		<div
-			onClick={() => openModal("BeeReport")}
+			onClick={onClick}
 			className="border border-transparent transition-all duration-150 ease-in hover:border-[#e2e2e6] hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] hover:bg-[#fff1ad]/40 hover:scale-101 rounded-xl p-1.75 flex items-center gap-3 w-full">
 			{/* BEE PICTURE */}
 			<div className="border border-amber-100 w-30 h-full rounded-md overflow-hidden">

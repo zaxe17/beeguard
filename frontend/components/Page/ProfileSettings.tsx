@@ -4,7 +4,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Container, FormContainer } from "../ui/Container";
 import { ProfileDisplay } from "../Users";
 import { PrivacyPolicyPage, TermsConditionPage } from "./TermsCondition";
-import { Input } from "../ui/Input";
+import { Input, Select } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { SettingsTabs, SwitchTab } from "../Tab";
 import { Icon } from "@iconify/react";
@@ -12,20 +12,29 @@ import MobileOverlay from "../MobileOverlay";
 import { Suspense } from "react";
 import Link from "next/link";
 
-type ViewKey = "main" | "settings" | "about";
-type DetailKey = "personal" | "password" | "privacy" | "terms" | null;
+type ViewKey = "main" | "settings" | "about" | "verify";
+type DetailKey =
+	| "personal"
+	| "password"
+	| "privacy"
+	| "terms"
+	| "verify"
+	| null;
 
 const DETAIL_TITLES: Record<Exclude<DetailKey, null>, string> = {
 	personal: "Personal Information",
 	password: "Change Password",
 	privacy: "Privacy Policy",
 	terms: "Terms & Conditions",
+	verify: "Verify Your Account",
 };
 
 const MainProfileSettings = ({
 	onSelect,
+	onSelectDetail,
 }: {
 	onSelect: (view: ViewKey) => void;
+	onSelectDetail: (detail: DetailKey) => void;
 }) => {
 	return (
 		<Container
@@ -35,6 +44,7 @@ const MainProfileSettings = ({
 			<ProfileDisplay
 				name="Jan Marc S. Jacolbia"
 				email="janmarcsjacolbia17@gmail.com"
+				onClick={() => onSelectDetail("verify")}
 			/>
 			<div className="w-full h-full flex justify-center mt-5">
 				<div className="lg:w-2/3 w-full h-full flex flex-col gap-3">
@@ -48,7 +58,7 @@ const MainProfileSettings = ({
 						icon="fa7-solid:circle-info"
 						onClick={() => onSelect("about")}
 					/>
-					<Link href="/" className="mt-auto mb-10">
+					<Link href="/" className="mt-auto mb-3">
 						<SettingsTabs
 							label="Log Out"
 							icon="heroicons-outline:logout"
@@ -197,6 +207,42 @@ const ChangePassword = () => {
 	);
 };
 
+const VerifyBeekeeperForm = () => {
+	return (
+		<FormContainer width="lg:w-2/3 w-full">
+			<h1 className="Poppins-Bold text-[#4a2f00] text-center text-3xl">
+				Verify Your Account
+			</h1>
+
+			<div className="flex flex-col gap-3 my-10">
+				<div className="flex flex-row gap-3">
+					<Input label="Full Name" value="Jan Marc Jacolbia" />
+					<Input label="Username" value="zaxe" />
+				</div>
+				<Input label="Email" value="janmarcsjacolbia17@gmail.com" />
+				<Input label="Phone Number" value="+63 912 345 6789" />
+				<Input label="Location" value="Manila, Philippines" />
+				<div className="flex flex-row gap-3 items-end">
+					<Select
+						label="Type of Document"
+						placeholder="Select Document"
+					/>
+
+					<span className="Poppins-SemiBold text-nowrap py-1 text-sm text-[#737373] flex items-center gap-1 cursor-pointer">
+						Upload File{" "}
+						<Icon
+							icon="basil:upload-solid"
+							className="w-6 h-6 mb-1"
+						/>
+					</span>
+				</div>
+			</div>
+
+			<Button label="Submit" />
+		</FormContainer>
+	);
+};
+
 const ProfileSettingsContent = () => {
 	const searchParams = useSearchParams();
 	const router = useRouter();
@@ -225,7 +271,12 @@ const ProfileSettingsContent = () => {
 				return <About onSelectDetail={setDetail} />;
 			case "main":
 			default:
-				return <MainProfileSettings onSelect={setView} />;
+				return (
+					<MainProfileSettings
+						onSelect={setView}
+						onSelectDetail={setDetail}
+					/>
+				);
 		}
 	};
 
@@ -239,6 +290,8 @@ const ProfileSettingsContent = () => {
 				return <PrivacyPolicyPage />;
 			case "terms":
 				return <TermsConditionPage />;
+			case "verify":
+				return <VerifyBeekeeperForm />;
 			default:
 				return null;
 		}

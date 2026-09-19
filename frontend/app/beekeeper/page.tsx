@@ -236,7 +236,8 @@ const Beekeeper = () => {
 						<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Operations{" "}
 							<span
-								className={`text-xs text-[#ffce1c] cursor-pointer ${beefarms.length > 0 ? "block" : "hidden"}`}>
+								className={`text-xs text-[#ffce1c] cursor-pointer ${beefarms.length > 0 ? "block" : "hidden"}`}
+								onClick={() => router.push("/beekeeper/report")}>
 								view all
 							</span>
 						</span>

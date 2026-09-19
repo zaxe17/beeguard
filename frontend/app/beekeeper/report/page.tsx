@@ -58,7 +58,10 @@ const BeekeeperReportsInner = () => {
 							)
 							.map((status, i) => (
 								<ReportCard
-									onClick={() => openModal("BeeReport")}
+									onClick={() => {
+										console.log("CLICKED:", status);
+										openModal("BeeReport", { status });
+									}}
 									key={`${status}-${i}`}
 									status={status}
 								/>

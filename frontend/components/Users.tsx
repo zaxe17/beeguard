@@ -15,6 +15,7 @@ type UserProp = {
 type ProfileDisplayProps = {
 	name?: string;
 	email?: string;
+	onClick?: () => void;
 };
 
 export const Users = ({ name, role, email, phoneNo, status }: UserProp) => {
@@ -31,7 +32,9 @@ export const Users = ({ name, role, email, phoneNo, status }: UserProp) => {
 
 			{/* NAME AND OFFER */}
 			<div className="">
-				<h3 className="Poppins-SemiBold lg:text-lg text-sm capitalize">{name}</h3>
+				<h3 className="Poppins-SemiBold lg:text-lg text-sm capitalize">
+					{name}
+				</h3>
 				<p className="Poppins-SemiBold text-xs text-[#817b70] capitalize">
 					{role}
 				</p>
@@ -49,7 +52,11 @@ export const Users = ({ name, role, email, phoneNo, status }: UserProp) => {
 	);
 };
 
-export const ProfileDisplay = ({ name, email }: ProfileDisplayProps) => {
+export const ProfileDisplay = ({
+	name,
+	email,
+	onClick,
+}: ProfileDisplayProps) => {
 	const location = usePathname();
 	const pathName = location === "/beekeeper/profile";
 
@@ -64,8 +71,11 @@ export const ProfileDisplay = ({ name, email }: ProfileDisplayProps) => {
 			<div className="">
 				<h3 className="Poppins-SemiBold text-xl capitalize">{name}</h3>
 				<p className="text-xs text-[#817b70]">{email}</p>
+
+				{/* FOR VERIFY BEEKEEPER BUTTON */}
 				<div className={`mt-3 ${pathName ? "block" : "hidden"}`}>
 					<Button
+						onClick={onClick}
 						width="70%"
 						textSize="text-xs"
 						label="Verify Account"

@@ -1,4 +1,8 @@
+import { Icon } from "@iconify/react";
+import { useRef, useState } from "react";
 import { ProfilePhoto } from "../ProfilePhoto";
+import { MessagePopupMenu, MessageBottomSheet } from "../popup/MessagePopup";
+import { AnimatePresence } from "framer-motion";
 
 type UserMessCardProp = {
 	read?: boolean;
@@ -6,6 +10,7 @@ type UserMessCardProp = {
 	name?: string;
 	location?: string;
 	message?: string;
+	onMarkUnread?: () => void;
 };
 
 type BubbleChatProps = {
@@ -13,16 +18,70 @@ type BubbleChatProps = {
 	messages: string[];
 };
 
-// USER MESSAGE CARD
+const LONG_PRESS_MS = 450;
+
 export const UserMessageCard = ({
 	read,
 	active,
 	name,
 	location,
 	message,
+	onMarkUnread,
 }: UserMessCardProp) => {
+	const [menuPos, setMenuPos] = useState<{
+		top: number;
+		left: number;
+	} | null>(null);
+	const [sheetOpen, setSheetOpen] = useState(false);
+	const buttonRef = useRef<HTMLDivElement>(null);
+	const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const longPressFired = useRef(false);
+
+	const toggleMenu = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (menuPos) {
+			setMenuPos(null);
+			return;
+		}
+		const rect = buttonRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setMenuPos({
+			top: rect.bottom + 6,
+			left: rect.left + rect.width / 2,
+		});
+	};
+
+	const handleAction = (label: string) => {
+		if (label === "Mark as unread") {
+			onMarkUnread?.();
+		}
+		// TODO: Archive / Delete / Report cases
+		setMenuPos(null);
+		setSheetOpen(false);
+	};
+
+	const startPress = () => {
+		longPressFired.current = false;
+		pressTimer.current = setTimeout(() => {
+			longPressFired.current = true;
+			setSheetOpen(true);
+		}, LONG_PRESS_MS);
+	};
+
+	const cancelPress = () => {
+		if (pressTimer.current) {
+			clearTimeout(pressTimer.current);
+			pressTimer.current = null;
+		}
+	};
+
 	return (
-		<div className="flex items-center gap-3 rounded-lg p-2 cursor-pointer">
+		<div
+			className="group flex items-center gap-3 rounded-lg p-2 cursor-pointer select-none"
+			onTouchStart={startPress}
+			onTouchEnd={cancelPress}
+			onTouchMove={cancelPress}
+			onContextMenu={(e) => e.preventDefault()}>
 			<div className="relative">
 				<div className="relative w-15 h-15">
 					<ProfilePhoto />
@@ -31,7 +90,6 @@ export const UserMessageCard = ({
 					className={`absolute bottom-0 right-0 ${active ? "bg-[#8ac44f]" : "bg-[#e2e2e6]"} w-4 h-4 rounded-full border-2 border-white`}></div>
 			</div>
 
-			{/* DISPLAY INFO */}
 			<div className="w-full flex-1 flex flex-col justify-between">
 				<h3
 					className={`${read ? "Poppins-SemiBold text-[#494949]" : "Poppins-Bold"} text-sm`}>
@@ -46,11 +104,47 @@ export const UserMessageCard = ({
 					{message}
 				</span>
 			</div>
+
+			<div className="relative hidden group-hover:block" ref={buttonRef}>
+				<div
+					onClick={toggleMenu}
+					className="relative w-7 h-7 p-1.5 bg-amber-200 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
+					<Icon
+						icon="akar-icons:more-horizontal"
+						className="w-full h-full text-[#ffa004]"
+					/>
+				</div>
+
+				{menuPos && (
+					<>
+						<div
+							className="fixed inset-0 z-999"
+							onClick={(e) => {
+								e.stopPropagation();
+								setMenuPos(null);
+							}}
+						/>
+						<MessagePopupMenu
+							top={menuPos.top}
+							left={menuPos.left}
+							onAction={handleAction}
+						/>
+					</>
+				)}
+			</div>
+
+			<AnimatePresence>
+				{sheetOpen && (
+					<MessageBottomSheet
+						onClose={() => setSheetOpen(false)}
+						onAction={handleAction}
+					/>
+				)}
+			</AnimatePresence>
 		</div>
 	);
 };
 
-// DATE AND TIME
 export const DateTimeMessage = () => {
 	return (
 		<div className="w-full flex justify-center mt-2">
@@ -61,25 +155,21 @@ export const DateTimeMessage = () => {
 	);
 };
 
-// BUBBLE CHAT
 export const BubbleChat = ({ sender, messages }: BubbleChatProps) => {
 	const isUser = sender === "user";
 
 	return (
 		<div
 			className={`flex items-end gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-			{/* PROFILE PIC */}
 			<div className="relative w-8 h-8 shrink-0">
 				<ProfilePhoto />
 			</div>
-
-			{/* MESSAGES */}
 			<div
 				className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
 				{messages.map((msg, i) => (
 					<div
 						key={i}
-						className={`max-w-100 ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
+						className={`max-w-100 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
 						<p className="text-sm">{msg}</p>
 					</div>
 				))}

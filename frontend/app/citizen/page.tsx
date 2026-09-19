@@ -1,3 +1,5 @@
+"use client";
+
 import Image, { StaticImageData } from "next/image";
 import { Button } from "@/components/ui/Button";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
@@ -7,8 +9,11 @@ import bee_report from "@/public/assets/bee_report.png";
 
 // NEARBY FARM EXAMPLE DATA
 import nearbyFarms from "@/data/beefarms.json";
+import { useRouter } from "next/navigation";
 
 const Home = () => {
+	const router = useRouter();
+
 	return (
 		<div className="w-full h-full lg:p-5 p-0 flex items-start flex-col gap-3">
 			{/* USER NAVIGAATION BAAR */}
@@ -46,8 +51,13 @@ const Home = () => {
 				</div>
 
 				<div className="w-full flex flex-col items-start">
-					<span className="text-lg text-[#817b70] font-bold">
+					<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 						Nearby Bee Farms
+						<span
+							className={`text-base text-[#ffce1c] cursor-pointer ${nearbyFarms.length > 0 ? "block" : "hidden"}`}
+							onClick={() => router.push("/citizen/beefarm")}>
+							view all
+						</span>
 					</span>
 
 					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">

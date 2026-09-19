@@ -133,14 +133,15 @@ export const Select = ({
 	value,
 	onSelectChange,
 	error,
-	disabled, // NEW
+	disabled,
+	placeholder,
 }: SelectProps) => {
 	return (
 		<div className="flex flex-col w-full gap-1">
 			<label
 				htmlFor=""
 				className={`lg:text-base text-sm ${
-					error ? "text-red-600" : "text-black"
+					error ? "text-red-600" : "text-[#4a2f00]"
 				}`}>
 				{label}
 			</label>
@@ -150,13 +151,13 @@ export const Select = ({
 				value={value}
 				onChange={onSelectChange}
 				disabled={disabled}
-				className={`w-full h-10 border capitalize ${
+				className={`text-sm w-full lg:h-8 h-10 px-2.5 border capitalize ${
 					error ? "border-red-600" : "border-[#a6a3a3]"
 				} outline-0 rounded-lg bg-white/70 lg:text-base text-xs ${
 					disabled ? "opacity-60 cursor-not-allowed" : ""
 				}`}
 				style={{ width: `${width}px`, height: `${height}px` }}>
-				<option value=""></option>
+				<option value="">{placeholder}</option>
 
 				{options
 					?.filter(

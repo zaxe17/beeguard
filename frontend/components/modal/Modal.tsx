@@ -126,7 +126,7 @@ export const ModalContainer = ({
 								className="w-full h-full text-[#4A2F00]"
 							/>
 						</div>
-						<h1 className="Poppins-Bold relative lg:text-2xl text-xl text-[#4A2F00]">
+						<h1 className="Poppins-Bold relative lg:text-2xl text-lg text-[#4A2F00]">
 							{header}
 						</h1>
 					</div>

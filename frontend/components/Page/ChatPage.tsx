@@ -195,7 +195,7 @@ const ChatPage = () => {
 			</div>
 
 			{/* INPUT MESSAGE */}
-			<div className="w-full p-2 flex flex-row items-center gap-1 shrink-0">
+			<div className="w-full p-2 mb-3 flex flex-row items-center gap-1 shrink-0">
 				<ChatOptionMenu />
 
 				<textarea
@@ -294,7 +294,7 @@ const ChatPage = () => {
 						</div>
 
 						{/* INPUT MESSAGE */}
-						<div className="w-full p-2 flex flex-row items-center gap-1 shrink-0">
+						<div className="w-full p-2 mb-3 flex flex-row items-center gap-1 shrink-0">
 							<ChatOptionMenu />
 							<textarea
 								placeholder="Message..."

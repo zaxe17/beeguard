@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
+import { Delete, Report } from "@/components/modal/ChatModal";
 
 type ModalType =
 	| "addHive"
@@ -11,7 +12,9 @@ type ModalType =
 	| "generate"
 	| "addAlert"
 	| "viewHistory"
-	| "replace";
+	| "replace"
+	| "DeleteChat"
+	| "ReportChat";
 
 type HivePayload = { hiveId: string };
 
@@ -37,6 +40,9 @@ const AdminLayoutContent = ({ children }: { children: React.ReactNode }) => {
 			</main>
 
 			{/* PUT MODAL HERE FOR ADMIN */}
+			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
+
+			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
 		</div>
 	);
 };

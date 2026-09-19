@@ -4,8 +4,9 @@ import React, { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { BeeIdentify, SwarmNotice } from "@/components/modal/ReportModal";
 import { ModalProvider, useModal } from "@/context/ModalContext";
+import { Delete, Report } from "@/components/modal/ChatModal";
 
-type ModalType = "beeIdentify" | "swarmNotice";
+type ModalType = "beeIdentify" | "swarmNotice" | "DeleteChat" | "ReportChat";
 
 const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 	const { isModalOpen, closeModal } = useModal<ModalType>();
@@ -28,6 +29,10 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 				isOpen={isModalOpen("swarmNotice")}
 				onClose={closeModal}
 			/>
+
+			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
+
+			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
 		</div>
 	);
 };

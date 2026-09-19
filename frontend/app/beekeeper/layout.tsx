@@ -15,6 +15,7 @@ import { ModalProvider, useModal } from "@/context/ModalContext";
 import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
 import { WarningQueenReplacment } from "@/components/popup/PopUp";
+import { Delete, Report } from "@/components/modal/ChatModal";
 
 type ModalType =
 	| "addHive"
@@ -24,7 +25,9 @@ type ModalType =
 	| "addAlert"
 	| "viewHistory"
 	| "replace"
-	| "BeeReport";
+	| "BeeReport"
+	| "DeleteChat"
+	| "ReportChat";
 
 type HivePayload = { hiveId: string };
 
@@ -143,6 +146,10 @@ const BeekeeperLayoutContent = ({
 			<WarningQueenReplacment onClose={closeModal} />
 
 			<BeeReport isOpen={isModalOpen("BeeReport")} onClose={closeModal} />
+
+			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
+			
+			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
 		</div>
 	);
 };

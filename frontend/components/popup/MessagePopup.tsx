@@ -61,10 +61,10 @@ const MenuTab = ({ icon, label, onClick, danger }: MenuTabProps) => {
 		<div
 			onClick={onClick}
 			className={`flex items-center gap-2 w-full py-1 px-1 cursor-pointer transition-all duration-105 ease-in-out hover:bg-[#fff4c7] rounded-sm ${danger ? "text-red-600" : "text-[#4a2f00]"}`}>
-			<div className="w-4 h-4">
-				<Icon icon={icon} className="w-4 h-4" />
+			<div className="w-5 h-5">
+				<Icon icon={icon} className="w-5 h-5" />
 			</div>
-			<label className="text-sm font-medium cursor-pointer">
+			<label className="text-base font-medium cursor-pointer">
 				{label}
 			</label>
 		</div>
@@ -190,10 +190,10 @@ export const ChatOptionMenu = () => {
 
 	return (
 		<div className="relative" ref={buttonRef}>
-			<div onClick={toggleMenu} className="w-8 h-8 cursor-pointer">
+			<div onClick={toggleMenu} className="w-10 h-10 cursor-pointer">
 				<Icon
 					icon="basil:add-solid"
-					className="w-8 h-8 text-[#ffdb4f]"
+					className="w-10 h-10 text-[#ffdb4f]"
 				/>
 			</div>
 

@@ -117,7 +117,7 @@ const Beekeeper = () => {
 		},
 	];
 
-	const reportStatuses = ["pending", "progress", "resolved"] as const;
+	const reportStatuses = ["pending", "in-progress", "resolved"] as const;
 
 	return (
 		<div className="w-full h-full lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3 lg:scrollbar-auto scrollbar-none">

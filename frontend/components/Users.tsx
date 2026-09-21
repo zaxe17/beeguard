@@ -24,7 +24,7 @@ export const Users = ({ name, role, email, phoneNo, status }: UserProp) => {
 
 	return (
 		<div
-			className={`w-full flex items-start gap-3 p-2 transition-all duration-150 ease-in rounded-xl ${pathname ? "" : "hover:bg-[#fff1ad]/40 hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]"} `}>
+			className={`w-full flex items-start gap-3 p-2 transition-all duration-130 ease-in rounded-xl ${pathname ? "" : "hover:bg-[#fff1ad]/40 hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]"} `}>
 			{/* PROFILE */}
 			<div className="lg:w-20 w-11 lg:h-20 h-11">
 				<ProfilePhoto />
@@ -61,7 +61,7 @@ export const ProfileDisplay = ({
 	const pathName = location === "/beekeeper/profile";
 
 	return (
-		<div className="w-full flex items-center gap-3 p-2 transition-all duration-150 ease-in rounded-xl">
+		<div className="w-full flex items-center gap-3 p-2 transition-all duration-130 ease-in rounded-xl">
 			{/* PROFILE */}
 			<div className="w-20 h-20">
 				<ProfilePhoto />

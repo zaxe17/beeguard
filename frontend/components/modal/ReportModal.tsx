@@ -10,21 +10,42 @@ import { ProfilePhoto } from "../ProfilePhoto";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useModal } from "@/context/ModalContext";
+import { StarRating } from "../ui/StarRating";
+import { Input } from "../ui/Input";
 
 type ReportModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 };
 
+type ReportOfferModalProps = {
+	isOpen: boolean;
+	onClose: () => void;
+	onSubmit: (amount: number) => void;
+};
+
+// "ReportOffer" is no longer a global modal type — it's nested
+// locally inside BeeReportContent instead.
 type ModalType = "BeeReport";
 type ReportStatus = "pending" | "progress" | "resolved" | "rejected";
 
-const renderActions = (status: ReportStatus) => {
+// plain function — cannot call hooks. Takes a ready-made click handler instead.
+const renderActions = (
+	status: ReportStatus,
+	hasOffered: boolean,
+	onOfferClick: () => void,
+) => {
 	switch (status) {
 		case "pending":
 			return (
 				<>
-					<Button label="Offer" width="w-40" />
+					<Button
+						label={hasOffered ? "Offered" : "Offer"}
+						width="w-40"
+						onClick={hasOffered ? undefined : onOfferClick}
+						disabled={hasOffered}
+						bgNone={hasOffered}
+					/>
 					<Button label="Message" width="w-40" />
 				</>
 			);
@@ -36,30 +57,37 @@ const renderActions = (status: ReportStatus) => {
 				</>
 			);
 		case "resolved":
-			return <Button label="Message" width="w-40" />;
+			return <Button label="Message" width="lg:w-40 w-full" />;
 		case "rejected":
-			return <Button label="Rejected" width="w-40" disabled />;
+			return <Button label="Rejected" width="lg:w-40 w-full" disabled />;
+		default:
+			return null;
+	}
+};
+
+const renderRated = (status: ReportStatus) => {
+	const [rating, setRating] = useState(0);
+
+	switch (status) {
+		case "resolved":
+			return (
+				<span className="text-sm text-[#a6a3a3] flex items-center gap-1">
+					Rated you
+					<StarRating value={rating} onChange={setRating} />
+				</span>
+			);
 		default:
 			return null;
 	}
 };
 
 // ===== BEEKEEPER SIDE =====
-/**
- * Replaces the old "confirm then immediately download" flow: this
- * modal fetches the PDF as a Blob, renders it in an <iframe> so the
- * beekeeper can preview it first, and only writes it to disk when
- * they explicitly click "Download" — no second network request needed
- * since we already have the Blob from the preview fetch.
- */
 export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 	const [loading, setLoading] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [blob, setBlob] = useState<Blob | null>(null);
 
-	// Fetch a fresh preview every time the modal opens; revoke the
-	// object URL on close so we don't leak memory across repeated opens.
 	useEffect(() => {
 		if (!isOpen) {
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -130,10 +158,6 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 						<p className="text-sm text-red-600">{errorMsg}</p>
 					</div>
 				) : previewUrl ? (
-					// #toolbar=1&navpanes=0 keeps the toolbar (zoom/page
-					// controls) but tells the browser's built-in PDF
-					// viewer to collapse the page-thumbnail sidebar by
-					// default, so only the main page shows.
 					<iframe
 						src={`${previewUrl}#toolbar=1&navpanes=0`}
 						title="Yield report preview"
@@ -156,6 +180,16 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 };
 
 const BeeReportContent = ({ status }: { status: ReportStatus }) => {
+	const [hasOffered, setHasOffered] = useState(false);
+	const [offerAmount, setOfferAmount] = useState<number | null>(null);
+	const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+
+	const handleOfferSubmit = (amount: number) => {
+		setOfferAmount(amount);
+		setHasOffered(true);
+		setIsOfferModalOpen(false);
+	};
+
 	return (
 		<>
 			<ReportDetails
@@ -174,12 +208,16 @@ const BeeReportContent = ({ status }: { status: ReportStatus }) => {
 					<span className="Poppins-SemiBold text-[#817b70]">
 						Reported By
 					</span>
-					{status === "pending" && (
-						<span className="Poppins-SemiBold text-[#817b70]">
-							Amount Offer:{" "}
-							<span className="text-[#ff9a00]">PHP 5,000</span>
-						</span>
-					)}
+					{status === "pending" &&
+						hasOffered &&
+						offerAmount !== null && (
+							<span className="Poppins-SemiBold text-[#817b70]">
+								Amount Offer:{" "}
+								<span className="text-[#ff9a00]">
+									PHP {offerAmount.toLocaleString()}
+								</span>
+							</span>
+						)}
 				</div>
 
 				<div className="w-full flex lg:flex-row flex-col items-center gap-3 p-2 rounded-xl">
@@ -191,17 +229,26 @@ const BeeReportContent = ({ status }: { status: ReportStatus }) => {
 							<h3 className="Poppins-SemiBold text-base">
 								John Evans Gutierrez
 							</h3>
-							<span className="text-sm text-[#a6a3a3]">
-								Citizen
-							</span>
+							<p className="text-sm text-[#a6a3a3]">Citizen</p>
+							{renderRated(status)}
 						</div>
 					</div>
 
 					<div className="lg:ml-auto lg:pr-3 lg:w-auto w-full flex items-center gap-2">
-						{renderActions(status)}
+						{renderActions(status, hasOffered, () =>
+							setIsOfferModalOpen(true),
+						)}
 					</div>
 				</div>
 			</div>
+
+			{/* nested modal — hindi galing sa global ModalContext,
+			    kaya hindi na siya nagsasara ng BeeReport */}
+			<ReportOfferModal
+				isOpen={isOfferModalOpen}
+				onClose={() => setIsOfferModalOpen(false)}
+				onSubmit={handleOfferSubmit}
+			/>
 		</>
 	);
 };
@@ -250,8 +297,54 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 	);
 };
 
+// standalone component na tumatanggap ng onSubmit prop —
+// hindi na umaasa sa global ModalContext
+export const ReportOfferModal = ({
+	isOpen,
+	onClose,
+	onSubmit,
+}: ReportOfferModalProps) => {
+	const [amount, setAmount] = useState("");
+
+	useEffect(() => {
+		if (isOpen) setAmount("");
+	}, [isOpen]);
+
+	const parsed = Number(amount);
+	const isValid = amount.trim() !== "" && !Number.isNaN(parsed) && parsed > 0;
+
+	const handleSubmit = () => {
+		if (!isValid) return;
+		onSubmit(parsed);
+	};
+
+	return (
+		<ModalContainer
+			open={isOpen}
+			width="lg:w-1/4 w-full"
+			header="Make an Offer"
+			onClose={onClose}>
+			<div className="flex flex-col gap-3">
+				<Input
+					type="number"
+					placeholder="Enter amount (PHP)"
+					value={amount}
+					onChange={(e) => setAmount(e.target.value)}
+				/>
+				<div className="w-full flex gap-3">
+					<CancelButton onClick={onClose} />
+					<Button
+						label="Submit Offer"
+						onClick={handleSubmit}
+						disabled={!isValid}
+					/>
+				</div>
+			</div>
+		</ModalContainer>
+	);
+};
+
 // ===== CITIZEN SIDE ======
-// BEE SPECIES IDENTIFY
 export const BeeIdentify = ({ isOpen, onClose }: ReportModalProps) => {
 	return (
 		<ModalContainer
@@ -264,12 +357,10 @@ export const BeeIdentify = ({ isOpen, onClose }: ReportModalProps) => {
 					You are seeing:
 				</span>
 
-				{/* BEE SPECIES NAME */}
 				<span className="py-1 px-5 flex justify-center items-center border-2 border-[#ffce1c] rounded-lg text-center text-[#4a2f00] text-lg">
 					Apis Cerana / Asian Honey Bee
 				</span>
 
-				{/* ACCURACY */}
 				<div className="text-[#00cc00] flex justify-center items-center gap-1 mt-3">
 					<span className="Poppins-Bold text-6xl">97%</span>
 					<div className="flex flex-col">
@@ -289,7 +380,6 @@ export const BeeIdentify = ({ isOpen, onClose }: ReportModalProps) => {
 					</div>
 				</div>
 
-				{/* BUTTON */}
 				<div className="w-full flex gap-3 mt-5">
 					<CancelButton onClick={onClose} />
 					<Button label="Submit Photo" />
@@ -318,7 +408,6 @@ export const SwarmNotice = ({ isOpen, onClose }: ReportModalProps) => {
 					Do you wish to continue?
 				</h3>
 
-				{/* BUTTON */}
 				<div className="w-full flex gap-3 mt-5">
 					<CancelButton onClick={onClose} />
 					<Button label="Continue" />

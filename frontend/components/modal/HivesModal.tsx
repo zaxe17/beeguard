@@ -177,6 +177,7 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 		<ModalContainer
 			open={isOpen}
 			width="lg:w-1/3 w-full"
+			height="lg:max-h-full max-h-[80vh]"
 			header="Add New Hive"
 			onClose={onClose}>
 			<form
@@ -192,6 +193,7 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					value={beeSpecies}
 					onChange={(e) => setBeeSpecies(e.target.value)}
 				/>
+				<Input label="Queen Established Date" value={beeSpecies} />
 				<Input
 					label="Date Established"
 					type="date"
@@ -543,8 +545,8 @@ export const AddYield = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="lg:w-1/4 w-full"
-			height="max-h-[80vh]"
+			width="lg:w-1/3 w-full"
+			height="lg:max-h-full max-h-[80vh]"
 			header="Add Yield"
 			onClose={onClose}>
 			<form

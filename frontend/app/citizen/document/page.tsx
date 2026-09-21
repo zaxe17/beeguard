@@ -26,7 +26,7 @@ const Offer = () => {
 	);
 };
 
-const Payment = ({ status }: { status: "progress" | "resolved" }) => {
+const Payment = ({ status }: { status: "in-progress" | "resolved" }) => {
 	const isResolved = status === "resolved";
 
 	return (

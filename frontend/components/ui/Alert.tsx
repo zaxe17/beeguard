@@ -24,14 +24,17 @@ const alertLevels = {
 	high: {
 		text: "#e63946",
 		bg: "#ff0000",
+		hoverBg: "#ffe0e0",
 	},
 	medium: {
 		text: "#f77f00",
 		bg: "#ff9a00",
+		hoverBg: "#ffedd1",
 	},
 	low: {
 		text: "#2d9d5f",
 		bg: "#00cc00",
+		hoverBg: "#dcf7e3",
 	},
 };
 
@@ -42,8 +45,6 @@ export const PesticideAlert = ({
 	status,
 	onClick,
 }: AlertProps) => {
-	const [isHovered, setIsHovered] = useState(false);
-
 	return (
 		<div
 			role={onClick ? "button" : undefined}
@@ -55,53 +56,55 @@ export const PesticideAlert = ({
 					onClick();
 				}
 			}}
-			className="px-3 flex items-start rounded-2xl border hover:bg-[#fff1ad]/60 transition-all duration-150 ease-in hover:scale-102 cursor-pointer"
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
-			style={{
-				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
-				borderColor: alertLevels[status].bg,
-				background: isHovered
-					? getHoverColor(`${alertLevels[status].bg}33`)
-					: "transparent",
-			}}>
-			<div className="w-full h-20 flex items-center gap-3">
-				<div className="w-15 h-15">
-					<Icon
-						icon="line-md:alert-twotone"
-						className="w-full h-full block"
-						style={{ color: alertLevels[status].bg }}
-					/>
-				</div>
+			className="group relative pb-1">
+			{/* PEEK BORDER */}
+			<div
+				className="absolute inset-x-0 top-1 bottom-0 rounded-2xl transition-all duration-150 ease-in group-hover:scale-102 cursor-pointer"
+				style={{ backgroundColor: alertLevels[status].bg }}
+			/>
 
-				{/* ALERT DETAILS */}
-				<div className="w-full flex flex-col text-[#817b70] text-xs capitalize">
-					<div className="flex justify-between items-center text-base">
-						<h3
-							className="Poppins-Bold text-black lg:text-base text-sm"
-							style={{
-								color: alertLevels[status].bg,
-							}}>
-							Pestiside Spraying Alert
-						</h3>
-
-						{/* ALERT STATUS */}
-						<span
-							className="Poppins-SemiBold w-18 text-xs text-center py-1 px-3 rounded-md"
-							style={{
-								color: alertLevels[status].bg,
-								background: `${alertLevels[status].bg}4D`,
-							}}>
-							{status}
-						</span>
+			{/* FRONT CARD */}
+			<div
+				className="relative px-3 flex items-start rounded-2xl border overflow-hidden transition-all duration-150 ease-in group-hover:scale-102 cursor-pointer shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] bg-(--idle-bg) group-hover:bg-(--hover-bg)"
+				style={
+					{
+						borderColor: alertLevels[status].bg,
+						"--idle-bg": "#fffdf5",
+						"--hover-bg": alertLevels[status].hoverBg,
+					} as React.CSSProperties
+				}>
+				<div className="w-full h-20 flex items-center gap-3">
+					<div className="w-15 h-15">
+						<Icon
+							icon="line-md:alert-twotone"
+							className="w-full h-full block"
+							style={{ color: alertLevels[status].bg }}
+						/>
 					</div>
 
-					{/* LOCATION */}
-					<span className="Poppins-SemiBold">{location}</span>
-					{/* DATE & TIME */}
-					<span className="Poppins-SemiBold">
-						{date} • {time}
-					</span>
+					<div className="w-full flex flex-col text-[#817b70] text-xs capitalize">
+						<div className="flex justify-between items-center text-base">
+							<h3
+								className="Poppins-Bold text-black lg:text-base text-sm"
+								style={{ color: alertLevels[status].bg }}>
+								Pestiside Spraying Alert
+							</h3>
+
+							<span
+								className="Poppins-SemiBold w-18 text-xs text-center py-1 px-3 rounded-md"
+								style={{
+									color: alertLevels[status].bg,
+									background: `${alertLevels[status].bg}4D`,
+								}}>
+								{status}
+							</span>
+						</div>
+
+						<span className="Poppins-SemiBold">{location}</span>
+						<span className="Poppins-SemiBold">
+							{date} • {time}
+						</span>
+					</div>
 				</div>
 			</div>
 		</div>

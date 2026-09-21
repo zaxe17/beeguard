@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 import { Delete, Report } from "@/components/modal/ChatModal";
+import AddAlert from "@/components/modal/AlertModal";
 
 type ModalType =
 	| "addHive"
@@ -43,6 +44,8 @@ const AdminLayoutContent = ({ children }: { children: React.ReactNode }) => {
 			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
 
 			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
+
+			<AddAlert open={isModalOpen("addAlert")} onClose={closeModal} />
 		</div>
 	);
 };

@@ -19,7 +19,7 @@ const tabs = [
 // USER INFORMATION
 const Information = () => {
 	return (
-		<FormContainer width="w-1/3">
+		<FormContainer width="lg:w-1/3 w-full">
 			<div className="flex flex-col gap-3">
 				<Input label="Full Name" />
 				<Input label="Username" />
@@ -40,16 +40,16 @@ const Information = () => {
 // USER FARM AND HIVE DETAILS
 const FarmHives = () => {
 	return (
-		<Container width="w-3/4">
+		<Container width="lg:w-3/4 w-full">
 			<div className="flex flex-col gap-3 h-full min-h-0">
 				<div className="w-full flex items-center justify-start">
-					<div className="w-1/3">
+					<div className="lg:w-1/3 w-full">
 						<Input label="Full Name" />
 						<Input label="Apiary Type" />
 					</div>
 				</div>
 
-				<div className="p-2 grid grid-cols-2 flex-1 gap-3 overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="lg:p-2 p-0 grid lg:grid-cols-2 grid-cols-1 flex-1 gap-3 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					<HiveTabs
 						hiveId="HV-000005"
 						hive="Laywone"
@@ -86,11 +86,11 @@ const FarmHives = () => {
 // USER ACTIVITY
 const Activity = () => {
 	return (
-		<Container width="w-1/2">
+		<Container width="lg:w-1/2 w-full">
 			<div className="flex flex-col gap-3 h-full min-h-0">
-				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0">
+				<div className="lg:p-2 p-0 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{Array.from({ length: 14 }).map((_, i) => (
-						<ReportCard key={i} status="progress" />
+						<ReportCard key={i} status="in-progress" />
 					))}
 				</div>
 			</div>
@@ -104,7 +104,7 @@ const UserInner = () => {
 
 	return (
 		<div className="p-4 flex flex-col w-full h-screen min-h-0 overflow-hidden">
-			<div className="w-1/3 shrink-0">
+			<div className="lg:w-1/3 w-full shrink-0">
 				<Users
 					name="Jan Marc S. Jacolbia"
 					role="citizen"
@@ -116,11 +116,11 @@ const UserInner = () => {
 
 			<div className="w-full flex-1 min-h-0 flex flex-col items-center">
 				<div className="w-full h-full min-h-0 flex flex-col items-center">
-					<div className="w-2/3">
+					<div className="lg:w-2/3 w-full">
 						<NavTab tabs={tabs} />
 					</div>
 
-					<div className="w-full flex-1 min-h-0 flex flex-col justify-start items-center mt-10">
+					<div className="w-full flex-1 min-h-0 flex flex-col justify-start items-center lg:mt-10 lg:scrollbar-auto scrollbar-none">
 						{activeTab === "information" && <Information />}
 						{activeTab === "farmhive" && <FarmHives />}
 						{activeTab === "activity" && <Activity />}

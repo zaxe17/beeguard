@@ -202,10 +202,10 @@ const ChatPage = () => {
 					placeholder="Message..."
 					className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
 				/>
-				<div className="w-8 h-8">
+				<div className="w-10 h-10">
 					<Icon
 						icon="basil:send-solid"
-						className="w-8 h-8 text-[#ffdb4f]"
+						className="w-10 h-10 text-[#ffdb4f]"
 					/>
 				</div>
 			</div>
@@ -226,7 +226,7 @@ const ChatPage = () => {
 				</div>
 
 				{/* SCROLLABLE MESSAGE LIST */}
-				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
+				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none px-1">
 					{users.map((u) => (
 						<div key={u.id} onClick={() => handleSelectUser(u)}>
 							<UserMessageCard
@@ -300,10 +300,10 @@ const ChatPage = () => {
 								placeholder="Message..."
 								className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
 							/>
-							<div className="w-8 h-8">
+							<div className="w-10 h-10">
 								<Icon
 									icon="basil:send-solid"
-									className="w-8 h-8 text-[#ffdb4f]"
+									className="w-10 h-10 text-[#ffdb4f]"
 								/>
 							</div>
 						</div>

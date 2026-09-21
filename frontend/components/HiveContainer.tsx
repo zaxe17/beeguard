@@ -251,7 +251,7 @@ export const HiveTabs = ({
 		<div
 			onClick={onClick}
 			className={`border-2 rounded-2xl lg:p-5 p-3 capitalize flex lg:gap-5 gap-3 cursor-pointer transition-all ${
-				selected ? "border-[#ffce1c] bg-[#fff8e1]" : "border-[#e2e2e6]"
+				selected ? "lg:border-[#ffce1c] border-transparent lg:bg-[#fff8e1]" : "border-[#e2e2e6]"
 			}`}
 			style={{
 				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,

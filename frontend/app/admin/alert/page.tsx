@@ -10,6 +10,7 @@ import { SearchBar } from "@/components/ui/Input";
 import { Icon } from "@iconify/react";
 import { PesticideAlert } from "@/components/ui/Alert";
 import { NavTab } from "@/components/Tab";
+import { useModal } from "@/context/ModalContext";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -51,6 +52,8 @@ const dummyAlerts = [
 	},
 ] as const;
 
+type ModalType = "addAlert";
+
 const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 	ssr: false,
 	loading: () => (
@@ -63,6 +66,7 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 const AlertInner = () => {
 	const searchParams = useSearchParams();
 	const activeStatus = searchParams.get("tab") || "all";
+	const { openModal } = useModal<ModalType>();
 
 	const filteredAlerts = dummyAlerts.filter(
 		(a) => activeStatus === "all" || activeStatus === a.status,
@@ -77,7 +81,9 @@ const AlertInner = () => {
 				<div className="relative w-full pt-5 px-2 lg:flex hidden items-center justify-end gap-3 mb-3">
 					<div className="flex items-center gap-3">
 						{/* ADD BUTTON */}
-						<div className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer shrink-0">
+						<div
+							onClick={() => openModal("addAlert")}
+							className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer">
 							<Icon
 								icon="tdesign:add"
 								className="w-8 h-8 text-white"
@@ -86,14 +92,6 @@ const AlertInner = () => {
 
 						{/* SEARCHBAR ALERTS */}
 						<SearchBar placeholder="Search Alerts" />
-
-						{/* FILTER ICON */}
-						<div className="w-10 h-10 cursor-pointer shrink-0">
-							<Icon
-								icon="mdi:filter-variant"
-								className="w-full h-full text-[#817b70]"
-							/>
-						</div>
 					</div>
 				</div>
 
@@ -131,23 +129,17 @@ const AlertInner = () => {
 					<div className="relative w-full py-2 px-2 lg:hidden flex items-center justify-end gap-3">
 						<div className="w-full flex items-center gap-3">
 							{/* ADD BUTTON */}
-							<div className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer shrink-0">
+							<div
+								onClick={() => openModal("addAlert")}
+								className="w-8 h-8 bg-[#ffdb4f] rounded-full cursor-pointer">
 								<Icon
 									icon="tdesign:add"
-									className="w-full h-full text-white"
+									className="w-8 h-8 text-white"
 								/>
 							</div>
 
 							{/* SEARCHBAR ALERTS */}
 							<SearchBar placeholder="Search Alerts" />
-
-							{/* FILTER ICON */}
-							<div className="w-10 h-10 cursor-pointer shrink-0">
-								<Icon
-									icon="mdi:filter-variant"
-									className="w-full h-full text-[#817b70]"
-								/>
-							</div>
 						</div>
 					</div>
 					<div className="flex-1">

@@ -77,7 +77,7 @@ export const UserMessageCard = ({
 
 	return (
 		<div
-			className="group flex items-center gap-3 rounded-lg p-2 cursor-pointer select-none"
+			className="group flex items-center gap-3 rounded-lg p-2 cursor-pointer select-none transition-all duration-130 ease-in hover:bg-[#fff1ad]/60 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]"
 			onTouchStart={startPress}
 			onTouchEnd={cancelPress}
 			onTouchMove={cancelPress}
@@ -105,7 +105,7 @@ export const UserMessageCard = ({
 				</span>
 			</div>
 
-			<div className="relative hidden group-hover:block" ref={buttonRef}>
+			<div className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100" ref={buttonRef}>
 				<div
 					onClick={toggleMenu}
 					className="relative w-7 h-7 p-1.5 bg-amber-200 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">

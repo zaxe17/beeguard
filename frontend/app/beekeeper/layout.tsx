@@ -17,6 +17,8 @@ import { mapHealthStatusToUi } from "@/components/HiveContainer";
 import { WarningQueenReplacment } from "@/components/popup/PopUp";
 import { Delete, Report } from "@/components/modal/ChatModal";
 
+// "ReportOffer" removed — that modal is now nested locally inside
+// BeeReportContent (in ReportModal.tsx), not controlled globally.
 type ModalType =
 	| "addHive"
 	| "monitorHealth"
@@ -49,8 +51,6 @@ const BeekeeperLayoutContent = ({
 		isModalOpen("viewHistory") ||
 		isModalOpen("replace");
 
-	// Whenever a hive-scoped modal opens with a hiveId payload, fetch
-	// that hive's full record so the modal can show real name/species/etc.
 	useEffect(() => {
 		if (!hiveScoped || !payload?.hiveId) {
 			setTargetHive(null);
@@ -75,8 +75,6 @@ const BeekeeperLayoutContent = ({
 				{children}
 			</main>
 
-			{/* GENERATE REPORT — now previews the PDF in-modal before
-			    the beekeeper commits to downloading it. */}
 			<GenerateReportModal
 				isOpen={isModalOpen("generate")}
 				onClose={closeModal}
@@ -145,10 +143,11 @@ const BeekeeperLayoutContent = ({
 
 			<WarningQueenReplacment onClose={closeModal} />
 
+			{/* iisang <BeeReport /> na lang — duplicate ang tinanggal */}
 			<BeeReport isOpen={isModalOpen("BeeReport")} onClose={closeModal} />
 
 			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
-			
+
 			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
 		</div>
 	);

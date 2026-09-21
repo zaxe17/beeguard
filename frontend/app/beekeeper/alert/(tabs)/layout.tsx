@@ -1,5 +1,6 @@
 "use client";
 
+import { FilterContainer } from "@/components/popup/Filter";
 import { SearchBar } from "@/components/ui/Input";
 import { useModal } from "@/context/ModalContext";
 import { Icon } from "@iconify/react";
@@ -16,6 +17,12 @@ const tabs = [
 		label: "Today",
 		route: "/beekeeper/alert/today",
 	},
+];
+
+const filterContent = [
+	{ label: "Low" },
+	{ label: "Medium" },
+	{ label: "High" },
 ];
 
 type ModalType = "addAlert";
@@ -44,12 +51,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 					</div>
 
 					{/* FILTER ICON */}
-					<div className="w-10 h-10 cursor-pointer">
-						<Icon
-							icon="mdi:filter-variant"
-							className="w-full h-full text-[#817b70]"
-						/>
-					</div>
+					<FilterContainer label={filterContent} />
 				</div>
 
 				<div className="w-full flex justify-center lg:mb-10 mb-5 px-3 shrink-0">
@@ -61,7 +63,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
 								<Link
 									key={i}
 									href={t.route}
-									className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-150 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "text-[#817b70] hover:bg-[#ffdb4f]/60"}`}>
+									className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-130 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "text-[#817b70] hover:bg-[#ffdb4f]/60"}`}>
 									<li className="Poppins-SemiBold text-center lg:text-xl text-sm">
 										{t.label}
 									</li>

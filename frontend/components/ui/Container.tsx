@@ -62,7 +62,7 @@ export const BeefarmContainer = ({
 	miles,
 }: BeeFarmProps) => {
 	return (
-		<div className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/40 transition-all duration-150 ease-in hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
+		<div className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/40 transition-all duration-130 ease-in hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
 			<div className="w-full flex gap-3 cursor-pointer">
 				{/* BEEFARM PICTURE */}
 				<div className="border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">

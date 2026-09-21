@@ -1,4 +1,4 @@
-export type ReportStatus = "pending" | "progress" | "resolved";
+export type ReportStatus = "pending" | "in-progress" | "resolved";
 
 export type ReportData = {
 	reportId: string;
@@ -37,7 +37,7 @@ export const dummyReports: ReportData[] = [
 	},
 	{
 		reportId: "BG-2026-003",
-		status: "progress",
+		status: "in-progress",
 		specification: "Apis cerana / Asian Honey Bee",
 		location: "Commonwealth, Quezon City",
 		date: "March 28, 2026",
@@ -48,7 +48,7 @@ export const dummyReports: ReportData[] = [
 	},
 	{
 		reportId: "BG-2026-004",
-		status: "progress",
+		status: "in-progress",
 		specification: "Apis dorsata / Giant Honey Bee",
 		location: "Fairview, Quezon City",
 		date: "March 27, 2026",
@@ -59,7 +59,7 @@ export const dummyReports: ReportData[] = [
 	},
 	{
 		reportId: "BG-2026-005",
-		status: "progress",
+		status: "in-progress",
 		specification: "Apis cerana / Asian Honey Bee",
 		location: "Novaliches, Quezon City",
 		date: "March 26, 2026",
@@ -114,7 +114,7 @@ export const dummyReports: ReportData[] = [
 	},
 	{
 		reportId: "BG-2026-010",
-		status: "progress",
+		status: "in-progress",
 		specification: "Apis cerana / Asian Honey Bee",
 		location: "Kamuning, Quezon City",
 		date: "March 25, 2026",

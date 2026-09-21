@@ -8,7 +8,7 @@ import React, { Suspense } from "react";
 const tabs = [
 	{ label: "All", value: "all" },
 	{ label: "Pendings", value: "pending" },
-	{ label: "In Progress", value: "progress" },
+	{ label: "In Progress", value: "in-progress" },
 	{ label: "Resolved", value: "resolved" },
 	{ label: "Rejected", value: "rejected" },
 ];
@@ -18,7 +18,7 @@ const ReportsInner = () => {
 	const activeStatus = searchParams.get("tab") || "all";
 	const reportStatuses = [
 		"pending",
-		"progress",
+		"in-progress",
 		"pending",
 		"resolved",
 		"resolved",

@@ -9,7 +9,7 @@ import { useModal } from "@/context/ModalContext";
 const tabs = [
 	{ label: "All", value: "all" },
 	{ label: "Pendings", value: "pending" },
-	{ label: "In Progress", value: "progress" },
+	{ label: "In Progress", value: "in-progress" },
 	{ label: "Resolved", value: "resolved" },
 	{ label: "Rejected", value: "rejected" },
 ];
@@ -21,11 +21,13 @@ const BeekeeperReportsInner = () => {
 	const activeStatus = searchParams.get("tab") || "all";
 	const reportStatuses = [
 		"pending",
-		"progress",
+		"in-progress",
 		"pending",
 		"resolved",
+		"in-progress",
 		"resolved",
 		"rejected",
+		"in-progress",
 		"pending",
 		"rejected",
 		"resolved",

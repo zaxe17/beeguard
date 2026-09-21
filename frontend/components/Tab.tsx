@@ -40,7 +40,7 @@ export const NavTab = ({ tabs, hasBg }: TabProps) => {
 					<li
 						key={tab.value}
 						onClick={() => handleTabClick(tab.value)}
-						className={`Poppins-SemiBold text-center lg:text-sm text-xs cursor-pointer w-full px-1 transition-all duration-150 ease-in ${
+						className={`Poppins-SemiBold text-center lg:text-sm text-xs cursor-pointer w-full px-1 transition-all duration-130 ease-in ${
 							hasBg
 								? `py-1.5 rounded-lg ${
 										isActive
@@ -81,7 +81,7 @@ export const SettingsTabs = ({
 	return (
 		<div
 			onClick={onClick}
-			className={`w-full group rounded-xl p-2.5 capitalize flex flex-row gap-5 items-center justify-between transition-all duration-150 ease-in ${subContent ? "" : "hover:bg-[#ffdb4f] cursor-pointer"} ${
+			className={`w-full group rounded-xl p-2.5 capitalize flex flex-row gap-5 items-center justify-between transition-all duration-130 ease-in ${subContent ? "" : "hover:bg-[#ffdb4f] cursor-pointer"} ${
 				active ? "bg-[#ffdb4f]" : ""
 			}`}
 			style={{

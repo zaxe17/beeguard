@@ -243,7 +243,7 @@ const Beekeeper = () => {
 						</span>
 
 						{beefarms && beefarms.length > 0 ? (
-							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
+							<div className="w-full flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 p-2">
 								{beefarms.map((nb, i) => (
 									<BeefarmOperation
 										key={i}

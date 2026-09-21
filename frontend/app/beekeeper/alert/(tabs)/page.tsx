@@ -82,9 +82,16 @@ const Alert = () => {
 						location={getAlertLocation(a, resolvedLocations)}
 						date={toDisplayDate(a)}
 						time={toDisplayTime(a)}
-						status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
+						status={
+							a.risk_level.toLowerCase() as
+								| "high"
+								| "medium"
+								| "low"
+						}
 						onClick={() =>
-							router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
+							router.push(
+								`/beekeeper/alert/details?id=${a.alert_id}`,
+							)
 						}
 					/>
 				))

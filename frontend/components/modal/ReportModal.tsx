@@ -27,7 +27,7 @@ type ReportOfferModalProps = {
 // "ReportOffer" is no longer a global modal type — it's nested
 // locally inside BeeReportContent instead.
 type ModalType = "BeeReport";
-type ReportStatus = "pending" | "progress" | "resolved" | "rejected";
+type ReportStatus = "pending" | "in-progress" | "resolved" | "rejected";
 
 // plain function — cannot call hooks. Takes a ready-made click handler instead.
 const renderActions = (
@@ -49,7 +49,7 @@ const renderActions = (
 					<Button label="Message" width="w-40" />
 				</>
 			);
-		case "progress":
+		case "in-progress":
 			return (
 				<>
 					<Button label="Message" width="w-40" />

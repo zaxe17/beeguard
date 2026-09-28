@@ -32,11 +32,13 @@ by itself push the hive from Needs Attention to Weak.
 """
 import datetime as dt
 
+from config.config import Config
 from config.database import Database
 from models.hive import HiveModel
+from models.queen_recommendation import QueenRecommendationModel
 from models.yield_record import YieldModel
 from models.hive_maintenance import HiveMaintenanceModel
-from services.queen_service import QueenService
+from services.queen_service import QueenService, R_QUEEN_TOO_OLD, _queen_age_days
 
 
 # The four checkboxes in the MonitorHealth modal.
@@ -140,7 +142,61 @@ class HiveService:
     # ── LIST / GET ────────────────────────────
     @staticmethod
     def list_hives(beekeeper_id: str, state: str | None = None):
-        return HiveModel.list_by_beekeeper(beekeeper_id, state=state)
+        hives = HiveModel.list_by_beekeeper(beekeeper_id, state=state)
+        return HiveService._attach_queen_status(beekeeper_id, hives)
+
+    @staticmethod
+    def _attach_queen_status(beekeeper_id: str, hives: list[dict]) -> list[dict]:
+        """
+        NEW — adds to every hive:
+          queen_age_days         days since the queen was installed
+          queen_recommendation   the open Replace/Monitor recommendation
+                                 ({level, reason, reason_code}) or None
+
+        So the Hives page can show the "Replace Queen" warning + button
+        for ANY open recommendation — including an old queen on a
+        Healthy hive (before, the page only looked at health_status, so
+        a Healthy hive with a 2-year-old queen never showed it even
+        though the recommendation existed).
+
+        Also catches queens that got too old with nothing else
+        happening: the queen-age rule only ran when a harvest/check was
+        saved, so a queen that crossed the age limit on a quiet day had
+        no recommendation. If a queen is past the limit and has no
+        "queen too old" recommendation yet, the hive is re-evaluated
+        once here to create it.
+        """
+        if not hives:
+            return hives
+
+        latest: dict[str, dict] = {}
+        for r in QueenRecommendationModel.list_open_for_beekeeper(beekeeper_id):
+            latest.setdefault(r["hive_id"], r)  # newest first
+
+        for h in hives:
+            age = _queen_age_days(h)
+            rec = latest.get(h["hive_id"])
+            if (
+                age is not None
+                and age >= Config.QUEEN_MAX_AGE_DAYS
+                and (not rec or rec.get("reason_code") != R_QUEEN_TOO_OLD)
+            ):
+                try:
+                    rec = QueenService.evaluate_hive(h["hive_id"], persist=True)
+                except Exception as e:
+                    print(f"[HIVES] Queen re-check failed for {h['hive_id']}: {e}")
+
+            h["queen_age_days"] = age
+            h["queen_recommendation"] = (
+                {
+                    "level": rec["level"],
+                    "reason": rec["reason"],
+                    "reason_code": rec["reason_code"],
+                }
+                if rec and rec.get("level") in ("Monitor", "Replace")
+                else None
+            )
+        return hives
 
     @staticmethod
     def get_hive_owned(beekeeper_id: str, hive_id: str) -> dict | None:

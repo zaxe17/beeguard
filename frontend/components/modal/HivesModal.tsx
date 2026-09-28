@@ -4,7 +4,8 @@
 
 import { Icon } from "@iconify/react";
 import React, { useEffect, useState } from "react";
-import { Input } from "../ui/Input";
+import { Input, Select } from "../ui/Input";
+import { HIVE_SPECIES_OPTIONS } from "@/data/species";
 import { Button, CancelButton } from "../ui/Button";
 import { ModalContainer } from "./Modal";
 import { HiveTrans } from "../HiveContainer";
@@ -52,6 +53,19 @@ const PhysicalInspectionOptions: InspectionObservation[] = [
 	...SymptomOptions,
 ];
 
+// Today's date on THIS device as "YYYY-MM-DD" (what <input type="date">
+// uses). Not toISOString() — that's the UTC date, which is still
+// "yesterday" before 8 AM in the Philippines.
+const localToday = () => {
+	const d = new Date();
+	const mm = String(d.getMonth() + 1).padStart(2, "0");
+	const dd = String(d.getDate()).padStart(2, "0");
+	return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
+// "YYYY-MM-DD" strings compare correctly as plain text.
+const isFutureDate = (value: string) => !!value && value > localToday();
+
 // ── Shared "hives changed" signal ──────────────────────────
 // Dispatched after ANY successful create/update that affects hive
 // data, yields, or recommendations. Any screen (Hives list,
@@ -96,6 +110,10 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 	const [hiveName, setHiveName] = useState("");
 	const [beeSpecies, setBeeSpecies] = useState("");
 	const [dateEstablished, setDateEstablished] = useState("");
+	// NEW — when the current queen was installed. Optional: left blank,
+	// the server uses Date Established. Drives the queen-age check
+	// (queen too old -> "Replace Queen").
+	const [queenDate, setQueenDate] = useState("");
 	const [hiveState, setHiveState] = useState<HiveState>("Active");
 	const [healthStatus, setHealthStatus] = useState<HealthStatus>("Healthy");
 	const [histYieldKg, setHistYieldKg] = useState("");
@@ -107,6 +125,7 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 		setHiveName("");
 		setBeeSpecies("");
 		setDateEstablished("");
+		setQueenDate("");
 		setHiveState("Active");
 		setHealthStatus("Healthy");
 		setHistYieldKg("");
@@ -125,6 +144,23 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 			return;
 		}
 
+		if (isFutureDate(dateEstablished)) {
+			setErrorMsg("Date established can't be in the future.");
+			return;
+		}
+		if (queenDate) {
+			if (isFutureDate(queenDate)) {
+				setErrorMsg("Queen established date can't be in the future.");
+				return;
+			}
+			if (queenDate < dateEstablished) {
+				setErrorMsg(
+					"Queen established date can't be before the hive was established.",
+				);
+				return;
+			}
+		}
+
 		const hasKg = histYieldKg.trim() !== "";
 		const hasYear = histYieldYear.trim() !== "";
 		if (hasKg !== hasYear) {
@@ -140,6 +176,8 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 				hive_name: hiveName.trim(),
 				bee_species: beeSpecies.trim(),
 				date_established: dateEstablished,
+				// blank -> server uses date_established
+				queen_installed_date: queenDate || null,
 				hive_state: hiveState,
 				health_status: healthStatus,
 				historical_yield_kg: hasKg ? parseFloat(histYieldKg) : null,
@@ -147,6 +185,15 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					? parseInt(histYieldYear, 10)
 					: null,
 			});
+
+			// OFFLINE MODE — saved on the phone, sent when back online
+			// (shown in the "waiting to sync" banner). Treat as done.
+			if (res.queued) {
+				resetForm();
+				setSubmitting(false);
+				onClose();
+				return;
+			}
 
 			if (!res.success) {
 				setErrorMsg(
@@ -188,18 +235,34 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					value={hiveName}
 					onChange={(e) => setHiveName(e.target.value)}
 				/>
-				<Input
+				{/* BEE SPECIES — dropdown of the species BeeGuard supports */}
+				<Select
 					label="Bee Species"
+					placeholder="Select bee species"
+					options={HIVE_SPECIES_OPTIONS}
 					value={beeSpecies}
-					onChange={(e) => setBeeSpecies(e.target.value)}
+					onSelectChange={(e) => setBeeSpecies(e.target.value)}
 				/>
-				<Input label="Queen Established Date" value={beeSpecies} />
-				<Input
-					label="Date Established"
-					type="date"
-					value={dateEstablished}
-					onChange={(e) => setDateEstablished(e.target.value)}
-				/>
+				<div className="flex gap-2 lg:flex-row flex-col">
+					<Input
+						label="Date Established"
+						type="date"
+						value={dateEstablished}
+						onChange={(e) => setDateEstablished(e.target.value)}
+					/>
+					<Input
+						label="Queen Established Date"
+						type="date"
+						value={queenDate}
+						onChange={(e) => setQueenDate(e.target.value)}
+					/>
+				</div>
+				<p className="text-[10px] text-[#817b70] -mt-2">
+					Queen Established Date: when the current queen was put in. Leave
+					blank if she came with the hive (same as Date Established). A
+					queen past the age limit gets a &quot;Replace Queen&quot;
+					recommendation.
+				</p>
 
 				<div className="flex gap-2 lg:flex-row flex-col">
 					<Input
@@ -287,7 +350,9 @@ export const MonitorHealth = ({
 
 	useEffect(() => {
 		if (isOpen) {
-			setActivityDate("");
+			// Default to today (this device's date) — change it if the
+			// check was done on another day.
+			setActivityDate(localToday());
 			setObservations([]);
 			setErrorMsg(null);
 		}
@@ -328,6 +393,14 @@ export const MonitorHealth = ({
 			);
 			return;
 		}
+		if (!activityDate) {
+			setErrorMsg("Please pick the activity date.");
+			return;
+		}
+		if (isFutureDate(activityDate)) {
+			setErrorMsg("The activity date can't be in the future.");
+			return;
+		}
 
 		setSubmitting(true);
 		try {
@@ -335,6 +408,13 @@ export const MonitorHealth = ({
 				observations,
 				activity_date: activityDate || null,
 			});
+
+			// OFFLINE MODE — saved on the phone, sent later.
+			if (res.queued) {
+				setSubmitting(false);
+				onClose();
+				return;
+			}
 
 			if (!res.success) {
 				setErrorMsg(
@@ -464,7 +544,8 @@ export const AddYield = ({
 
 	useEffect(() => {
 		if (isOpen) {
-			setHarvestDate("");
+			// Default to today (this device's date).
+			setHarvestDate(localToday());
 			setYieldKg("");
 			setObservations([]);
 			setErrorMsg(null);
@@ -508,6 +589,10 @@ export const AddYield = ({
 			);
 			return;
 		}
+		if (isFutureDate(harvestDate)) {
+			setErrorMsg("The harvest date can't be in the future.");
+			return;
+		}
 
 		setSubmitting(true);
 		try {
@@ -516,6 +601,13 @@ export const AddYield = ({
 				yield_date: harvestDate || null,
 				observations,
 			});
+
+			// OFFLINE MODE — saved on the phone, sent later.
+			if (res.queued) {
+				setSubmitting(false);
+				onClose();
+				return;
+			}
 
 			if (!res.success) {
 				setErrorMsg(
@@ -578,6 +670,10 @@ export const AddYield = ({
 					value={yieldKg}
 					onChange={(e) => setYieldKg(e.target.value)}
 				/>
+				<p className="text-[10px] text-[#817b70] -mt-2">
+					Already logged a harvest for this hive on the same date? This
+					amount is added to it (e.g. 150 kg + 15 kg = 165 kg).
+				</p>
 
 				<label className="lg:text-base text-xs text-black">
 					Physical Inspection
@@ -893,7 +989,13 @@ type BeeQueenModalHive = {
 	hiveId: string;
 	hiveName: string;
 	healthStatus: HealthStatus;
+	// NEW — from the hive's open queen recommendation (Hives list).
+	reasonCode?: string | null;
+	reason?: string | null;
 };
+
+// Reason codes from the backend's queen_service.py
+const QUEEN_TOO_OLD = "QUEEN_AGE_EXCEEDED";
 
 type BeeQueenModalProps = ModalProps & {
 	hive?: BeeQueenModalHive | null;
@@ -930,9 +1032,17 @@ export const BeeQueenModal = ({
 
 	if (!mounted || !isOpen || !hive) return null;
 
+	// Old queen -> say so, even if the hive itself is Healthy.
 	const alertText =
-		QUEEN_ALERT_TEXT[hive.healthStatus] ??
-		QUEEN_ALERT_TEXT["Needs Attention"]!;
+		hive.reasonCode === QUEEN_TOO_OLD
+			? {
+					title: "QUEEN BEE IS TOO OLD",
+					message:
+						hive.reason ||
+						"This queen has passed the recommended age. Replace her to keep the colony productive.",
+				}
+			: (QUEEN_ALERT_TEXT[hive.healthStatus] ??
+				QUEEN_ALERT_TEXT["Needs Attention"]!);
 
 	return createPortal(
 		<div

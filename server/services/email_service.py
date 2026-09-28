@@ -62,3 +62,35 @@ class EmailService:
         </div>
         """
         EmailService.send(to_email, subject, html_body, text_body)
+
+    # NEW — Forgot Password (OTP purpose 'password_reset').
+    @staticmethod
+    def send_password_reset_otp(to_email: str, name: str, code: str,
+                                ttl_minutes: int) -> None:
+        subject = "Reset your BeeGuard password"
+        text_body = (
+            f"Hi {name or 'there'},\n\n"
+            f"Your BeeGuard password reset code is: {code}\n"
+            f"This code expires in {ttl_minutes} minutes.\n\n"
+            "If you did not ask to reset your password, you can ignore this "
+            "email — your password will stay the same."
+        )
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;
+                    padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+          <h2 style="color: #ff9a00; margin-top: 0;">Reset your BeeGuard password</h2>
+          <p>Hi {name or 'there'},</p>
+          <p>Your 6-digit password reset code is:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px;
+                      background: #fff8e1; color: #4a2f00; text-align: center;
+                      padding: 16px; border-radius: 8px; margin: 16px 0;">
+            {code}
+          </div>
+          <p>This code expires in <b>{ttl_minutes} minutes</b>.</p>
+          <p style="color: #888; font-size: 12px;">
+            If you did not ask to reset your password, you can safely ignore
+            this email — your password will stay the same.
+          </p>
+        </div>
+        """
+        EmailService.send(to_email, subject, html_body, text_body)

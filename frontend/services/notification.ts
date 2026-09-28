@@ -2,7 +2,9 @@ import { api } from "./api";
 
 export interface NotificationRecord {
 	notification_id: string;
-	beekeeperID: string;
+	// Migration 012 — exactly one of these is set (who it's for).
+	beekeeperID: string | null;
+	citizenID: string | null;
 	alert_id: string | null;
 	reportID: string | null;
 	title: string;

@@ -85,10 +85,17 @@ def is_minor_harvest(yield_date: dt.date) -> bool:
     return yield_date.month in MINOR_MONTHS
 
 
-def total_harvest_for_year(hive_id: str, year: int) -> float:
+def total_harvest_for_year(hive_id: str, year: int, conn=None) -> float:
     """SUM of all non-baseline yield_kg for this hive within the given
-    calendar year."""
-    rows = YieldModel.list_by_hive(hive_id)
+    calendar year.
+
+    FIX: `conn` — when called while a harvest is being saved, read inside
+    THAT transaction. Before, this used a separate connection, which
+    can't see the not-yet-committed harvest, so the harvest being
+    entered was left out of its own year total (e.g. 150 kg + 15 kg the
+    same day was judged on 150 kg only, and could flip the hive to
+    "Needs Attention")."""
+    rows = YieldModel.list_by_hive(hive_id, conn=conn)
     return sum(
         float(r["yield_kg"])
         for r in rows
@@ -96,18 +103,18 @@ def total_harvest_for_year(hive_id: str, year: int) -> float:
     )
 
 
-def resolve_annual_baseline(hive: dict, year: int) -> float | None:
+def resolve_annual_baseline(hive: dict, year: int, conn=None) -> float | None:
     """
     Reference total for comparing year `year`'s cumulative harvest
     against. Prefers last year's (year-1) total; falls back to the
     hive's one-time historical baseline if year-1 has no harvests.
     """
     hive_id = hive["hive_id"]
-    prior_total = total_harvest_for_year(hive_id, year - 1)
+    prior_total = total_harvest_for_year(hive_id, year - 1, conn=conn)
     if prior_total > 0:
         return prior_total
 
-    baseline_row = YieldModel.find_baseline(hive_id)
+    baseline_row = YieldModel.find_baseline(hive_id, conn=conn)
     if baseline_row and baseline_row.get("yield_kg") is not None:
         return float(baseline_row["yield_kg"])
 
@@ -120,6 +127,7 @@ def compute_health_status(
     yield_date: dt.date,
     current_health: str | None,
     has_symptom: bool,
+    conn=None,
 ) -> tuple[str, dict]:
     """
     Returns (new_health_status, details). `details` carries the
@@ -129,8 +137,8 @@ def compute_health_status(
     """
     hive_id = hive["hive_id"]
     year = get_harvest_year(yield_date)
-    cumulative = total_harvest_for_year(hive_id, year)
-    baseline = resolve_annual_baseline(hive, year)
+    cumulative = total_harvest_for_year(hive_id, year, conn=conn)
+    baseline = resolve_annual_baseline(hive, year, conn=conn)
 
     is_minor = is_minor_harvest(yield_date)
     recovering_weak = is_minor and current_health == "Weak"

@@ -1,18 +1,80 @@
 "use client";
 
-import Image, { StaticImageData } from "next/image";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
 import { UserNav } from "@/components/UserNav";
+import { api } from "@/services/api";
+import { mediaSrc } from "@/services/profile";
 
 import bee_report from "@/public/assets/bee_report.png";
 
-// NEARBY FARM EXAMPLE DATA
-import nearbyFarms from "@/data/beefarms.json";
-import { useRouter } from "next/navigation";
+// Shape returned by GET /api/farms — see services/farm_service.py
+// (same type as app/citizen/beefarm/page.tsx).
+type Farm = {
+	beekeeperID: string;
+	farmName: string;
+	location: string;
+	miles: number | null; // actually km — distance from the citizen, if known
+	image: string | null;
+	latitude: number | null;
+	longitude: number | null;
+};
+
+// How many farms the Home page shows ("View All" opens the full list).
+const HOME_FARM_LIMIT = 9;
+// Don't hold the farm list back for long waiting on location permission.
+const LOCATION_TIMEOUT_MS = 5000;
+
+const getCitizenCoords = () =>
+	new Promise<{ lat: number; lng: number } | null>((resolve) => {
+		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			resolve(null);
+			return;
+		}
+		navigator.geolocation.getCurrentPosition(
+			(pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+			() => resolve(null), // denied / unavailable -> still show farms, unsorted
+			{ enableHighAccuracy: false, timeout: LOCATION_TIMEOUT_MS, maximumAge: 5 * 60 * 1000 },
+		);
+	});
 
 const Home = () => {
 	const router = useRouter();
+
+	const [farms, setFarms] = useState<Farm[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	// ── Nearby farms from the database ──────────────
+	// With the citizen's location, the backend sorts farms nearest-first
+	// and fills in the distance; without it, farms still show (newest first).
+	useEffect(() => {
+		let cancelled = false;
+
+		const load = async () => {
+			const coords = await getCitizenCoords();
+			const query = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
+			const res = await api.get<Farm[]>(`/farms${query}`);
+			if (cancelled) return;
+			if (res.success && res.data) {
+				setFarms(res.data);
+				setErrorMsg(null);
+			} else {
+				setErrorMsg(res.message || "Couldn't load nearby farms.");
+			}
+			setLoading(false);
+		};
+
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const shownFarms = farms.slice(0, HOME_FARM_LIMIT);
 
 	return (
 		<div className="w-full h-full lg:p-5 p-0 flex items-start flex-col gap-3">
@@ -46,6 +108,7 @@ const Home = () => {
 							label="Report Now!"
 							buttonType="button"
 							width="40%"
+							onClick={() => router.push("/citizen/report")}
 						/>
 					</div>
 				</div>
@@ -54,21 +117,45 @@ const Home = () => {
 					<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 						Nearby Bee Farms
 						<span
-							className={`text-base text-[#ffce1c] cursor-pointer ${nearbyFarms.length > 0 ? "block" : "hidden"}`}
+							className={`text-base text-[#ffce1c] cursor-pointer ${farms.length > 0 ? "block" : "hidden"}`}
 							onClick={() => router.push("/citizen/beefarm")}>
 							view all
 						</span>
 					</span>
 
+					{loading && (
+						<p className="w-full text-center text-sm text-[#a6a3a3] py-4">
+							Loading nearby farms…
+						</p>
+					)}
+					{!loading && errorMsg && (
+						<p className="w-full text-center text-sm text-red-600 py-4">
+							{errorMsg}
+						</p>
+					)}
+					{!loading && !errorMsg && shownFarms.length === 0 && (
+						<p className="w-full text-center text-sm text-[#a6a3a3] py-4">
+							No bee farms registered yet.
+						</p>
+					)}
+
 					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
-						{nearbyFarms.map((nb, i) => (
-							<BeefarmContainer
-								key={i}
-								image={nb.image}
-								farmName={nb.farmName}
-								location={nb.location}
-								miles={nb.miles}
-							/>
+						{shownFarms.map((farm) => (
+							<div
+								key={farm.beekeeperID}
+								onClick={() =>
+									router.push(`/citizen/beefarm?farm=${farm.beekeeperID}`)
+								}>
+								<BeefarmContainer
+									// No per-farm photo upload exists yet, so every
+									// farm uses the same default (same as the Bee
+									// Farm page).
+									image={mediaSrc(farm.image) ?? "/assets/farms/farm1.jpg"}
+									farmName={farm.farmName}
+									location={farm.location}
+									miles={farm.miles ?? undefined}
+								/>
+							</div>
 						))}
 					</div>
 				</div>

@@ -1,4 +1,7 @@
-import { Icon } from "@iconify/react";
+// components/modal/SignupModal.tsx
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ModalContainer } from "./Modal";
 import { Button, CancelButton } from "../ui/Button";
 
@@ -7,7 +10,12 @@ type SignupProps = {
 	onClose: () => void;
 };
 
+// Shown on the guest page (/guest) after a photo is taken/uploaded.
+// "Sign up" -> registration; "Cancel" just closes it so the guest can
+// still see the identification result.
 export const SignupModal = ({ isOpen, onClose }: SignupProps) => {
+	const router = useRouter();
+
 	return (
 		<ModalContainer
 			open={isOpen}
@@ -20,7 +28,12 @@ export const SignupModal = ({ isOpen, onClose }: SignupProps) => {
 				</span>
 
 				<div className="w-full flex gap-3 mt-10">
-					<Button label="Sign up" />
+					<CancelButton onClick={onClose} />
+					<Button
+						buttonType="button"
+						label="Sign up"
+						onClick={() => router.push("/register")}
+					/>
 				</div>
 			</div>
 		</ModalContainer>

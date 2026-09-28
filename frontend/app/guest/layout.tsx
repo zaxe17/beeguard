@@ -1,20 +1,22 @@
+// app/guest/layout.tsx
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
-import { useIsPage } from "@/hooks/useIsPage";
-import { BeeIdentify } from "@/components/modal/ReportModal";
 import { ModalProvider, useModal } from "@/context/ModalContext";
-import { Modal } from "@/components/modal/Modal";
 import { SignupModal } from "@/components/modal/SignupModal";
 
-type ModalType = "beeIdentify" | "signup";
+/**
+ * GUEST BEE IDENTIFICATION — http://localhost:5000/guest
+ * No login needed. Reached from "use bee identification" on the login page.
+ * The sign-up popup lives here; page.tsx opens it (via useModal) as soon
+ * as a photo has been taken/uploaded and identified.
+ */
+type ModalType = "signup";
 
-const ReportLayoutContent = ({ children }: { children?: React.ReactNode }) => {
+const GuestLayoutContent = ({ children }: { children?: React.ReactNode }) => {
 	const { isModalOpen, closeModal, openModal } = useModal<ModalType>();
-
-	const location = useIsPage("/citizen/report/submitted");
 
 	return (
 		<div className="w-full h-screen lg:p-5 p-3 flex items-center justify-center flex-col gap-3 min-h-0">
@@ -22,14 +24,13 @@ const ReportLayoutContent = ({ children }: { children?: React.ReactNode }) => {
 			<Container width="lg:w-1/2 w-full" height="100%" scroll>
 				<div className="w-full h-full flex flex-col min-h-0">
 					{/* TITLE */}
-					<div
-						className={`shrink-0 ${location ? "hidden" : "block"}`}>
+					<div className="shrink-0">
 						<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
 							What Bee Is This?
 						</h2>
 					</div>
 
-					{/* WRAPPER OF REPORT */}
+					{/* WRAPPER */}
 					<div className="w-full flex-1 min-h-0 pb-3 flex flex-col items-center gap-3">
 						{/* CONTENT */}
 						<div className="w-full flex-1 min-h-0 flex flex-col overflow-y-auto pt-3">
@@ -37,8 +38,7 @@ const ReportLayoutContent = ({ children }: { children?: React.ReactNode }) => {
 						</div>
 
 						{/* BUTTON */}
-						<div
-							className={`w-full shrink-0 justify-center ${location ? "hidden" : "flex"}`}>
+						<div className="w-full shrink-0 flex justify-center">
 							<Button
 								width="50%"
 								label="Next"
@@ -50,22 +50,17 @@ const ReportLayoutContent = ({ children }: { children?: React.ReactNode }) => {
 			</Container>
 
 			{/* MODAL */}
-			<BeeIdentify
-				isOpen={isModalOpen("beeIdentify")}
-				onClose={closeModal}
-			/>
-
 			<SignupModal isOpen={isModalOpen("signup")} onClose={closeModal} />
 		</div>
 	);
 };
 
-const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
+const GuestLayout = ({ children }: { children?: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<ReportLayoutContent>{children}</ReportLayoutContent>
+			<GuestLayoutContent>{children}</GuestLayoutContent>
 		</ModalProvider>
 	);
 };
 
-export default ReportLayout;
+export default GuestLayout;

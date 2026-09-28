@@ -1,16 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import BeefarmView from "@/components/BeefarmView";
 import { BeefarmContainer, Container } from "@/components/ui/Container";
 import dynamic from "next/dynamic";
 import { SearchBar } from "@/components/ui/Input";
 
-// NEARBY FARM EXAMPLE DATA
-import nearbyFarms from "@/data/beefarms.json";
 import { Icon } from "@iconify/react";
 import { AnimatePresence } from "framer-motion";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useQueryParamState } from "@/hooks/useQueryParamState";
+import { api } from "@/services/api";
+import { mediaSrc } from "@/services/profile";
+import type { FarmMarker } from "@/components/ui/google-maps/Map";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -28,10 +30,27 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 
 const FARM_PARAM = "farm";
 
+// Shape returned by GET /api/farms — see services/farm_service.py
+type Farm = {
+	beekeeperID: string;
+	farmName: string;
+	location: string;
+	miles: number | null;
+	image: string | null;
+	rating_avg: number;
+	rating_count: number;
+	apiary_type: string | null;
+	latitude: number | null;
+	longitude: number | null;
+};
+
 const BeefarmPage = () => {
 	// URL-driven state — kagaya ng "?notif=open" sa UserNav at
 	// "?chat=<id>" sa ChatPage. Bentahe: gumagana ang browser back button,
 	// at pwedeng i-refresh/share ang URL habang naka-open ang farm.
+	// NOTE: this now carries the beekeeper's real ID (e.g. "BKP-000004"),
+	// not an array index, since the farm list no longer comes from a
+	// static local array.
 	const {
 		value: selectedFarmParam,
 		setValue: openFarmParam,
@@ -41,9 +60,47 @@ const BeefarmPage = () => {
 	// Only matters on mobile — desktop always shows map + list side by side.
 	const mobileSelected = selectedFarmParam !== null;
 
-	const handleFarmClick = (index: number) => {
-		openFarmParam(String(index));
+	const [farms, setFarms] = useState<Farm[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [search, setSearch] = useState("");
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const loadFarms = async () => {
+			setLoading(true);
+			const query = search ? `?search=${encodeURIComponent(search)}` : "";
+			const res = await api.get<Farm[]>(`/farms${query}`);
+			if (!cancelled) {
+				if (res.success && res.data) setFarms(res.data);
+				setLoading(false);
+			}
+		};
+
+		// Debounce search typing so we don't fire a request per keystroke.
+		const t = setTimeout(loadFarms, search ? 300 : 0);
+		return () => {
+			cancelled = true;
+			clearTimeout(t);
+		};
+	}, [search]);
+
+	const handleFarmClick = (beekeeperID: string) => {
+		openFarmParam(beekeeperID);
 	};
+
+	// Only farms with a set location can be pinned — a beekeeper who
+	// never dropped a map pin (beekeepers.latitude/longitude NULL)
+	// simply doesn't get a marker, same nullability the backend
+	// already carries.
+	const farmMarkers: FarmMarker[] = farms
+		.filter((f) => f.latitude != null && f.longitude != null)
+		.map((f) => ({
+			id: f.beekeeperID,
+			lat: f.latitude as number,
+			lng: f.longitude as number,
+			label: f.farmName,
+		}));
 
 	return (
 		<div className="w-full h-full flex items-start lg:flex-row flex-col relative">
@@ -56,38 +113,104 @@ const BeefarmPage = () => {
 						Bee Farm
 					</h3>
 
-					<SearchBar placeholder="Search location" />
+					<SearchBar
+						placeholder="Search location"
+						value={search}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+							setSearch(e.target.value)
+						}
+					/>
 				</div>
 
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
-					{nearbyFarms.map((nb, i) => (
+					{loading && (
+						<div className="text-center text-sm text-[#a6a3a3] py-4">
+							Loading farms…
+						</div>
+					)}
+					{!loading && farms.length === 0 && (
+						<div className="text-center text-sm text-[#a6a3a3] py-4">
+							No farms found.
+						</div>
+					)}
+					{farms.map((farm) => (
 						<div
-							key={i}
-							onClick={() => handleFarmClick(i)}
-							className="cursor-pointer">
+							key={farm.beekeeperID}
+							onClick={() => handleFarmClick(farm.beekeeperID)}
+							className={
+								farm.beekeeperID === selectedFarmParam
+									? "cursor-pointer bg-[#fff1ad]/40 rounded-xl"
+									: "cursor-pointer"
+							}>
 							<BeefarmContainer
-								image={nb.image}
-								farmName={nb.farmName}
-								location={nb.location}
-								miles={nb.miles}
+								// NEW — default photo when a farm has no
+								// custom image set. There's currently no
+								// per-farm photo upload feature at all
+								// (beekeepers has no photo column in the
+								// schema you've sent so far), so `image`
+								// from GET /api/farms is always null today
+								// — every card falls back to this same
+								// default until an upload feature exists.
+								// Using farm1.jpg since it's the one asset
+								// confirmed to actually exist in your
+								// public/assets/farms/ folder (it's a
+								// static import elsewhere in this codebase,
+								// which would fail the build if missing).
+								image={mediaSrc(farm.image) ?? "/assets/farms/farm1.jpg"}
+								farmName={farm.farmName}
+								location={farm.location}
+								miles={farm.miles ?? 0}
 							/>
 						</div>
 					))}
 				</div>
 			</Container>
 
-			{/* RIGHT SIDE — desktop: always visible inline */}
+			{/* RIGHT SIDE — desktop: always visible inline.
+			    No farm selected -> the map fills the whole side.
+			    Farm selected    -> the farm's profile slides up from the
+			                        bottom at its own height (no empty
+			                        space under it) and the map fills
+			                        everything above it. */}
 			<div className="hidden lg:block flex-1 w-full lg:h-full">
 				<div className="flex flex-col h-full">
-					{/* LOCATION MAP */}
-					<div className="flex-1">
-						<Map />
+					{/* LOCATION MAP — one pin per farm; clicking a pin
+					    selects that farm the same way clicking its
+					    sidebar card does. `isolate` keeps Leaflet's own
+					    z-indexes from covering the page's popups. */}
+					<div className="relative flex-1 min-h-[35%] isolate">
+						<Map
+							markers={farmMarkers}
+							selectedMarkerId={selectedFarmParam}
+							onMarkerClick={(id) => openFarmParam(id)}
+						/>
+
+						{selectedFarmParam ? (
+							// Back to the big map.
+							<button
+								onClick={closeFarmParam}
+								className="absolute top-3 right-3 z-1000 flex items-center gap-1.5 bg-white/95 hover:bg-white text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] transition-all duration-130 ease-in">
+								<Icon icon="mdi:arrow-expand" className="w-4 h-4" />
+								Show full map
+							</button>
+						) : (
+							farmMarkers.length > 0 && (
+								<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-1000 bg-white/95 text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-4 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] pointer-events-none">
+									Tap a pin or a farm to see its profile
+								</div>
+							)
+						)}
 					</div>
 
-					{/* BEEFARM INFO */}
-					<div className="flex-3 min-h-0 overflow-y-auto lg:hidden block">
-						<BeefarmView />
+					{/* BEEFARM INFO — only as tall as the profile itself
+					    (up to 65% of the side, then it scrolls). Animated
+					    open/close via max-height. */}
+					<div
+						className={`shrink-0 bg-white overflow-y-auto lg:scrollbar-auto scrollbar-none transition-[max-height] duration-300 ease-in-out ${
+							selectedFarmParam ? "max-h-[65%]" : "max-h-0"
+						}`}>
+						{selectedFarmParam && <BeefarmView farmId={selectedFarmParam} />}
 					</div>
 				</div>
 			</div>
@@ -115,10 +238,16 @@ const BeefarmPage = () => {
 							{/* MAP + BEEFARM INFO */}
 							<div className="flex-1 min-h-0 flex flex-col">
 								<div className="flex-1 min-h-0">
-									<Map />
+									<Map
+										markers={farmMarkers}
+										selectedMarkerId={selectedFarmParam}
+										onMarkerClick={(id) => openFarmParam(id)}
+									/>
 								</div>
 								<div className="flex-3 min-h-0 overflow-y-auto lg:scrollbar-auto scrollbar-none">
-									<BeefarmView />
+									{selectedFarmParam && (
+										<BeefarmView farmId={selectedFarmParam} />
+									)}
 								</div>
 							</div>
 						</div>

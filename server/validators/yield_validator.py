@@ -1,7 +1,11 @@
+# validators/yield_validator.py
+
 """
 Validators for yield (harvest) payloads.
 """
 import datetime as dt
+
+from utils.dates import ph_today
 
 NORMAL_LABEL = "Normal / Healthy"
 VALID_INSPECT = {
@@ -39,12 +43,12 @@ def validate_add_harvest(payload: dict) -> tuple[dict, dict]:
     # yield_date (optional; defaults to today)
     yd_raw = payload.get("yield_date")
     if yd_raw is None:
-        cleaned["yield_date"] = dt.date.today()
+        cleaned["yield_date"] = ph_today()
     else:
         yd = _parse_date(yd_raw)
         if yd is None:
             errors["yield_date"] = "yield_date must be YYYY-MM-DD."
-        elif yd > dt.date.today():
+        elif yd > ph_today():
             errors["yield_date"] = "yield_date cannot be in the future."
         else:
             cleaned["yield_date"] = yd
@@ -92,12 +96,12 @@ def validate_set_baseline(payload: dict) -> tuple[dict, dict]:
 
     try:
         yr = int(payload.get("yield_year"))
-        current_year = dt.date.today().year
+        current_year = ph_today().year
         if yr < 1970 or yr > current_year:
             raise ValueError()
         cleaned["yield_year"] = yr
     except (TypeError, ValueError):
-        errors["yield_year"] = f"yield_year must be between 1970 and {dt.date.today().year}."
+        errors["yield_year"] = f"yield_year must be between 1970 and {ph_today().year}."
 
     return cleaned, errors
 

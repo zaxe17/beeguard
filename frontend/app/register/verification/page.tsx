@@ -1,3 +1,4 @@
+// app/register/verification/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -44,7 +45,7 @@ const Verification = () => {
     }, [resendCooldown]);
 
     const handleVerify = async () => {
-        if (!pending) return;
+        if (!pending || submitting) return; // Enter pressed twice
         setError(null);
         setInfo(null);
 
@@ -108,7 +109,7 @@ const Verification = () => {
     };
 
     return (
-        <FormContainer width="w-2/3">
+        <FormContainer width="w-2/3" onSubmit={handleVerify}>
             <div className="text-center mb-7">
                 <h1 className="Poppins-Bold text-[28px] text-[#ff9a00]">
                     Verify Your Account
@@ -161,10 +162,10 @@ const Verification = () => {
                 </div>
             </div>
 
+            {/* type="submit" -> clicking it OR pressing Enter verifies */}
             <Button
-                buttonType="button"
+                buttonType="submit"
                 label={submitting ? "Verifying..." : "Verify"}
-                onClick={handleVerify}
                 disabled={submitting}
             />
         </FormContainer>

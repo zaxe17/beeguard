@@ -31,6 +31,17 @@ export interface Hive {
 	hive_state: HiveState;
 	created_at?: string;
 	updated_at?: string | null;
+	// NEW — only in GET /hives (list). Days since the queen was installed.
+	queen_age_days?: number | null;
+	// NEW — only in GET /hives (list). The open queen recommendation, or
+	// null. Set even for a Healthy hive (e.g. queen older than the limit).
+	queen_recommendation?: QueenRecommendationSummary | null;
+}
+
+export interface QueenRecommendationSummary {
+	level: "Monitor" | "Replace";
+	reason: string;
+	reason_code: string; // e.g. "QUEEN_AGE_EXCEEDED"
 }
 
 export interface CreateHivePayload {
@@ -77,9 +88,16 @@ export type ApiEnvelopeWithFields<T> = ApiEnvelope<T> & {
 	field_errors?: Record<string, string>;
 };
 
+// OFFLINE MODE — create / updateState / recordInspection work offline:
+// with no internet they're saved on the phone and sent automatically
+// later. In that case the result is { success: false, queued: true,
+// message: "No internet — saved on this phone..." } (check `res.queued`).
+// Everything read with api.get also shows the last saved copy offline.
 export const hiveService = {
 	create: (payload: CreateHivePayload) =>
-		api.post<Hive>("/hives", payload) as Promise<ApiEnvelopeWithFields<Hive>>,
+		api.postOrQueue<Hive>("/hives", payload, {
+			label: `Add hive "${payload.hive_name}"`,
+		}) as Promise<ApiEnvelopeWithFields<Hive>>,
 
 	list: (state?: HiveState) =>
 		api.get<Hive[]>(`/hives${state ? `?state=${state}` : ""}`),
@@ -87,13 +105,18 @@ export const hiveService = {
 	getOne: (hiveId: string) => api.get<Hive>(`/hives/${hiveId}`),
 
 	updateState: (hiveId: string, hiveState: HiveState) =>
-		api.patch<Hive>(`/hives/${hiveId}/state`, { hive_state: hiveState }),
+		api.patchOrQueue<Hive>(
+			`/hives/${hiveId}/state`,
+			{ hive_state: hiveState },
+			{ label: `Set hive ${hiveId} to ${hiveState}` },
+		),
 
 	recordInspection: (hiveId: string, payload: PhysicalInspectionPayload) =>
-		api.post<InspectionResult>(
-			`/hives/${hiveId}/inspection`,
-			payload,
-		) as Promise<ApiEnvelopeWithFields<InspectionResult>>,
+		api.postOrQueue<InspectionResult>(`/hives/${hiveId}/inspection`, payload, {
+			label: `Health check — hive ${hiveId}`,
+			// dated the day it was done, not the day it syncs
+			stampDateField: "activity_date",
+		}) as Promise<ApiEnvelopeWithFields<InspectionResult>>,
 
 	listMaintenance: (hiveId: string, limit?: number) =>
 		api.get<MaintenanceRecord[]>(

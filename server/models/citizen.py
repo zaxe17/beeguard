@@ -90,6 +90,18 @@ class CitizenModel:
         """
         return Database.execute(sql, (email,), commit=True)
 
+    # NEW — Forgot Password. `hashed_password` is already bcrypt-hashed
+    # (AuthService.hash_password). Also marks the email verified: the
+    # user just proved they own it by entering the reset code.
+    @staticmethod
+    def update_password_by_email(email: str, hashed_password: str) -> int:
+        sql = f"""
+            UPDATE {CitizenModel.TABLE}
+            SET password = %s, email_verified = TRUE
+            WHERE email = %s AND deleted_at IS NULL
+        """
+        return Database.execute(sql, (hashed_password, email), commit=True)
+
     @staticmethod
     def delete(citizen_id: str) -> int:
         """

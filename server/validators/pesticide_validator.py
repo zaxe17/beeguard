@@ -1,3 +1,5 @@
+# validators/pesticide_validator.py
+
 import datetime as dt
 
 VALID_PESTICIDE_TYPES = {"Insecticide", "Herbicide", "Fungicide"}
@@ -5,14 +7,34 @@ VALID_RISK_LEVELS = {"Low", "Medium", "High"}
 
 
 def _parse_datetime(v):
+    """
+    Accepts ISO datetimes like "2026-09-28T02:00:00.000Z" (what the
+    browser's toISOString() sends) or with an offset ("+08:00").
+
+    FIX 1: Python 3.10 and older can't read the trailing "Z", so EVERY
+    alert (past or future date) failed with "scheduled_date must be an
+    ISO datetime." — "Z" is now turned into "+00:00" first.
+    FIX 2: the result is converted to UTC and the timezone is dropped
+    before saving. A timezone-aware value mixed with the plain values
+    from MySQL makes Python crash when comparing them ("can't compare
+    offset-naive and offset-aware datetimes"). Saved as UTC, the same way
+    the existing alerts already are, so their shown times don't change.
+    """
     if isinstance(v, dt.datetime):
-        return v
-    if not isinstance(v, str):
+        parsed = v
+    elif isinstance(v, str) and v.strip():
+        text = v.strip()
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = dt.datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
         return None
-    try:
-        return dt.datetime.fromisoformat(v)
-    except ValueError:
-        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 def validate_create_alert(payload: dict) -> tuple[dict, dict]:

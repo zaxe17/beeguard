@@ -1,3 +1,5 @@
+# services/yield_service.py
+
 """
 Yield (harvest) recording service.
 
@@ -32,6 +34,7 @@ from models.yield_record import YieldModel
 from models.hive_maintenance import HiveMaintenanceModel
 from services.queen_service import QueenService
 from services.harvest_health import compute_health_status
+from utils.dates import ph_today
 
 NORMAL_LABEL = "Normal / Healthy"
 VALID_INSPECT = {
@@ -40,6 +43,44 @@ VALID_INSPECT = {
     "Reduction of Open Brood",
     "Emaciated Queen",
 }
+
+HARVEST_REMARKS_PREFIX = "Harvest Inspection: "
+
+
+def _has_symptom_logged_today(hive_id: str, yield_date) -> bool:
+    """
+    True if ANY "Harvest Inspection" entry already logged for this
+    hive on this exact date reported a real symptom (not "Normal /
+    Healthy"). Combined (OR'd) with whatever THIS submission itself
+    reports in add_harvest() below — so multiple same-day Add Yield
+    submissions merge into one combined symptom picture for that day,
+    instead of the latest submission's own checkboxes alone silently
+    overriding an earlier one from the same day (e.g. a big 150kg
+    healthy harvest logged in the morning, topped up with a smaller
+    15kg entry later that flags a symptom — the day is treated as
+    "has a symptom" either way, rather than the topped-up entry
+    quietly erasing the earlier clean one or vice versa).
+    """
+    sql = """
+        SELECT remarks FROM hives_maintenance
+        WHERE hive_id = %s AND activity_type = 'Inspection' AND activity_date = %s
+          AND remarks LIKE %s
+    """
+    rows = Database.execute(
+        sql, (hive_id, yield_date, f"{HARVEST_REMARKS_PREFIX}%"), fetchall=True
+    ) or []
+    for row in rows:
+        remarks = row.get("remarks") or ""
+        if not remarks.startswith(HARVEST_REMARKS_PREFIX):
+            continue
+        labels = [
+            p.strip()
+            for p in remarks[len(HARVEST_REMARKS_PREFIX):].split(",")
+            if p.strip()
+        ]
+        if any(label != NORMAL_LABEL for label in labels):
+            return True
+    return False
 
 
 class YieldService:
@@ -60,7 +101,7 @@ class YieldService:
         if not hive:
             raise PermissionError("Hive does not exist or is not owned by this beekeeper.")
 
-        yield_date = yield_date or dt.date.today()
+        yield_date = yield_date or ph_today()
         if yield_kg is None or float(yield_kg) < 0:
             raise ValueError("yield_kg must be a non-negative number.")
 
@@ -72,24 +113,49 @@ class YieldService:
         if NORMAL_LABEL in observation_labels and len(observation_labels) > 1:
             raise ValueError(f"{NORMAL_LABEL!r} cannot be combined with other symptoms.")
 
-        has_symptom = NORMAL_LABEL not in observation_labels
+        # Merge with any symptom already logged earlier TODAY for this
+        # hive (see _has_symptom_logged_today's docstring) — a symptom
+        # reported in EITHER this submission or an earlier one from
+        # the same day marks the whole day as "has a symptom" for
+        # health-status purposes.
+        this_entry_has_symptom = NORMAL_LABEL not in observation_labels
+        has_symptom = this_entry_has_symptom or _has_symptom_logged_today(
+            hive_id, yield_date
+        )
 
         conn = Database.get_connection()
         try:
-            yid = YieldModel.insert_with_conn(conn, {
-                "hive_id":     hive_id,
-                "yield_date":  yield_date,
-                "yield_kg":    float(yield_kg),
-                "is_baseline": False,
-            })
+            # SAME-DAY HARVESTS ARE ADDED TOGETHER (NEW): a second entry
+            # for the same hive on the same date (e.g. 150 kg in the
+            # morning, then 15 kg more) is added to that day's harvest
+            # (-> 165 kg) instead of being saved as a separate, smaller
+            # harvest — which looked like a big drop in yield.
+            existing = YieldModel.find_same_day_harvest(hive_id, yield_date, conn=conn)
+            if existing:
+                yid = existing["yield_id"]
+                YieldModel.add_kg_with_conn(conn, yid, float(yield_kg))
+                day_total_kg = round(float(existing["yield_kg"]) + float(yield_kg), 2)
+                merged = True
+            else:
+                yid = YieldModel.insert_with_conn(conn, {
+                    "hive_id":     hive_id,
+                    "yield_date":  yield_date,
+                    "yield_kg":    float(yield_kg),
+                    "is_baseline": False,
+                })
+                day_total_kg = round(float(yield_kg), 2)
+                merged = False
 
             HiveMaintenanceModel.record_physical_inspection(
                 conn, hive_id, observation_labels, yield_date,
                 remarks_prefix="Harvest Inspection",
             )
 
+            # `conn`: count THIS harvest in the year total (it isn't
+            # committed yet — see harvest_health.total_harvest_for_year).
             new_health, details = compute_health_status(
                 hive, yield_date, hive.get("health_status"), has_symptom,
+                conn=conn,
             )
             if new_health != hive.get("health_status"):
                 HiveModel.update_health_status(
@@ -112,7 +178,11 @@ class YieldService:
             "yield_id":       yid,
             "hive_id":        hive_id,
             "yield_date":     yield_date.isoformat(),
-            "yield_kg":       float(yield_kg),
+            # The day's total after this entry (same as added_kg unless
+            # it was added to an earlier harvest from the same day).
+            "yield_kg":       day_total_kg,
+            "added_kg":       float(yield_kg),
+            "merged_same_day": merged,
             "is_baseline":    False,
             "observations":   observation_labels,
             "health_status":  new_health,

@@ -2,7 +2,12 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+	cachedPlaceName,
+	reverseGeocode as sharedReverseGeocode,
+} from "@/services/geocode";
+import { PLACE_LOADING, PLACE_UNKNOWN } from "@/hooks/usePlaceName";
 
 // Deliberately narrower than AlertRecord/AlertDetail so this hook
 // works for both — anything with lat/lng and an optional pre-known
@@ -23,112 +28,81 @@ export function alertLocationKey(a: LocatableAlert): string | null {
 	return `${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
-// Reverse-geocodes a lat/lng pair into "Barangay, City" using
-// OpenStreetMap's free Nominatim API (no API key required). Used only
-// as a fallback for alerts that don't already have an affected_area
-// on file.
-//
-// Field mapping verified against a real Parañaque address: the
-// barangay ("Moonwalk") came back under "quarter", "neighbourhood"
-// held a private subdivision INSIDE that barangay ("Airport Village"),
-// and "city_district" held the city's larger district ("Parañaque
-// District 2") — a bigger unit than a barangay, not the barangay
-// itself. So city_district/borough are deliberately excluded; quarter
-// is tried first, with suburb/village/neighbourhood only as fallbacks
-// for areas tagged differently.
-//
-// Returns null on any failure so the caller can fall back to showing
-// the raw coordinates instead of getting stuck.
+// Coordinates -> "Barangay, City" (e.g. "Moonwalk, Parañaque").
+// Now goes through services/geocode.ts, which every page shares:
+//   - one request per second (OpenStreetMap's limit) — the old version
+//     fired every alert's lookup at the same time, most got blocked, and
+//     the card fell back to showing latitude/longitude;
+//   - picks the BARANGAY (quarter/village) first, not the subdivision;
+//   - remembers names in the browser, so a pin is looked up only once;
+//   - retries a failed lookup instead of remembering the failure.
+// Returns null only if every try failed.
 export async function reverseGeocode(
 	lat: number,
 	lng: number,
 ): Promise<string | null> {
-	try {
-		const res = await fetch(
-			`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-		);
-		if (!res.ok) return null;
-		const data = await res.json();
-		const address = data?.address;
-		if (!address) return data?.display_name ?? null;
-
-		const barangay =
-			address.quarter ||
-			address.suburb ||
-			address.village ||
-			address.neighbourhood ||
-			null;
-
-		const city =
-			address.city ||
-			address.town ||
-			address.municipality ||
-			address.state ||
-			null;
-
-		const parts = [barangay, city].filter(Boolean);
-		if (parts.length > 0) return parts.join(", ");
-
-		// Neither field came back — fall back to the full address
-		// string rather than showing nothing.
-		return data?.display_name ?? null;
-	} catch {
-		return null;
-	}
+	return sharedReverseGeocode(lat, lng);
 }
 
-// `resolvedLocations` maps an alertLocationKey() to its resolved
-// exact-location string (either the geocoded "Barangay, City", or the
-// raw "lat, lng" text if geocoding failed — either way, once a key is
-// in here it won't be retried).
+// A saved affected_area is used as-is unless it's a city DISTRICT
+// ("Parañaque District 2, ...") or the "Airport Village" subdivision an
+// older version saved instead of the barangay — those are looked up again
+// (run server/scripts/fill_alert_places.py to fix them for good).
+const WRONG_AREA_RE = /\bdistrict\b|airport village/i;
+const savedArea = (a: LocatableAlert): string | null =>
+	a.affected_area && !WRONG_AREA_RE.test(a.affected_area) ? a.affected_area : null;
+
+// `resolvedLocations` maps an alertLocationKey() to its "Barangay, City"
+// (or PLACE_UNKNOWN when every lookup failed).
 export function getAlertLocation(
 	a: LocatableAlert,
 	resolvedLocations: Record<string, string>,
 ): string {
-	if (a.affected_area) return a.affected_area;
+	const saved = savedArea(a);
+	if (saved) return saved;
 	const key = alertLocationKey(a);
-	if (key && resolvedLocations[key]) return resolvedLocations[key];
-	if (!key) return "Unknown location";
-	return "Locating…";
+	if (!key) return PLACE_UNKNOWN;
+	if (resolvedLocations[key]) return resolvedLocations[key];
+	const cached = cachedPlaceName(Number(a.latitude), Number(a.longitude));
+	return cached ?? PLACE_LOADING;
 }
 
 // Shared hook: pass in whatever alert list a page is currently
-// showing, get back a lat/lng -> "Barangay, City" cache. Any page that
-// renders a list of AlertRecord (Dashboard's Recent Alerts, the full
-// Alert list, Alert > Today) can drop this in and use getAlertLocation()
-// instead of keeping its own copy of the reverse-geocoding logic.
+// showing, get back a lat/lng -> "Barangay, City" map. Any page that
+// renders a list of alerts (Dashboard's Recent Alerts, the Alert
+// lists, Alert Details, admin Alerts) uses this with getAlertLocation().
 export function useAlertLocations(
 	alerts: LocatableAlert[],
 ): Record<string, string> {
 	const [resolvedLocations, setResolvedLocations] = useState<
 		Record<string, string>
 	>({});
-	// Tracks keys currently being resolved so a re-render (or a second
-	// alert sharing the same coordinates, possibly on a different page)
-	// doesn't fire a duplicate geocode request while one is in flight.
-	const resolvingKeysRef = useRef<Set<string>>(new Set());
 
 	useEffect(() => {
-		alerts.forEach((a) => {
-			if (a.affected_area) return;
-			const key = alertLocationKey(a);
-			if (!key) return;
-			if (resolvedLocations[key] || resolvingKeysRef.current.has(key)) return;
+		let cancelled = false;
+		const seen = new Set<string>();
 
-			resolvingKeysRef.current.add(key);
+		alerts.forEach((a) => {
+			if (savedArea(a)) return;
+			const key = alertLocationKey(a);
+			if (!key || seen.has(key) || resolvedLocations[key]) return;
+			seen.add(key);
+
 			const lat = Number(a.latitude);
 			const lng = Number(a.longitude);
-			reverseGeocode(lat, lng).then((address) => {
-				resolvingKeysRef.current.delete(key);
-				setResolvedLocations((prev) => ({
-					...prev,
-					// Fall back to the raw coordinates on geocode failure so
-					// we don't keep retrying a bad/rate-limited request.
-					[key]: address ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-				}));
+			sharedReverseGeocode(lat, lng).then((name) => {
+				if (cancelled) return;
+				setResolvedLocations((prev) =>
+					prev[key] ? prev : { ...prev, [key]: name ?? PLACE_UNKNOWN },
+				);
 			});
 		});
-	}, [alerts, resolvedLocations]);
+
+		return () => {
+			cancelled = true;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [alerts]);
 
 	return resolvedLocations;
 }

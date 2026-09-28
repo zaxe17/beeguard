@@ -1,3 +1,4 @@
+// components/graph/Line.tsx
 "use client";
 
 import { useIsPage } from "@/hooks/useIsPage";
@@ -43,7 +44,7 @@ export type YieldSeries = {
 
 // ---- Shared chart.js config, used by both YieldSummaryChart and ReportOverview ----
 
-function buildLineOptions(): ChartOptions<"line"> {
+function buildLineOptions(integerTicks = false): ChartOptions<"line"> {
 	return {
 		responsive: true,
 		maintainAspectRatio: false,
@@ -95,7 +96,12 @@ function buildLineOptions(): ChartOptions<"line"> {
 			y: {
 				beginAtZero: true,
 				grid: { color: "#f0f0f0" },
-				ticks: { font: { size: 11 }, color: "#666" },
+				// Counts (like reports) have no fractions — no "0.5" on the axis.
+				ticks: {
+					font: { size: 11 },
+					color: "#666",
+					...(integerTicks ? { precision: 0 } : {}),
+				},
 			},
 			x: {
 				grid: { display: false },
@@ -131,11 +137,17 @@ function buildYieldDataset(
 
 // Small internal component so the <Line> render + wrapper markup
 // isn't duplicated between YieldSummaryChart and ReportOverview.
-function LineChartBase({ chartData }: { chartData: ChartData<"line"> }) {
+function LineChartBase({
+	chartData,
+	integerTicks = false,
+}: {
+	chartData: ChartData<"line">;
+	integerTicks?: boolean;
+}) {
 	return (
 		<div className="flex-1 flex flex-col">
 			<div className="flex-1 relative">
-				<Line data={chartData} options={buildLineOptions()} />
+				<Line data={chartData} options={buildLineOptions(integerTicks)} />
 			</div>
 		</div>
 	);
@@ -147,7 +159,11 @@ type YieldSummaryChartProps = {
 	value: string;
 	valueLabel: string;
 	changeAmount: number;
-	changePercent: number;
+	// null = nothing to compare with (e.g. no harvest last month) -> no %
+	changePercent: number | null;
+	// Text under the change, e.g. "vs last month". Defaults to the old
+	// "vs last season" so other pages look the same.
+	changeLabel?: string;
 	categories: string[]; // supports multi-line "Harvest Season N\nMon YYYY"
 	data?: number[]; // single-line mode (Dashboard)
 	series?: YieldSeries[]; // multi-line mode (History, per hive)
@@ -161,6 +177,7 @@ export const YieldSummaryChart = ({
 	valueLabel,
 	changeAmount,
 	changePercent,
+	changeLabel = "vs last season",
 	categories,
 	data,
 	series,
@@ -169,6 +186,7 @@ export const YieldSummaryChart = ({
 	hideSummary,
 }: YieldSummaryChartProps) => {
 	const isNegative = changeAmount < 0;
+	const isZero = changeAmount === 0;
 	const isMultiLine = !!series && series.length > 0;
 
 	const datasets = isMultiLine
@@ -206,13 +224,25 @@ export const YieldSummaryChart = ({
 					<div className="flex flex-col">
 						<span
 							className={`Poppins-SemiBold ${
-								isNegative ? "text-[#ff0000]" : "text-[#00cc00]"
+								isZero
+									? "text-[#817b70]"
+									: isNegative
+										? "text-[#ff0000]"
+										: "text-[#00cc00]"
 							}`}>
-							{isNegative ? "" : "+"}
-							{changeAmount} kg ({isNegative ? "↓" : "↑"}
-							{Math.abs(changePercent)}%)
+							{isZero ? (
+								"No change"
+							) : (
+								<>
+									{isNegative ? "" : "+"}
+									{changeAmount} kg
+									{/* % only when there's something to compare with */}
+									{changePercent !== null &&
+										` (${isNegative ? "↓" : "↑"}${Math.abs(changePercent)}%)`}
+								</>
+							)}
 						</span>
-						<span className="text-[#817b70]">vs last season</span>
+						<span className="text-[#817b70]">{changeLabel}</span>
 					</div>
 				</div>
 			)}
@@ -227,21 +257,54 @@ export const YieldSummaryChart = ({
 // YieldSummaryChart's scope — that would throw at runtime. Give it its
 // own props/data so it's a real standalone component.
 
+// Same colors as the report status badges (components/ui/ReportCard.tsx).
+export const REPORT_STATUS_COLORS: Record<string, string> = {
+	pending: "#ffdb4f",
+	"in-progress": "#ff9a00",
+	resolved: "#1f6f5f",
+	rejected: "#ff0000",
+	cancelled: "#ff0000", // admin side shows "Cancelled" instead of "Rejected"
+};
+
+export type ReportOverviewSeries = {
+	key: string; // "pending" | "in-progress" | "resolved" | "rejected"
+	label: string; // legend text
+	data: number[];
+	color?: string;
+};
+
 type ReportOverviewProps = {
 	categories: string[];
-	data: number[];
+	data?: number[]; // single line (used when no series is given)
+	series?: ReportOverviewSeries[]; // one line per report status
 	lineColor?: string;
+	label?: string; // legend text for the single line
 };
 
 export const ReportOverview = ({
 	categories,
-	data,
+	data = [],
+	series,
 	lineColor = "#FFC93F",
+	label = "Swarm Reports",
 }: ReportOverviewProps) => {
+	const datasets =
+		series && series.length > 0
+			? series.map((s, i) =>
+					buildYieldDataset(
+						s.color ??
+							REPORT_STATUS_COLORS[s.key] ??
+							DEFAULT_PALETTE[i % DEFAULT_PALETTE.length],
+						s.label,
+						s.data,
+					),
+				)
+			: [buildYieldDataset(lineColor, label, data)];
+
 	const chartData: ChartData<"line"> = {
 		labels: categories.map((c) => c.split("\n")) as unknown as string[],
-		datasets: [buildYieldDataset(lineColor, "Total Yield (kg)", data)],
+		datasets,
 	};
 
-	return <LineChartBase chartData={chartData} />;
+	return <LineChartBase chartData={chartData} integerTicks />;
 };

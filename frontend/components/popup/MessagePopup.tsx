@@ -6,6 +6,10 @@ import { motion } from "framer-motion";
 import React, { useRef, useState } from "react";
 
 type ModalType = "DeleteChat" | "ReportChat";
+// Payload every DeleteChat/ReportChat open carries — which conversation
+// row the "..." menu / long-press sheet was opened on. Delete.tsx and
+// Report.tsx (ChatModal.tsx) read this back out via useModal().payload.
+type ChatModalPayload = { chatId: number };
 
 type MenuTabProps = {
 	icon: string;
@@ -17,11 +21,13 @@ type MenuTabProps = {
 
 // MOBILE — long-press bottom sheet
 type MessageBottomSheetProps = {
+	chatId: number;
 	onClose: () => void;
 	onAction?: (label: string) => void;
 };
 
 type MessagePopupMenuProps = {
+	chatId: number;
 	top?: number;
 	left?: number;
 	onAction?: (label: string) => void;
@@ -36,7 +42,6 @@ type MessagePopupContainerProps = {
 
 const TabMenu = [
 	{ icon: "fluent:mail-unread-16-regular", label: "Mark as unread" },
-	{ icon: "fluent:archive-16-regular", label: "Archive" },
 	{
 		icon: "fluent:delete-12-regular",
 		label: "Delete",
@@ -55,6 +60,12 @@ const AddTabMenu = [
 	{ icon: "bx:image-add", label: "Image" },
 	{ icon: "gravity-ui:location-arrow-fill", label: "Location" },
 ];
+
+// ChatPage.tsx listens for these:
+//  - share-location -> opens the LocationShareModal
+//  - pick-image     -> opens the file picker for sending a photo
+const SHARE_LOCATION_EVENT = "beeguard:share-location";
+const PICK_IMAGE_EVENT = "beeguard:pick-image";
 
 const MenuTab = ({ icon, label, onClick, danger }: MenuTabProps) => {
 	return (
@@ -87,11 +98,12 @@ const MessagePopupContainer = ({
 };
 
 export const MessagePopupMenu = ({
+	chatId,
 	top,
 	left,
 	onAction,
 }: MessagePopupMenuProps) => {
-	const { openModal } = useModal<ModalType>();
+	const { openModal } = useModal<ModalType, ChatModalPayload>();
 
 	return (
 		<MessagePopupContainer
@@ -108,7 +120,7 @@ export const MessagePopupMenu = ({
 						e.stopPropagation();
 						onAction?.(tabCon.label);
 						if (tabCon.modalName) {
-							openModal(tabCon.modalName);
+							openModal(tabCon.modalName, { chatId });
 						}
 					}}
 				/>
@@ -118,10 +130,11 @@ export const MessagePopupMenu = ({
 };
 
 export const MessageBottomSheet = ({
+	chatId,
 	onClose,
 	onAction,
 }: MessageBottomSheetProps) => {
-	const { openModal } = useModal<ModalType>();
+	const { openModal } = useModal<ModalType, ChatModalPayload>();
 
 	return (
 		<div className="fixed inset-0 z-1000 flex items-end pb-10">
@@ -153,7 +166,7 @@ export const MessageBottomSheet = ({
 							e.stopPropagation();
 							onAction?.(tabCon.label);
 							if (tabCon.modalName) {
-								openModal(tabCon.modalName);
+								openModal(tabCon.modalName, { chatId });
 							}
 						}}
 						className={`flex items-center gap-3 w-full py-3 px-2 rounded-lg active:bg-[#fff4c7] ${tabCon.danger ? "text-red-600" : "text-[#4a2f00]"}`}>
@@ -168,7 +181,8 @@ export const MessageBottomSheet = ({
 	);
 };
 
-// CHAT ADD BUTTON MENU OPTION
+// CHAT ADD BUTTON MENU OPTION (message-composer "+" — Image/Location
+// attachments). Unrelated to Delete/Report — takes no chatId.
 export const ChatOptionMenu = () => {
 	const [menuPos, setMenuPos] = useState<{
 		top: number;
@@ -216,7 +230,14 @@ export const ChatOptionMenu = () => {
 								label={tabCon.label}
 								onClick={(e) => {
 									e.stopPropagation();
-									console.log("Chat action:", tabCon.label);
+									if (tabCon.label === "Location") {
+										window.dispatchEvent(new Event(SHARE_LOCATION_EVENT));
+									}
+									if (tabCon.label === "Image") {
+										// Dispatched synchronously inside this click, so the
+										// browser still allows ChatPage to open the file picker.
+										window.dispatchEvent(new Event(PICK_IMAGE_EVENT));
+									}
 									setMenuPos(null);
 								}}
 							/>

@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 
 import bcrypt
 import jwt
@@ -9,6 +10,7 @@ from models.beekeeper import BeekeeperModel
 from models.citizen import CitizenModel
 from services.otp_service import OtpService
 from utils.id_generator import next_user_id
+from utils.logger import audit
 
 
 class AuthService:
@@ -190,6 +192,135 @@ class AuthService:
             email=email, role=role, name=row.get("name", "")
         )
 
+    # ---------- forgot password (NEW) ----------
+    # Flow: forgot-password (email) -> verify-reset-code (email + 6-digit
+    # code, returns a short-lived reset_token) -> reset-password
+    # (reset_token + new password).
+    #
+    # The reset_token is a JWT signed with a DIFFERENT key than login
+    # tokens (JWT_SECRET + suffix), so it can never be used as a login
+    # token by the auth middleware. It also carries a fingerprint of the
+    # current password hash, so it stops working the moment the password
+    # changes — i.e. it can only be used once.
+    RESET_TOKEN_MINUTES = 15
+    _RESET_KEY_SUFFIX = ":password_reset"
+
+    @staticmethod
+    def _reset_key() -> str:
+        return Config.JWT_SECRET + AuthService._RESET_KEY_SUFFIX
+
+    @staticmethod
+    def _password_fingerprint(hashed_password: str) -> str:
+        return hashlib.sha256(
+            (hashed_password or "").encode("utf-8")
+        ).hexdigest()[:16]
+
+    @staticmethod
+    def _find_account_by_email(email: str):
+        """(role, row) for the account using this email, or (None, None)."""
+        row = CitizenModel.find_by_email(email)
+        if row:
+            return "citizen", row
+        row = BeekeeperModel.find_by_email(email)
+        if row:
+            return "beekeeper", row
+        row = AdminModel.find_by_email(email)
+        if row:
+            return "admin", row
+        return None, None
+
+    @staticmethod
+    def request_password_reset(email: str) -> tuple[bool, str]:
+        """
+        Sends a password-reset code. For an email with no account we still
+        answer "sent" (so the form can't be used to find out which emails
+        are registered) — no email actually goes out in that case.
+        """
+        generic = "If an account uses that email, a reset code has been sent."
+        role, row = AuthService._find_account_by_email(email)
+        if not row:
+            return True, generic
+        if row.get("status") and str(row["status"]).lower() != "active":
+            return True, generic
+
+        ok, msg = OtpService.issue_and_send(
+            email=email,
+            role=role,
+            name=row.get("name") or row.get("admin_name") or "",
+            purpose=OtpService.PURPOSE_PASSWORD_RESET,
+        )
+        if not ok:
+            return False, msg
+        return True, generic
+
+    @staticmethod
+    def verify_password_reset_code(email: str, code: str) -> tuple[bool, str, dict | None]:
+        role, row = AuthService._find_account_by_email(email)
+        if not row:
+            return False, "Reset code expired or not found. Please request a new one.", None
+
+        ok, msg = OtpService.verify(
+            email, code, purpose=OtpService.PURPOSE_PASSWORD_RESET
+        )
+        if not ok:
+            return False, msg, None
+
+        now = dt.datetime.now(dt.timezone.utc)
+        payload = {
+            "sub": email,
+            "role": role,
+            "pur": "password_reset",
+            "pwf": AuthService._password_fingerprint(row.get("password")),
+            "iat": int(now.timestamp()),
+            "exp": int((now + dt.timedelta(
+                minutes=AuthService.RESET_TOKEN_MINUTES)).timestamp()),
+        }
+        token = jwt.encode(payload, AuthService._reset_key(),
+                           algorithm=Config.JWT_ALGORITHM)
+        return True, "Code verified. You can now set a new password.", {
+            "reset_token": token,
+            "expires_in_minutes": AuthService.RESET_TOKEN_MINUTES,
+        }
+
+    @staticmethod
+    def reset_password(reset_token: str, new_password: str) -> tuple[bool, str]:
+        expired_msg = "Your reset session expired. Please request a new code."
+        try:
+            payload = jwt.decode(
+                reset_token, AuthService._reset_key(),
+                algorithms=[Config.JWT_ALGORITHM],
+            )
+        except jwt.ExpiredSignatureError:
+            return False, expired_msg
+        except jwt.InvalidTokenError:
+            return False, "Invalid reset session. Please start again."
+
+        if payload.get("pur") != "password_reset":
+            return False, "Invalid reset session. Please start again."
+
+        email = payload.get("sub")
+        role, row = AuthService._find_account_by_email(email or "")
+        if not row or role != payload.get("role"):
+            return False, "Account not found."
+
+        # Password already changed with this token (or another way) -> dead.
+        if AuthService._password_fingerprint(row.get("password")) != payload.get("pwf"):
+            return False, "This reset was already used. Please request a new code."
+
+        if AuthService.verify_password(new_password, row.get("password") or ""):
+            return False, "New password must be different from your old password."
+
+        hashed = AuthService.hash_password(new_password)
+        audit("PASSWORD_CHANGED_BY_RESET", email=email, role=role)
+        if role == "citizen":
+            CitizenModel.update_password_by_email(email, hashed)
+        elif role == "beekeeper":
+            BeekeeperModel.update_password_by_email(email, hashed)
+        else:
+            AdminModel.update_password_by_email(email, hashed)
+
+        return True, "Password updated. You can now sign in with your new password."
+
     # ---------- role auto-detection ----------
     @staticmethod
     def _find_account_by_identifier(identifier: str):
@@ -295,4 +426,15 @@ class AuthService:
             lng = row.get("longitude")
             user["latitude"] = float(lat) if lat is not None else None
             user["longitude"] = float(lng) if lng is not None else None
+            # NEW (Migration 019) — the user's own profile photo (URL path,
+            # or None = default picture).
+            photo = row.get("profile_photo")
+            user["profile_photo"] = f"/uploads/profile/{photo}" if photo else None
+        # NEW — beekeepers go through a verification step (document
+        # upload, admin review) before certain features unlock (e.g.
+        # the Report tab). Exposed here so the frontend can gate those
+        # features and show a "please verify" prompt. Citizens/admins
+        # have no such column — left unset for them.
+        if role == "beekeeper":
+            user["verification_status"] = row.get("verification_status")
         return user

@@ -6,9 +6,19 @@ import { Container } from "@/components/ui/Container";
 import { ReportCard } from "@/components/ui/ReportCard";
 import { Icon } from "@iconify/react";
 import { AnimatePresence } from "framer-motion";
-import React, { Suspense } from "react";
-import { dummyReports } from "@/data/reports";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useQueryParamState } from "@/hooks/useQueryParamState";
+import { api } from "@/services/api";
+import {
+	type ApiReport,
+	REPORTS_CHANGED_EVENT,
+	formatDate,
+	formatTime,
+	matchesTab,
+	reportImageSrc,
+	reportWhen,
+	toUiStatus,
+} from "@/services/citizenReport";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -16,6 +26,10 @@ const tabs = [
 	{ label: "In Progress", value: "progress" },
 	{ label: "Resolved", value: "resolved" },
 ];
+
+// Picks up status changes made elsewhere (e.g. a beekeeper accepting
+// or resolving) without a page refresh.
+const LIST_POLL_MS = 15000;
 
 const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 	// "?tab=..." — ginagamit na lang natin yung value dito, hindi na
@@ -32,13 +46,40 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 		clearValue: closeReport,
 	} = useQueryParamState("report");
 
-	const filteredReports = dummyReports.filter(
-		(report) => activeStatus === "all" || activeStatus === report.status,
-	);
+	const [reports, setReports] = useState<ApiReport[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	const loadReports = useCallback(async () => {
+		const res = await api.get<ApiReport[]>("/reports");
+		if (res.success && res.data) {
+			setReports(res.data);
+			setErrorMsg(null);
+		} else {
+			setErrorMsg(res.message || "Couldn't load your reports.");
+		}
+		setLoading(false);
+	}, []);
+
+	useEffect(() => {
+		loadReports();
+		const interval = setInterval(loadReports, LIST_POLL_MS);
+		window.addEventListener(REPORTS_CHANGED_EVENT, loadReports);
+		return () => {
+			clearInterval(interval);
+			window.removeEventListener(REPORTS_CHANGED_EVENT, loadReports);
+		};
+	}, [loadReports]);
+
+	const filteredReports = reports.filter((r) => matchesTab(r.status, activeStatus));
+
+	// With no ?report=, the details page shows the newest report —
+	// highlight that one so the two sides agree.
+	const highlightedId = selectedReportId ?? reports[0]?.reportID ?? null;
 
 	return (
 		<div className="w-full h-full flex items-start relative">
-			{/* CONTAINER FOR BEEFARM LOCATION TAB */}
+			{/* CONTAINER FOR REPORT LIST */}
 			<Container
 				height="100%"
 				borderNone
@@ -54,17 +95,45 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 					</div>
 				</div>
 
-				{/* SCROLLABLE BEEFARM CARD */}
+				{/* SCROLLABLE REPORT CARDS */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
+					{loading && (
+						<p className="text-center text-sm text-[#a6a3a3] py-4">
+							Loading your reports…
+						</p>
+					)}
+					{!loading && errorMsg && (
+						<p className="text-center text-sm text-red-600 py-4">{errorMsg}</p>
+					)}
+					{!loading && !errorMsg && filteredReports.length === 0 && (
+						<p className="text-center text-sm text-[#a6a3a3] py-4">
+							{reports.length === 0
+								? "You haven't submitted any reports yet."
+								: "No reports in this tab."}
+						</p>
+					)}
+
 					<div className="flex flex-col">
-						{filteredReports.map((report) => (
-							<div
-								key={report.reportId}
-								onClick={() => openReport(report.reportId)}
-								className="cursor-pointer">
-								<ReportCard status={report.status} />
-							</div>
-						))}
+						{filteredReports.map((report) => {
+							const when = reportWhen(report);
+							return (
+								<div
+									key={report.reportID}
+									onClick={() => openReport(report.reportID)}
+									className="cursor-pointer">
+									<ReportCard
+										status={toUiStatus(report.status)}
+										reportId={report.reportID}
+										latitude={report.latitude}
+										longitude={report.longitude}
+										date={formatDate(when)}
+										time={formatTime(when)}
+										imageUrl={reportImageSrc(report.image_url)}
+										selected={report.reportID === highlightedId}
+									/>
+								</div>
+							);
+						})}
 					</div>
 				</div>
 			</Container>

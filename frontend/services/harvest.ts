@@ -1,3 +1,5 @@
+// services/harvest.ts
+
 import { api, ApiEnvelope } from "./api";
 import { QueenRecommendationResult, InspectionObservation, HealthStatus } from "./hive";
 
@@ -51,19 +53,23 @@ export type ApiEnvelopeWithFields<T> = ApiEnvelope<T> & {
 	field_errors?: Record<string, string>;
 };
 
+// OFFLINE MODE — addHarvest / setBaseline work offline: with no internet
+// they're saved on the phone and sent automatically later. In that case
+// the result is { success: false, queued: true, message: "No internet —
+// saved on this phone..." } (check `res.queued`).
 export const yieldService = {
 	addHarvest: (hiveId: string, payload: AddHarvestPayload) =>
-		api.post<HarvestResult>(
-			`/hives/${hiveId}/yields`,
-			payload,
-		) as Promise<ApiEnvelopeWithFields<HarvestResult>>,
+		api.postOrQueue<HarvestResult>(`/hives/${hiveId}/yields`, payload, {
+			label: `Add harvest ${payload.yield_kg} kg — hive ${hiveId}`,
+			// dated the day it was harvested, not the day it syncs
+			stampDateField: "yield_date",
+		}) as Promise<ApiEnvelopeWithFields<HarvestResult>>,
 
 	listHistory: (hiveId: string) =>
 		api.get<YieldRecord[]>(`/hives/${hiveId}/yields`),
 
 	setBaseline: (hiveId: string, payload: SetBaselinePayload) =>
-		api.post<HarvestResult>(
-			`/hives/${hiveId}/yields/baseline`,
-			payload,
-		) as Promise<ApiEnvelopeWithFields<HarvestResult>>,
+		api.postOrQueue<HarvestResult>(`/hives/${hiveId}/yields/baseline`, payload, {
+			label: `Set ${payload.yield_year} baseline ${payload.yield_kg} kg — hive ${hiveId}`,
+		}) as Promise<ApiEnvelopeWithFields<HarvestResult>>,
 };

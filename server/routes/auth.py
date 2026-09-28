@@ -7,9 +7,13 @@ from validators.auth_validator import (
     validate_login_payload,
     validate_unique_check_payload,
     validate_otp_payload,
+    validate_forgot_password_payload,
+    validate_verify_reset_code_payload,
+    validate_reset_password_payload,
 )
 from middleware.auth_middleware import token_required, role_required
 from utils.responses import success, error
+from utils.logger import audit
 from models.citizen import CitizenModel
 from models.beekeeper import BeekeeperModel
 from models.admin import AdminModel
@@ -59,10 +63,15 @@ def register():
         return error("Registration failed. Please try again.", status=500)
 
     if not ok:
+        audit("REGISTER_FAILED", role=cleaned.get("role"),
+              username=cleaned.get("username"), reason=message)
         offending = data if isinstance(data, list) else []
         fe = {f: message for f in offending} or {"_": message}
         body, code = _envelope_error(message, fe, 409)
         return body, code
+    audit("REGISTER_SUCCESS", role=cleaned.get("role"),
+          user_id=(data or {}).get("id"), username=cleaned.get("username"),
+          email=cleaned.get("email"))
     return success(message, data=data, status=201)
 
 
@@ -110,8 +119,11 @@ def verify_otp():
         print(f"[VERIFY-OTP] Unhandled error: {e}")
         return error("Verification failed. Please try again.", status=500)
     if not ok:
+        audit("EMAIL_VERIFY_FAILED", email=cleaned["email"],
+              role=cleaned["role"], reason=message)
         body, code = _envelope_error(message, {"code": message}, 400)
         return body, code
+    audit("EMAIL_VERIFIED", email=cleaned["email"], role=cleaned["role"])
     return success(message, data=data, status=200)
 
 
@@ -132,6 +144,76 @@ def resend_otp():
         return error("Could not resend code. Please try again.", status=500)
     if not ok:
         return error(message, status=429)
+    return success(message, status=200)
+
+
+# ── FORGOT PASSWORD (NEW) ─────────────────────
+# Step 1: email -> sends a 6-digit code (OTP purpose 'password_reset').
+# Also used for "Resend Code". 429 while the resend cooldown is running.
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    payload = request.get_json(silent=True) or {}
+    cleaned, field_errors = validate_forgot_password_payload(payload)
+    if field_errors:
+        body, code = _envelope_error("Validation failed.", field_errors, 422)
+        return body, code
+    try:
+        ok, message = AuthService.request_password_reset(cleaned["email"])
+    except Exception as e:
+        print(f"[FORGOT-PASSWORD] Unhandled error: {e}")
+        return error("Could not send a reset code. Please try again.", status=500)
+    if not ok:
+        audit("PASSWORD_RESET_REQUEST_BLOCKED", email=cleaned["email"],
+              reason=message)
+        return error(message, status=429)
+    audit("PASSWORD_RESET_REQUESTED", email=cleaned["email"])
+    return success(message, status=200)
+
+
+# Step 2: email + code -> short-lived reset_token.
+@auth_bp.route("/verify-reset-code", methods=["POST"])
+def verify_reset_code():
+    payload = request.get_json(silent=True) or {}
+    cleaned, field_errors = validate_verify_reset_code_payload(payload)
+    if field_errors:
+        body, code = _envelope_error("Validation failed.", field_errors, 422)
+        return body, code
+    try:
+        ok, message, data = AuthService.verify_password_reset_code(
+            cleaned["email"], cleaned["code"]
+        )
+    except Exception as e:
+        print(f"[VERIFY-RESET-CODE] Unhandled error: {e}")
+        return error("Verification failed. Please try again.", status=500)
+    if not ok:
+        audit("PASSWORD_RESET_CODE_FAILED", email=cleaned["email"],
+              reason=message)
+        body, code = _envelope_error(message, {"code": message}, 400)
+        return body, code
+    audit("PASSWORD_RESET_CODE_OK", email=cleaned["email"])
+    return success(message, data=data, status=200)
+
+
+# Step 3: reset_token + new password.
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    payload = request.get_json(silent=True) or {}
+    cleaned, field_errors = validate_reset_password_payload(payload)
+    if field_errors:
+        body, code = _envelope_error("Validation failed.", field_errors, 422)
+        return body, code
+    try:
+        ok, message = AuthService.reset_password(
+            cleaned["reset_token"], cleaned["password"]
+        )
+    except Exception as e:
+        print(f"[RESET-PASSWORD] Unhandled error: {e}")
+        return error("Could not reset password. Please try again.", status=500)
+    if not ok:
+        audit("PASSWORD_RESET_FAILED", reason=message)
+        body, code = _envelope_error(message, {"_": message}, 400)
+        return body, code
+    audit("PASSWORD_RESET_SUCCESS")
     return success(message, status=200)
 
 
@@ -157,8 +239,15 @@ def login():
 
     if not ok:
         if isinstance(data, dict) and data.get("requires_verification"):
+            audit("LOGIN_NEEDS_VERIFICATION",
+                  identifier=cleaned["identifier"], role=data.get("role"))
             return success(message, data=data, status=403)
+        audit("LOGIN_FAILED", identifier=cleaned["identifier"], reason=message)
         return error(message, status=401)
+    user = (data or {}).get("user") or {}
+    audit("LOGIN_SUCCESS", identifier=cleaned["identifier"],
+          role=user.get("role"), user_id=user.get("id"),
+          remember_me=remember)
     return success(message, data=data, status=200)
 
 
@@ -262,4 +351,6 @@ def delete_user(role, user_id):
     except Exception as e:
         print(f"[DELETE-USER] Unhandled error: {e}")
         return error("Failed to delete user. Please try again.", status=500)
+    audit("USER_DELETED", by=f"admin:{g.user_id}", role=role,
+          user_id=user_id)
     return success(f"{role.capitalize()} deleted successfully.", status=200)

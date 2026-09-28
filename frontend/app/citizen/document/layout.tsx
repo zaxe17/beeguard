@@ -113,7 +113,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 						</p>
 					)}
 
-					<div className="flex flex-col">
+					<div className="flex flex-col gap-1">
 						{filteredReports.map((report) => {
 							const when = reportWhen(report);
 							return (

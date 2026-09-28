@@ -23,25 +23,42 @@ import {
 	warmUpPush,
 	type PushState,
 } from "@/services/push";
+import MobileOverlay from "@/components/MobileOverlay";
 
 type ViewKey = "main" | "notification" | "backuprestore" | "about";
 type DetailKey = "notification" | "backuprestore" | "about" | null;
 
 // Small status line under a section ("Saved", errors).
-const StatusLine = ({ text, isError }: { text: string | null; isError?: boolean }) =>
+const StatusLine = ({
+	text,
+	isError,
+}: {
+	text: string | null;
+	isError?: boolean;
+}) =>
 	text ? (
-		<p className={`text-xs mt-2 ${isError ? "text-red-600" : "text-[#1f6f5f]"}`}>{text}</p>
+		<p
+			className={`text-xs mt-2 ${isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
+			{text}
+		</p>
 	) : null;
 
 // NOTIFICATION SETTINGS — saved per account (GET/PATCH /api/settings)
 const Notification = () => {
 	const [settings, setSettings] = useState<NotificationSettings | null>(null);
-	const [status, setStatus] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [status, setStatus] = useState<{
+		text: string;
+		isError?: boolean;
+	} | null>(null);
 
 	useEffect(() => {
 		settingsService.get().then((res) => {
 			if (res.success && res.data) setSettings(res.data);
-			else setStatus({ text: res.message || "Couldn't load your settings.", isError: true });
+			else
+				setStatus({
+					text: res.message || "Couldn't load your settings.",
+					isError: true,
+				});
 		});
 	}, []);
 
@@ -63,7 +80,10 @@ const Notification = () => {
 		setStatus(
 			res.ok
 				? { text: "Notifications are on for this device." }
-				: { text: res.message ?? "Couldn't turn on notifications.", isError: true },
+				: {
+						text: res.message ?? "Couldn't turn on notifications.",
+						isError: true,
+					},
 		);
 	};
 
@@ -78,7 +98,10 @@ const Notification = () => {
 			if (value) {
 				const res = await enablePush();
 				setDeviceState(res.state);
-				if (!res.ok) deviceNote = res.message ?? "Couldn't turn on notifications on this device.";
+				if (!res.ok)
+					deviceNote =
+						res.message ??
+						"Couldn't turn on notifications on this device.";
 			} else {
 				await disablePush();
 				setDeviceState(await getPushState());
@@ -91,10 +114,17 @@ const Notification = () => {
 		const res = await settingsService.update({ [key]: value });
 		if (res.success && res.data) {
 			setSettings(res.data);
-			setStatus(deviceNote ? { text: deviceNote, isError: true } : { text: "Saved." });
+			setStatus(
+				deviceNote
+					? { text: deviceNote, isError: true }
+					: { text: "Saved." },
+			);
 		} else {
 			setSettings(before);
-			setStatus({ text: res.message || "Couldn't save. Please try again.", isError: true });
+			setStatus({
+				text: res.message || "Couldn't save. Please try again.",
+				isError: true,
+			});
 		}
 	};
 
@@ -119,12 +149,16 @@ const Notification = () => {
 		setStatus(
 			res.success
 				? { text: res.message || "Test notification sent." }
-				: { text: res.message || "Couldn't send a test notification.", isError: true },
+				: {
+						text:
+							res.message || "Couldn't send a test notification.",
+						isError: true,
+					},
 		);
 	};
 
 	return (
-		<div className="w-2/3 flex flex-col">
+		<div className="lg:w-2/3 w-full flex flex-col">
 			<SwitchTab
 				label="Push Notifications"
 				desc="Receive notifications about your reports, and updates."
@@ -151,7 +185,9 @@ const Notification = () => {
 			)}
 			{!off && deviceState === "off" && (
 				<div className="flex items-center gap-2 mt-2">
-					<span className="text-xs text-[#854F0B]">Not on for this device yet.</span>
+					<span className="text-xs text-[#854F0B]">
+						Not on for this device yet.
+					</span>
 					<button
 						type="button"
 						onClick={turnOnThisDevice}
@@ -163,23 +199,27 @@ const Notification = () => {
 			)}
 			{!off && deviceState === "blocked" && (
 				<span className="text-xs text-red-600 mt-2">
-					Notifications are blocked in this browser. Click the icon at the left of the
-					address bar → Site settings → Notifications → Allow, then reload.
+					Notifications are blocked in this browser. Click the icon at
+					the left of the address bar → Site settings → Notifications
+					→ Allow, then reload.
 				</span>
 			)}
 			{!off && deviceState === "unsupported" && (
 				<span className="text-xs text-[#a6a3a3] mt-2">
-					This browser can&apos;t show notifications. On iPhone, add BeeGuard to your Home
-					Screen first.
+					This browser can&apos;t show notifications. On iPhone, add
+					BeeGuard to your Home Screen first.
 				</span>
 			)}
 			{!off && deviceState === "not-configured" && (
 				<span className="text-xs text-[#a6a3a3] mt-2">
-					Push isn&apos;t set up on the server yet (VAPID keys missing in server/.env).
+					Push isn&apos;t set up on the server yet (VAPID keys missing
+					in server/.env).
 				</span>
 			)}
 
-			<span className="text-[#817b70] mt-10">Notification Preferences</span>
+			<span className="text-[#817b70] mt-10">
+				Notification Preferences
+			</span>
 			{off && (
 				<span className="text-xs text-[#a6a3a3] mb-2">
 					Turn on Push Notifications to choose which ones you get.
@@ -239,7 +279,10 @@ const BackupRestore = () => {
 	const [busy, setBusy] = useState<"backup" | "restore" | null>(null);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [confirming, setConfirming] = useState(false);
-	const [status, setStatus] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [status, setStatus] = useState<{
+		text: string;
+		isError?: boolean;
+	} | null>(null);
 
 	const load = useCallback(async () => {
 		const [list, system] = await Promise.all([
@@ -247,8 +290,13 @@ const BackupRestore = () => {
 			settingsService.getSystem(),
 		]);
 		if (list.success && list.data) setBackups(list.data);
-		else setStatus({ text: list.message || "Couldn't load backups.", isError: true });
-		if (system.success && system.data) setAutoBackup(system.data.auto_backup);
+		else
+			setStatus({
+				text: list.message || "Couldn't load backups.",
+				isError: true,
+			});
+		if (system.success && system.data)
+			setAutoBackup(system.data.auto_backup);
 		setLoading(false);
 	}, []);
 
@@ -300,7 +348,10 @@ const BackupRestore = () => {
 			setSelected(null);
 			load();
 		} else {
-			setStatus({ text: res.message || "Restore failed.", isError: true });
+			setStatus({
+				text: res.message || "Restore failed.",
+				isError: true,
+			});
 		}
 	};
 
@@ -314,14 +365,18 @@ const BackupRestore = () => {
 	};
 
 	return (
-		<div className="w-2/3 flex flex-col gap-3">
+		<div className="lg:w-2/3 w-full flex flex-col gap-3">
 			<SettingsTabs
 				label="Manual Backup"
 				desc="Create a backup of your data manually."
 				icon="material-symbols:backup-outline-rounded"
 				subContent={
 					<Button
-						label={busy === "backup" ? "Backing up…" : "Back Up Data Now"}
+						label={
+							busy === "backup"
+								? "Backing up…"
+								: "Back Up Data Now"
+						}
 						textSize="text-xs"
 						width="w-fit"
 						onClick={backupNow}
@@ -335,7 +390,10 @@ const BackupRestore = () => {
 				icon="boxicons:calendar-alt"
 				subContent={
 					<span className="Poppins-SemiBold text-[#ffce1c] text-xs bg-[#ffdb4f]/30 py-1 px-2 rounded-md flex items-center gap-1 w-fit">
-						<Icon icon="bx:time" className="w-4 h-4 text-[#ffce1c]" />
+						<Icon
+							icon="bx:time"
+							className="w-4 h-4 text-[#ffce1c]"
+						/>
 						{loading
 							? "Loading…"
 							: latest
@@ -359,14 +417,18 @@ const BackupRestore = () => {
 				subContent={
 					<div className="flex flex-col gap-2 normal-case">
 						{backups.length === 0 ? (
-							<span className="text-xs text-[#a6a3a3]">No backups to restore yet.</span>
+							<span className="text-xs text-[#a6a3a3]">
+								No backups to restore yet.
+							</span>
 						) : (
 							<div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
 								{backups.map((b) => (
 									<label
 										key={b.name}
 										className={`flex items-center gap-2 text-xs rounded-md px-2 py-1 cursor-pointer ${
-											selected === b.name ? "bg-[#ffdb4f]/30" : "hover:bg-[#fff4c7]"
+											selected === b.name
+												? "bg-[#ffdb4f]/30"
+												: "hover:bg-[#fff4c7]"
 										}`}>
 										<input
 											type="radio"
@@ -382,7 +444,12 @@ const BackupRestore = () => {
 										</span>
 										<span className="text-[#a6a3a3]">
 											{KIND_LABEL[b.kind]} •{" "}
-											{formatSize(b.has_excel && b.excel_size_bytes ? b.excel_size_bytes : b.size_bytes)}
+											{formatSize(
+												b.has_excel &&
+													b.excel_size_bytes
+													? b.excel_size_bytes
+													: b.size_bytes,
+											)}
 										</span>
 										<button
 											type="button"
@@ -392,8 +459,13 @@ const BackupRestore = () => {
 												download(b);
 											}}
 											className="ml-auto flex items-center gap-0.5 text-[#1f6f5f] hover:text-[#ff9a00]">
-											<Icon icon="vscode-icons:file-type-excel" className="w-4 h-4" />
-											<span className="text-[10px] Poppins-SemiBold">Excel</span>
+											<Icon
+												icon="vscode-icons:file-type-excel"
+												className="w-4 h-4"
+											/>
+											<span className="text-[10px] Poppins-SemiBold">
+												Excel
+											</span>
 										</button>
 									</label>
 								))}
@@ -403,12 +475,15 @@ const BackupRestore = () => {
 						{confirming && selected ? (
 							<div className="flex flex-col gap-2 bg-red-50 border border-red-200 rounded-md p-2">
 								<span className="text-xs text-red-600">
-									This replaces <b>all current data</b> with the backup from{" "}
+									This replaces <b>all current data</b> with
+									the backup from{" "}
 									{formatBackupDate(
-										backups.find((b) => b.name === selected)?.created_at ?? "",
+										backups.find((b) => b.name === selected)
+											?.created_at ?? "",
 									)}
-									. Your current data is saved first as a &quot;Before restore&quot;
-									backup, so you can undo this.
+									. Your current data is saved first as a
+									&quot;Before restore&quot; backup, so you
+									can undo this.
 								</span>
 								<div className="flex gap-2">
 									<button
@@ -423,7 +498,9 @@ const BackupRestore = () => {
 										onClick={restore}
 										disabled={busy === "restore"}
 										className="Poppins-SemiBold text-xs py-1.5 px-3 rounded-lg bg-red-600 text-white disabled:opacity-50">
-										{busy === "restore" ? "Restoring…" : "Yes, restore"}
+										{busy === "restore"
+											? "Restoring…"
+											: "Yes, restore"}
 									</button>
 								</div>
 							</div>
@@ -457,6 +534,20 @@ const MorePageContent = () => {
 	const setContent = (d: DetailKey) => {
 		router.push(`${pathname}?view=${view}&content=${d}`);
 	};
+
+	const CONTENT_TITLE: Record<Exclude<DetailKey, null>, string> = {
+		notification: "Notification Settings",
+		backuprestore: "Backup & Restore",
+		about: "About BeeGuard",
+	};
+
+	// Isara ang mobile overlay = tanggalin ang ?content sa URL.
+	// `replace` para hindi bumalik ang overlay pag pinindot ang browser back.
+	const closeContent = () => {
+		router.replace(`${pathname}?view=${view}`);
+	};
+
+	const mobileSelected = content !== null;
 
 	// Actually signs out (clears the saved login), then goes to the start page.
 	const handleLogout = () => {
@@ -521,6 +612,30 @@ const MorePageContent = () => {
 					{renderRight()}
 				</div>
 			</div>
+
+			{/* RIGHT SIDE — mobile: slide-up overlay, only after a tab is selected */}
+			{mobileSelected && (
+				<MobileOverlay>
+					{/* BACK BUTTON */}
+					<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+						<button
+							onClick={closeContent}
+							className="absolute flex items-center shrink-0">
+							<Icon
+								icon="bx:arrow-back"
+								className="text-2xl text-[#ffa004]"
+							/>
+						</button>
+						<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+							{content ? CONTENT_TITLE[content] : ""}
+						</span>
+					</div>
+
+					<div className="flex flex-col items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
+						{renderRight()}
+					</div>
+				</MobileOverlay>
+			)}
 		</div>
 	);
 };

@@ -153,17 +153,17 @@ export const UserNav = () => {
 	};
 
 	return (
-		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5 z-9999">
+		<div className="sticky top-0 w-full flex items-start justify-between lg:p-0 px-5 pt-5 z-9999">
 			<div className="flex items-center lg:gap-3.5 gap-1">
-				<div className="border border-amber-100 lg:w-16 w-12 lg:h-16 h-12 rounded-full">
+				<div className="border border-amber-100 lg:w-16 w-10 lg:h-16 h-10 rounded-full">
 					<ProfilePhoto me />
 				</div>
 
 				<div className="">
-					<h3 className="Poppins-Bold lg:text-3xl text-xl">
+					<h3 className="Poppins-Bold lg:text-3xl text-base">
 						Hi, {displayName}! 👋
 					</h3>
-					<p className="text-[#817b70] lg:text-sm text-xs leading-2">
+					<p className="text-[#817b70] lg:text-sm text-[10px] leading-3">
 						Let’s protect the bees together.
 					</p>
 				</div>

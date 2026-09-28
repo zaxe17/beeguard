@@ -12,13 +12,18 @@ import { FormContainer } from "@/components/ui/Container";
 import { CheckBox, Input } from "@/components/ui/Input";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
+import { Icon } from "@iconify/react";
 
 // REMEMBER ME — the username/email is kept here so it's filled in next
 // time. (The login token itself is kept by tokenStore in services/api.ts.)
 const REMEMBER_ID_KEY = "beeguard_remember_identifier";
 
 const homeFor = (role?: string) =>
-	role === "citizen" ? "/citizen" : role === "beekeeper" ? "/beekeeper" : "/admin";
+	role === "citizen"
+		? "/citizen"
+		: role === "beekeeper"
+			? "/beekeeper"
+			: "/admin";
 
 const Login = () => {
 	const router = useRouter();
@@ -90,7 +95,8 @@ const Login = () => {
 		if (res.success) {
 			const resolvedRole = res.data?.user?.role;
 			try {
-				if (remember) localStorage.setItem(REMEMBER_ID_KEY, username.trim());
+				if (remember)
+					localStorage.setItem(REMEMBER_ID_KEY, username.trim());
 				else localStorage.removeItem(REMEMBER_ID_KEY);
 			} catch {
 				// storage blocked — login still works
@@ -117,7 +123,9 @@ const Login = () => {
 					{/* LOGO */}
 					<Logo />
 
-					<FormContainer width="lg:w-130 w-full" onSubmit={handleSubmit}>
+					<FormContainer
+						width="lg:w-130 w-full"
+						onSubmit={handleSubmit}>
 						{/* FORM HEADER */}
 						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl lg:block hidden">
 							Welcome Back!
@@ -169,11 +177,6 @@ const Login = () => {
 								disabled={submitting}
 							/>
 
-							{/* GUEST BEE IDENTIFICATION (no login) */}
-							<Link href="/guest" className="hover:underline">
-								<span>use bee identification</span>
-							</Link>
-
 							{/* SIGN UP ROUTE */}
 							<span className="">
 								Don&apos;t have an account?{" "}
@@ -183,6 +186,17 @@ const Login = () => {
 									Sign Up
 								</Link>
 							</span>
+
+							{/* GUEST BEE IDENTIFICATION (no login) */}
+							<Link
+								href="/guest"
+								className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/25 py-2 text-[15px] font-semibold text-yellow-900 shadow-[0_2px_8px_rgba(180,110,0,0.25)] backdrop-blur-md">
+								<Icon
+									icon="bi:camera-fill"
+									className="w-6 h-6 mb-0.5"
+								/>
+								<span>Try Bee Identification</span>
+							</Link>
 						</div>
 					</FormContainer>
 				</div>

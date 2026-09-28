@@ -73,7 +73,11 @@ const OperationItem = ({
 							: "new"
 			}
 			// A declined offer isn't the current offer anymore.
-			offeredFee={report.my_offer_status === "Rejected" ? null : report.my_offered_fee}
+			offeredFee={
+				report.my_offer_status === "Rejected"
+					? null
+					: report.my_offered_fee
+			}
 			onClick={onClick}
 		/>
 	);
@@ -100,7 +104,7 @@ const GraphContainer = ({ children, title, onClick }: GraphProps) => {
 					onClick();
 				}
 			}}
-			className={`w-1/2 border border-[#a6a3a3] rounded-2xl p-4 flex flex-col ${
+			className={`lg:w-1/2 w-full border border-[#a6a3a3] rounded-2xl p-4 flex flex-col ${
 				onClick
 					? "cursor-pointer hover:border-[#ffce1c] hover:bg-[#fff1ad]/30 transition-colors"
 					: ""
@@ -131,7 +135,10 @@ const Beekeeper = () => {
 	const [loading, setLoading] = useState(true);
 	const [summary, setSummary] = useState<DashboardSummary | null>(null);
 	const [hiveHealth, setHiveHealth] = useState<HiveHealthSlice[]>([]);
-	const [trend, setTrend] = useState<YieldTrend>({ categories: [], data: [] });
+	const [trend, setTrend] = useState<YieldTrend>({
+		categories: [],
+		data: [],
+	});
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	// NEW — this beekeeper's active rescue jobs (Operations panel).
@@ -164,24 +171,36 @@ const Beekeeper = () => {
 		const active = res.data.filter(
 			(r) =>
 				r.beekeeper_status === "in-progress" ||
-				(r.status === "Pending" && (r.my_offer_status !== "Rejected" || r.can_offer)),
+				(r.status === "Pending" &&
+					(r.my_offer_status !== "Rejected" || r.can_offer)),
 		);
 		active.sort((a, b) => {
 			const byRank = operationRank(a) - operationRank(b);
 			if (byRank !== 0) return byRank;
 			// Newest report first within the same group.
-			return new Date(b.reported_at).getTime() - new Date(a.reported_at).getTime();
+			return (
+				new Date(b.reported_at).getTime() -
+				new Date(a.reported_at).getTime()
+			);
 		});
 		setOperations(active);
 	}, [isVerified]);
 
 	useEffect(() => {
 		loadOperations();
-		const interval = isVerified ? setInterval(loadOperations, OPERATIONS_POLL_MS) : null;
-		window.addEventListener(BEEKEEPER_REPORTS_CHANGED_EVENT, loadOperations);
+		const interval = isVerified
+			? setInterval(loadOperations, OPERATIONS_POLL_MS)
+			: null;
+		window.addEventListener(
+			BEEKEEPER_REPORTS_CHANGED_EVENT,
+			loadOperations,
+		);
 		return () => {
 			if (interval) clearInterval(interval);
-			window.removeEventListener(BEEKEEPER_REPORTS_CHANGED_EVENT, loadOperations);
+			window.removeEventListener(
+				BEEKEEPER_REPORTS_CHANGED_EVENT,
+				loadOperations,
+			);
 		};
 	}, [loadOperations, isVerified]);
 
@@ -267,11 +286,13 @@ const Beekeeper = () => {
 	);
 
 	return (
-		<div className="w-full h-full p-5 flex items-start flex-col gap-3">
-			<UserNav />
+		<div className="w-full lg:h-full h-auto lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3 scrollbar-none">
+			<div className="lg:static sticky top-0 z-20 w-full bg-[#fffdf5] lg:bg-transparent lg:pb-0 pb-2">
+				<UserNav />
+			</div>
 
-			<div className="w-full flex gap-3">
-				<div className="w-1/3 flex flex-col gap-3">
+			<div className="w-full flex lg:flex-row flex-col gap-3 lg:px-0 px-5">
+				<div className="lg:w-1/3 w-full flex flex-col gap-3">
 					<h2 className="Poppins-SemiBold text-[#a6a3a3] text-2xl">
 						Dashboard
 					</h2>
@@ -289,11 +310,10 @@ const Beekeeper = () => {
 					</div>
 				</div>
 
-				<div className="w-2/3 flex items-stretch gap-3">
+				<div className="lg:w-2/3 w-full flex lg:flex-row flex-col items-stretch gap-3">
 					<GraphContainer title="hive health">
 						<HiveHealthChart data={hiveHealthChartData} />
 					</GraphContainer>
-
 					{/* NEW — clicking this card now navigates to the
 					    History tab, which shows the fuller per-hive
 					    version of the same yield trend. */}
@@ -301,13 +321,21 @@ const Beekeeper = () => {
 						title="yield summary"
 						onClick={() => router.push("/beekeeper/history")}>
 						<YieldSummaryChart
-							value={formatKg(summary?.yield_totals.this_month.total_kg)}
+							value={formatKg(
+								summary?.yield_totals.this_month.total_kg,
+							)}
 							valueLabel="Yield This Month"
-							changeAmount={summary?.yield_totals.change_amount ?? 0}
-							changePercent={summary?.yield_totals.change_percent ?? null}
+							changeAmount={
+								summary?.yield_totals.change_amount ?? 0
+							}
+							changePercent={
+								summary?.yield_totals.change_percent ?? null
+							}
 							changeLabel="vs last month"
 							categories={
-								trend.categories.length ? trend.categories : ["No data"]
+								trend.categories.length
+									? trend.categories
+									: ["No data"]
 							}
 							data={trend.data.length ? trend.data : [0]}
 						/>
@@ -315,7 +343,9 @@ const Beekeeper = () => {
 				</div>
 			</div>
 
-			{errorMsg && <p className="text-xs text-red-600 px-2">{errorMsg}</p>}
+			{errorMsg && (
+				<p className="text-xs text-red-600 px-2">{errorMsg}</p>
+			)}
 
 			{/* Shown only while the beekeeper's account isn't verified yet —
 			    a nudge toward completing verification, right above the
@@ -341,14 +371,17 @@ const Beekeeper = () => {
 					</div>
 				)}
 
-			<div className="w-full flex-1 flex items-stretch gap-3 min-h-0">
+			{/* LOWER CONTAINER */}
+			<div className="w-full lg:flex-1 flex lg:flex-row flex-col items-stretch lg:gap-3 gap-0 lg:min-h-0 min-h-200 px-0">
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
 						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Operations{" "}
 							<span
 								className={`text-xs text-[#ffce1c] cursor-pointer ${operations.length > 0 ? "block" : "hidden"}`}
-								onClick={() => router.push("/beekeeper/report")}>
+								onClick={() =>
+									router.push("/beekeeper/report")
+								}>
 								view all
 							</span>
 						</span>
@@ -359,7 +392,11 @@ const Beekeeper = () => {
 									<OperationItem
 										key={r.reportID}
 										report={r}
-										onClick={() => openModal("BeeReport", { reportId: r.reportID })}
+										onClick={() =>
+											openModal("BeeReport", {
+												reportId: r.reportID,
+											})
+										}
 									/>
 								))}
 							</div>
@@ -370,13 +407,15 @@ const Beekeeper = () => {
 									className="w-20 h-20 text-[#a6a3a3]"
 								/>
 								<h2 className="w-1/2 Poppins-SemiBold text-x text-[#817b70]">
-									{isVerified ? "No Operations" : "Verify your account"}
+									{isVerified
+										? "No Operations"
+										: "Verify your account"}
 								</h2>
 								{/* Unverified: nothing loads here — say why. */}
 								{!isVerified && user?.role === "beekeeper" && (
 									<p className="text-xs text-[#817b70] mt-1 px-6">
-										Rescue reports near you show up here once an admin
-										verifies your account.
+										Rescue reports near you show up here
+										once an admin verifies your account.
 									</p>
 								)}
 								{operationsError && (
@@ -405,15 +444,29 @@ const Beekeeper = () => {
 								{recentAlerts.map((a) => (
 									<PesticideAlert
 										key={a.alert_id}
-										location={getAlertLocation(a, resolvedLocations)}
-										date={new Date(a.scheduled_date).toLocaleDateString()}
-										time={new Date(a.scheduled_date).toLocaleTimeString([], {
+										location={getAlertLocation(
+											a,
+											resolvedLocations,
+										)}
+										date={new Date(
+											a.scheduled_date,
+										).toLocaleDateString()}
+										time={new Date(
+											a.scheduled_date,
+										).toLocaleTimeString([], {
 											hour: "2-digit",
 											minute: "2-digit",
 										})}
-										status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
+										status={
+											a.risk_level.toLowerCase() as
+												| "high"
+												| "medium"
+												| "low"
+										}
 										onClick={() =>
-											router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
+											router.push(
+												`/beekeeper/alert/details?id=${a.alert_id}`,
+											)
 										}
 										// Your own alert still waiting for the admin.
 										approvalStatus={a.approval_status}

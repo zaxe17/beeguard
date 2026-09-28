@@ -35,9 +35,17 @@ const getCitizenCoords = () =>
 			return;
 		}
 		navigator.geolocation.getCurrentPosition(
-			(pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+			(pos) =>
+				resolve({
+					lat: pos.coords.latitude,
+					lng: pos.coords.longitude,
+				}),
 			() => resolve(null), // denied / unavailable -> still show farms, unsorted
-			{ enableHighAccuracy: false, timeout: LOCATION_TIMEOUT_MS, maximumAge: 5 * 60 * 1000 },
+			{
+				enableHighAccuracy: false,
+				timeout: LOCATION_TIMEOUT_MS,
+				maximumAge: 5 * 60 * 1000,
+			},
 		);
 	});
 
@@ -82,7 +90,7 @@ const Home = () => {
 			<UserNav />
 
 			{/* CONTAINER */}
-			<Container width="100%" scroll>
+			<Container width="100%" height="100%" scroll>
 				<div className="w-full p-5 rounded-xl bg-linear-to-br from-[#ffdb4f] to-[#f8f4e1] flex flex-col gap-4">
 					<div className="text-center">
 						<h3 className="Poppins-SemiBold text-[26px]">
@@ -114,7 +122,7 @@ const Home = () => {
 				</div>
 
 				<div className="w-full flex flex-col items-start">
-					<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
+					<span className="w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 						Nearby Bee Farms
 						<span
 							className={`text-base text-[#ffce1c] cursor-pointer ${farms.length > 0 ? "block" : "hidden"}`}
@@ -144,13 +152,18 @@ const Home = () => {
 							<div
 								key={farm.beekeeperID}
 								onClick={() =>
-									router.push(`/citizen/beefarm?farm=${farm.beekeeperID}`)
+									router.push(
+										`/citizen/beefarm?farm=${farm.beekeeperID}`,
+									)
 								}>
 								<BeefarmContainer
 									// No per-farm photo upload exists yet, so every
 									// farm uses the same default (same as the Bee
 									// Farm page).
-									image={mediaSrc(farm.image) ?? "/assets/farms/farm1.jpg"}
+									image={
+										mediaSrc(farm.image) ??
+										"/assets/farms/farm1.jpg"
+									}
 									farmName={farm.farmName}
 									location={farm.location}
 									miles={farm.miles ?? undefined}

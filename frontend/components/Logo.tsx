@@ -16,9 +16,6 @@ const Logo = () => {
 			<span className="Poppins-SemiBold lg:text-4xl text-2xl">
 				save the bees
 			</span>
-			<Link href="/citizen">citizen</Link>
-			<Link href="/beekeeper">beekeeper</Link>
-			<Link href="/admin">admin</Link>
 		</div>
 	);
 };

@@ -87,7 +87,7 @@ export const SettingsTabs = ({
 		<div
 			onClick={onClick}
 			className={`w-full group rounded-xl p-2.5 capitalize flex flex-row gap-5 items-center justify-between transition-all duration-130 ease-in ${subContent ? "" : "hover:bg-[#ffdb4f] cursor-pointer"} ${
-				active ? "bg-[#ffdb4f]" : ""
+				active ? "lg:bg-[#ffdb4f]" : ""
 			}`}
 			style={{
 				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,

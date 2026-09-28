@@ -28,11 +28,7 @@ const Choices = ({
 }: ChoicesProps) => {
 	return (
 		<label
-			className="lg:w-120 w-full bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer"
-			style={{
-				boxShadow:
-					"rgba(0, 0, 0, 0.07) 0px 1px 2px, rgba(0, 0, 0, 0.07) 0px 2px 4px, rgba(0, 0, 0, 0.07) 0px 4px 8px, rgba(0, 0, 0, 0.07) 0px 8px 16px, rgba(0, 0, 0, 0.07) 0px 16px 32px, rgba(0, 0, 0, 0.07) 0px 32px 64px",
-			}}>
+			className="lg:w-120 w-full bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer shadow-[0_25px_20px_-20px_rgba(0,0,0,0.45)]">
 			<div className="flex justify-between items-center lg:gap-5 gap-2">
 				<input
 					type="radio"
@@ -101,7 +97,7 @@ const Register = () => {
 				</span>
 			</div>
 
-			<div className="flex flex-col gap-6 lg:mb-12 mb-8">
+			<div className="flex flex-col gap-6 lg:mb-12 mb-8 p-2">
 				<Choices
 					icon="/assets/citizen.png"
 					role="Citizen"
@@ -131,9 +127,9 @@ const Register = () => {
 						</>
 					}
 				/>
-			</div>
 
-			<Button buttonType="button" label="Next" onClick={goNext} />
+				<Button buttonType="button" label="Next" onClick={goNext} />
+			</div>
 		</FormContainer>
 	);
 };

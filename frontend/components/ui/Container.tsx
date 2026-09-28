@@ -104,7 +104,7 @@ export const BeefarmContainer = ({
 						<h3 className="Poppins-Bold text-lg line-clamp-2">
 							{farmName}
 						</h3>
-						<p className="text-xs text-[#a6a3a3] font-bold line-clamp-2">
+						<p className="text-xs text-[#a6a3a3] font-bold line-clamp-1">
 							{location}
 						</p>
 					</div>

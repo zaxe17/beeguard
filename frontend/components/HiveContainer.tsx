@@ -53,7 +53,8 @@ function formatQueenAge(days?: number | null): string | null {
 	if (days == null || days < 0) return null;
 	const years = Math.floor(days / 365);
 	const months = Math.floor((days % 365) / 30);
-	if (years === 0 && months === 0) return `${days} day${days === 1 ? "" : "s"}`;
+	if (years === 0 && months === 0)
+		return `${days} day${days === 1 ? "" : "s"}`;
 	const parts: string[] = [];
 	if (years) parts.push(`${years} yr${years === 1 ? "" : "s"}`);
 	if (months) parts.push(`${months} mo`);
@@ -205,7 +206,9 @@ export const HiveDetailsContainer = ({
 						{queenAge && (
 							<span className="text-[#817b70] text-sm normal-case">
 								Queen age:{" "}
-								<span className="Poppins-SemiBold">{queenAge}</span>
+								<span className="Poppins-SemiBold">
+									{queenAge}
+								</span>
 							</span>
 						)}
 					</div>
@@ -282,7 +285,9 @@ export const HiveTabs = ({
 		<div
 			onClick={onClick}
 			className={`border-2 rounded-2xl lg:p-5 p-3 capitalize flex lg:gap-5 gap-3 cursor-pointer transition-all ${
-				selected ? "lg:border-[#ffce1c] border-transparent lg:bg-[#fff8e1]" : "border-[#e2e2e6]"
+				selected
+					? "lg:border-[#ffce1c] border-transparent lg:bg-[#fff8e1]"
+					: "lg:border-[#e2e2e6] border-transparent"
 			}`}
 			style={{
 				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,

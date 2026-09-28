@@ -69,7 +69,7 @@ export const ReportCard = ({
 	return (
 		<div
 			onClick={onClick}
-			className={`border transition-all duration-130 ease-in hover:border-[#e2e2e6] hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] hover:bg-[#fff1ad]/40 hover:scale-101 rounded-xl p-1.75 flex items-center gap-3 w-full ${selected ? "border-[#e2e2e6] bg-[#fff1ad]/40" : "border-transparent"}`}>
+			className={`transition-all duration-130 ease-in hover:border-[#e2e2e6] hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] hover:bg-[#fff1ad]/40 hover:scale-101 rounded-xl p-1.75 flex items-center gap-3 w-full ${selected ? "lg:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] lg:bg-[#fff1ad]/40" : ""}`}>
 			{/* BEE PICTURE */}
 			<div className="border border-amber-100 w-30 h-20 shrink-0 rounded-md overflow-hidden">
 				{imageUrl ? (
@@ -93,8 +93,8 @@ export const ReportCard = ({
 
 			{/* CONTAINER FOR INFO */}
 			<div className="w-full h-full flex flex-col min-w-0">
-				<div className="flex justify-between items-start gap-2">
-					<h3 className="Poppins-Bold lg:text-xl text-base truncate">
+				<div className="flex lg:flex-row flex-col justify-between items-start lg:gap-2 gap-0">
+					<h3 className="Poppins-Bold lg:text-xl text-base">
 						#{shownId}
 					</h3>
 					<span

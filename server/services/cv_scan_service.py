@@ -62,10 +62,12 @@ def _get_model():
                 )
             try:
                 from ultralytics import YOLO
-            except ImportError as e:
+            except Exception as e:  # hindi lang ImportError; may OSError din minsan
+                import traceback
+                print(f"[CVSCAN] ultralytics import failed: {e!r}", flush=True)
+                traceback.print_exc()
                 raise ValueError(
-                    "CV identification is not configured (ultralytics package "
-                    "not installed — add 'ultralytics' to requirements.txt)."
+                    f"CV identification is not configured (ultralytics import failed: {e})."
                 ) from e
 
             _model = YOLO(Config.CV_SCAN_MODEL_PATH)

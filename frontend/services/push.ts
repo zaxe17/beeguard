@@ -37,63 +37,98 @@ export const pushSupported = () =>
 	"Notification" in window;
 
 // Base64url public key -> the bytes pushManager.subscribe() wants.
-const toKeyBytes = (base64url: string) => {
+const toKeyBytes = (base64url: string): Uint8Array<ArrayBuffer> => {
 	const padded = (base64url + "=".repeat((4 - (base64url.length % 4)) % 4))
 		.replace(/-/g, "+")
 		.replace(/_/g, "/");
 	const raw = atob(padded);
-	const bytes = new Uint8Array(raw.length);
+	const bytes = new Uint8Array(new ArrayBuffer(raw.length));
 	for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
 	return bytes;
 };
 
 const READY_TIMEOUT_MS = 8000;
 
-/**
- * The service worker to subscribe with — FAST path first:
- *   1. already registered and running (next-pwa registers it on page
- *      load) -> use it right away, no download, no waiting;
- *   2. otherwise register /sw.js and wait (max 8 s) until it's active.
- * The old version re-registered sw.js on every tap and waited for it to
- * finish caching the whole app first, which is what made it slow.
- */
+const pathOf = (worker: ServiceWorker | null | undefined) =>
+	worker ? new URL(worker.scriptURL).pathname : "";
+
 const isOurWorker = (reg: ServiceWorkerRegistration | undefined) =>
-	!!reg?.active && new URL(reg.active.scriptURL).pathname === SW_URL;
+	!!reg?.active && pathOf(reg.active) === SW_URL;
 
+// updateViaCache: "none" -> the browser never uses a cached copy of the
+// worker script, so a fixed/rebuilt sw.js is picked up right away.
 export const registerServiceWorker = () =>
-	navigator.serviceWorker.register(SW_URL, { scope: "/" });
+	navigator.serviceWorker.register(SW_URL, {
+		scope: "/",
+		updateViaCache: "none",
+	});
 
-const getWorker = async (): Promise<ServiceWorkerRegistration> => {
-	const existing = await navigator.serviceWorker.getRegistration("/");
-	if (existing && isOurWorker(existing)) return existing;
-
-	// None yet, or the other build's worker (e.g. the built sw.js stuck
-	// "installing" under `npm run dev`) -> register the right one.
-	const reg = await registerServiceWorker();
-	if (isOurWorker(reg)) return reg;
-
-	// Wait for the NEW worker itself to become active (max 8 s).
-	const worker = reg.installing ?? reg.waiting ?? reg.active;
-	return new Promise<ServiceWorkerRegistration>((resolve, reject) => {
-		if (!worker) return reject(new Error("No service worker found. Reload the page and try again."));
-		if (worker.state === "activated") return resolve(reg);
+/** Resolves when `worker` is activated; rejects if it fails or times out. */
+const waitUntilActive = (worker: ServiceWorker) =>
+	new Promise<void>((resolve, reject) => {
+		if (worker.state === "activated") return resolve();
+		if (worker.state === "redundant") {
+			return reject(new Error("The service worker failed to start."));
+		}
 		const timer = setTimeout(
 			() =>
-				reject(
-					new Error("The service worker took too long to start. Reload the page and try again."),
-				),
+				reject(new Error("The service worker took too long to start.")),
 			READY_TIMEOUT_MS,
 		);
 		worker.addEventListener("statechange", () => {
 			if (worker.state === "activated") {
 				clearTimeout(timer);
-				resolve(reg);
+				resolve();
 			} else if (worker.state === "redundant") {
 				clearTimeout(timer);
-				reject(new Error("The service worker failed to start. Reload the page and try again."));
+				reject(new Error("The service worker failed to start."));
 			}
 		});
 	});
+
+/** One attempt: reuse the running worker, or register + wait for it. */
+const tryGetWorker = async (): Promise<ServiceWorkerRegistration> => {
+	// FAST path: already registered and running (next-pwa registers it on
+	// page load) -> use it right away.
+	const existing = await navigator.serviceWorker.getRegistration("/");
+	if (existing && isOurWorker(existing)) return existing;
+
+	// None yet, or a different build's worker -> register the right one.
+	const reg = await registerServiceWorker();
+	if (isOurWorker(reg)) return reg;
+
+	const worker = reg.installing ?? reg.waiting ?? reg.active;
+	if (!worker) throw new Error("No service worker found.");
+	await waitUntilActive(worker);
+	return reg;
+};
+
+/** Remove every registration on this origin (stale/broken workers). */
+const resetWorkers = async () => {
+	const regs = await navigator.serviceWorker.getRegistrations();
+	await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+};
+
+/**
+ * The service worker to subscribe with. If the first attempt fails (a
+ * stale worker from an old build/dev session is stuck), it removes ALL
+ * registrations and tries once more from scratch — this is the
+ * "unregister the old service worker" step done automatically.
+ */
+const getWorker = async (): Promise<ServiceWorkerRegistration> => {
+	try {
+		return await tryGetWorker();
+	} catch {
+		await resetWorkers();
+		try {
+			return await tryGetWorker();
+		} catch (e) {
+			const reason = e instanceof Error ? e.message : String(e);
+			throw new Error(
+				`${reason} Clear this site's data and reload. If it keeps happening, rebuild with "next build --webpack" so ${SW_URL} is regenerated.`,
+			);
+		}
+	}
 };
 
 const subscribeWith = async (reg: ServiceWorkerRegistration, key: string) =>
@@ -111,7 +146,9 @@ const getPublicKey = async (): Promise<string | null> => {
 	const res = await api.get<{ public_key: string | null; enabled: boolean }>(
 		"/push/public-key",
 	);
-	publicKeyCache = res.success && res.data?.enabled ? res.data.public_key : null;
+	// Don't cache a failed request — allow a retry on the next call.
+	if (!res.success) return null;
+	publicKeyCache = res.data?.enabled ? res.data.public_key : null;
 	return publicKeyCache;
 };
 
@@ -127,7 +164,7 @@ export const warmUpPush = () => {
 	if (!pushSupported()) return;
 	getPublicKey().catch(() => undefined);
 	navigator.serviceWorker.getRegistration("/").then((reg) => {
-		if (!isOurWorker(reg)) registerServiceWorker().catch(() => undefined);
+		if (!reg) registerServiceWorker().catch(() => undefined);
 	});
 };
 
@@ -143,7 +180,11 @@ export const getPushState = async (): Promise<PushState> => {
 };
 
 /** Ask permission (must be called from a tap/click) and turn push on. */
-export const enablePush = async (): Promise<{ ok: boolean; state: PushState; message?: string }> => {
+export const enablePush = async (): Promise<{
+	ok: boolean;
+	state: PushState;
+	message?: string;
+}> => {
 	if (!pushSupported()) {
 		return {
 			ok: false,
@@ -154,7 +195,11 @@ export const enablePush = async (): Promise<{ ok: boolean; state: PushState; mes
 	}
 	const key = await getPublicKey();
 	if (!key) {
-		return { ok: false, state: "not-configured", message: "Notifications aren't set up on the server yet." };
+		return {
+			ok: false,
+			state: "not-configured",
+			message: "Notifications aren't set up on the server yet.",
+		};
 	}
 
 	const permission = await Notification.requestPermission();
@@ -173,11 +218,16 @@ export const enablePush = async (): Promise<{ ok: boolean; state: PushState; mes
 		const reg = await getWorker();
 		const sub = await subscribeWith(reg, key);
 		const res = await saveSubscription(sub);
-		if (!res.success) return { ok: false, state: "off", message: res.message };
+		if (!res.success)
+			return { ok: false, state: "off", message: res.message };
 		return { ok: true, state: "on" };
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		return { ok: false, state: "off", message: `Couldn't turn on notifications: ${msg}` };
+		return {
+			ok: false,
+			state: "off",
+			message: `Couldn't turn on notifications: ${msg}`,
+		};
 	}
 };
 

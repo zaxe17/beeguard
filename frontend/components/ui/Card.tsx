@@ -1,5 +1,6 @@
 import { Icon } from "@iconify/react";
 import Image, { StaticImageData } from "next/image";
+import type { AdminStatChange } from "@/services/admin";
 
 type CardProps = {
 	icon: string | StaticImageData;
@@ -19,7 +20,12 @@ type TotalProps = {
 	title?: string;
 	color?: string;
 	total?: string;
+	// Custom text for the bottom line (overrides `change`).
 	month?: string;
+	// Real month-over-month change from the backend.
+	change?: AdminStatChange | null;
+	// Active Alerts: going up is bad, so up = red and down = green.
+	upIsBad?: boolean;
 };
 
 export const Card = ({ icon, count, title, color }: CardProps) => {
@@ -67,7 +73,52 @@ export const RateCard = ({ total, title }: RateProps) => {
 	);
 };
 
-export const TotalStatusCard = ({ icon, count, title, color, month }: TotalProps) => {
+const GREEN = "#00cc00";
+const RED = "#ff0000";
+const GRAY = "#a6a3a3";
+
+// Turns the backend numbers into the arrow, color and text.
+const describeChange = (change: AdminStatChange, upIsBad: boolean) => {
+	const { direction, percent, this_month, last_month } = change;
+
+	if (direction === "same") {
+		return {
+			icon: null,
+			color: GRAY,
+			text: this_month === 0 ? "none this month" : "0% this month",
+		};
+	}
+
+	const good = direction === "up" ? !upIsBad : upIsBad;
+	const color = good ? GREEN : RED;
+	const icon =
+		direction === "up"
+			? "akar-icons:triangle-up-fill"
+			: "akar-icons:triangle-down-fill";
+
+	// Last month was 0 → a percentage makes no sense, show the count.
+	const text =
+		last_month === 0 || percent === null
+			? `+${this_month} new this month`
+			: `${percent}% this month`;
+
+	return { icon, color, text };
+};
+
+export const TotalStatusCard = ({
+	icon,
+	count,
+	title,
+	color,
+	month,
+	change,
+	upIsBad = false,
+}: TotalProps) => {
+	const info = change ? describeChange(change, upIsBad) : null;
+	const tooltip = change
+		? `This month: ${change.this_month} • Last month (same days): ${change.last_month}`
+		: undefined;
+
 	return (
 		<div
 			className="w-full border border-[#a6a3a3] rounded-2xl p-3 flex justify-center items-center lg:flex-row flex-col gap-3 lg:h-25"
@@ -97,15 +148,26 @@ export const TotalStatusCard = ({ icon, count, title, color, month }: TotalProps
 				</span>
 
 				{/* PERCENT OF THIS MONTH */}
-				<span className="Poppins-SemiBold capitalize text-xs text-[#00cc00] flex items-center gap-1">
-					<div className="">
-						<Icon
-							icon="akar-icons:triangle-up-fill"
-							className="w-full h-full"
-						/>
-					</div>
-					8% this month
-				</span>
+				{month ? (
+					<span className="Poppins-SemiBold capitalize text-xs text-[#00cc00] flex items-center gap-1">
+						{month}
+					</span>
+				) : info ? (
+					<span
+						title={tooltip}
+						className="Poppins-SemiBold capitalize text-xs flex items-center gap-1"
+						style={{ color: info.color }}>
+						{info.icon && (
+							<span className="inline-flex">
+								<Icon icon={info.icon} className="w-full h-full" />
+							</span>
+						)}
+						{info.text}
+					</span>
+				) : (
+					// Loading — keeps the card the same height.
+					<span className="Poppins-SemiBold text-xs text-[#a6a3a3]">…</span>
+				)}
 			</div>
 		</div>
 	);

@@ -85,7 +85,7 @@ const Details = ({ location, date, time, desc, status }: DetailsProps) => {
 						<h3
 							className="Poppins-SemiBold text-sm text-black"
 							style={{}}>
-							Pestiside Spraying Alert
+							Pesticide Spraying Alert
 						</h3>
 
 						{/* ALERT STATUS */}
@@ -406,6 +406,28 @@ const AlertDetailsInner = () => {
 
 			{/* LEFT */}
 			<div className="lg:w-1/2 w-full capitalize flex flex-col gap-8 px-4 lg:px-0">
+				{/* Your own alert that the admin hasn't approved (yet). */}
+				{alert.approval_status === "Pending" && (
+					<div className="normal-case w-full bg-[#FAEEDA] border-2 border-[#FAC775] rounded-lg p-3 flex items-center gap-2">
+						<Icon icon="mdi:clock-outline" className="w-5 h-5 shrink-0 text-[#854F0B]" />
+						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
+							Waiting for admin approval — other beekeepers can&apos;t see
+							this alert yet. You&apos;ll be notified once it&apos;s reviewed.
+						</p>
+					</div>
+				)}
+				{alert.approval_status === "Rejected" && (
+					<div className="normal-case w-full bg-red-50 border-2 border-red-200 rounded-lg p-3 flex items-start gap-2">
+						<Icon icon="mdi:close-circle-outline" className="w-5 h-5 shrink-0 text-red-600" />
+						<p className="text-red-600 text-xs">
+							<span className="Poppins-SemiBold">
+								This alert was not approved by the admin.
+							</span>
+							{alert.rejection_reason && <> Reason: {alert.rejection_reason}</>}
+						</p>
+					</div>
+				)}
+
 				<Details
 					location={displayLocation}
 					date={scheduled.date}
@@ -442,6 +464,9 @@ const AlertDetailsInner = () => {
 							lng: alert.longitude,
 						}}
 						radiusKm={alert.danger_radius_km}
+						// Red = High, orange = Medium, green = Low (your risk)
+						pinColor={alertLevels[alert.status]?.bg}
+						readOnly
 					/>
 				</div>
 

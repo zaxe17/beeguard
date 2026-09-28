@@ -1,6 +1,5 @@
 """
-Per-role / per-entity sequential ID generator with prefix and
-gap-filling reuse.
+Per-role / per-entity sequential ID generator with prefix and gap-filling reuse.
 
 USER roles (unchanged behaviour — kept fully backwards-compatible):
     citizen   -> CTZ-000001
@@ -16,14 +15,24 @@ Entity IDs (added in migration 003):
     alert            -> ALT-000001
     alert_recipient  -> ARC-000001
 
+Entity IDs (added in migration 004 — CV Scan feature):
+    cvscan           -> CVS-000001
+
+Entity IDs (added in migration 005 — Citizen Bee Report feature):
+    report           -> RPT-000001
+
+Entity IDs (added in migration 007 — Bee Farm / Chat / Ratings):
+    offer            -> OFR-000001   (rescue_offers.offer_id)
+    rating           -> RTG-000001   (ratings.rating_id)
+    chat_report      -> CRP-000001   (chat_reports.chat_report_id)
+
 Gap-filling for USER roles: if a user is hard-deleted, their numeric
 ID becomes free again (existing behaviour).
 
-Entity IDs (hive/yield/recommendation/alert/alert_recipient) use a
-strictly monotonic counter — no gap search, since these tables can
-grow into thousands of rows and a `MIN(free number)` scan gets
-expensive. The `user_id_sequence.next_value` row for each entity IS
-the source of truth.
+Entity IDs use a strictly monotonic counter — no gap search, since
+these tables can grow into thousands of rows and a `MIN(free number)`
+scan gets expensive. The `user_id_sequence.next_value` row for each
+entity IS the source of truth.
 
 Every write is done inside the caller's transaction with
 `SELECT ... FOR UPDATE` so concurrent inserts can't collide.
@@ -42,6 +51,11 @@ ROLE_PREFIX = {
     "recommendation":  "REC",
     "alert":           "ALT",
     "alert_recipient": "ARC",
+    "cvscan":          "CVS",
+    "report":          "RPT",
+    "offer":           "OFR",
+    "rating":          "RTG",
+    "chat_report":     "CRP",
 }
 
 # Only USER roles participate in gap-fill reuse.
@@ -52,7 +66,10 @@ ROLE_TABLES = {
 }
 
 USER_ROLES   = set(ROLE_TABLES.keys())
-ENTITY_KEYS  = {"hive", "yield", "recommendation", "alert", "alert_recipient"}
+ENTITY_KEYS  = {
+    "hive", "yield", "recommendation", "alert", "alert_recipient",
+    "cvscan", "report", "offer", "rating", "chat_report",
+}
 ALLOWED_ROLES = USER_ROLES | ENTITY_KEYS
 
 
@@ -118,7 +135,7 @@ def _next_user_sequence_value(conn, role: str) -> int:
 
 
 # ─────────────────────────────────────────────
-# ENTITY (hive/yield/recommendation/alert/alert_recipient) — strict monotonic
+# ENTITY — strict monotonic
 # ─────────────────────────────────────────────
 def _next_entity_sequence_value(conn, key: str) -> int:
     if key not in ENTITY_KEYS:
@@ -157,8 +174,7 @@ def next_user_id(conn, role: str) -> str:
 
 
 def next_entity_id(conn, key: str) -> str:
-    """Reserve and return the next ENTITY id (HV/YLD/REC/ALT/ARC-…) on `conn`.
-    Caller must commit."""
+    """Reserve and return the next ENTITY id on `conn`. Caller must commit."""
     return _format(key, _next_entity_sequence_value(conn, key))
 
 
@@ -168,6 +184,11 @@ def next_yield_id(conn) -> str:             return next_entity_id(conn, "yield")
 def next_recommendation_id(conn) -> str:    return next_entity_id(conn, "recommendation")
 def next_alert_id(conn) -> str:             return next_entity_id(conn, "alert")
 def next_alert_recipient_id(conn) -> str:   return next_entity_id(conn, "alert_recipient")
+def next_cvscan_id(conn) -> str:            return next_entity_id(conn, "cvscan")
+def next_report_id(conn) -> str:            return next_entity_id(conn, "report")
+def next_offer_id(conn) -> str:             return next_entity_id(conn, "offer")
+def next_rating_id(conn) -> str:            return next_entity_id(conn, "rating")
+def next_chat_report_id(conn) -> str:       return next_entity_id(conn, "chat_report")
 
 
 def sync_next_value(role: str) -> int:

@@ -1,3 +1,4 @@
+// app/register/form/page.tsx  (SIGN UP FORM)
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -208,6 +209,7 @@ const RegistrationForm = () => {
 	};
 
 	const handleNext = async () => {
+		if (submitting) return; // Enter pressed twice
 		const fe = validateRegistrationDraftFields(form);
 		if (Object.keys(fe).length > 0) {
 			setErrors(fe);
@@ -258,7 +260,7 @@ const RegistrationForm = () => {
 		) : null;
 
 	return (
-		<FormContainer width="lg:w-1/2">
+		<FormContainer width="lg:w-1/2" onSubmit={handleNext}>
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}
@@ -561,11 +563,11 @@ const RegistrationForm = () => {
 			)}
 
 			<div className="flex justify-center">
+				{/* type="submit" -> clicking it OR pressing Enter goes Next */}
 				<Button
-					buttonType="button"
+					buttonType="submit"
 					width="50%"
 					label={submitting ? "Checking..." : "Next"}
-					onClick={handleNext}
 					disabled={submitting}
 				/>
 			</div>

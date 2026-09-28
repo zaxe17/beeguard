@@ -7,16 +7,21 @@ from utils.responses import success, error
 
 notification_bp = Blueprint("notification", __name__, url_prefix="/api/notifications")
 
+# Migration 012 — citizens have notifications too (rescue offers /
+# resolved rescues). Migration 018 — admins too (new reports, alerts to
+# approve, verification requests). Every route only touches the
+# caller's OWN rows.
+
 
 # ── LIST ───────────────────────────────────────
 @notification_bp.route("", methods=["GET"])
 @token_required
-@role_required("beekeeper")
+@role_required("beekeeper", "citizen", "admin")
 def list_notifications():
     unread_only = request.args.get("unread_only", default="false").lower() == "true"
     limit = request.args.get("limit", default=50, type=int)
-    rows = NotificationService.list_for_beekeeper(
-        g.user_id, unread_only=unread_only, limit=limit
+    rows = NotificationService.list_for_user(
+        g.role, g.user_id, unread_only=unread_only, limit=limit
     )
     return success("OK", data=rows, status=200)
 
@@ -24,18 +29,18 @@ def list_notifications():
 # ── UNREAD COUNT (for the bell badge) ──────────
 @notification_bp.route("/unread-count", methods=["GET"])
 @token_required
-@role_required("beekeeper")
+@role_required("beekeeper", "citizen", "admin")
 def unread_count():
-    count = NotificationService.unread_count(g.user_id)
+    count = NotificationService.unread_count_for_user(g.role, g.user_id)
     return success("OK", data={"count": count}, status=200)
 
 
 # ── MARK ONE READ ──────────────────────────────
 @notification_bp.route("/<notification_id>/read", methods=["POST"])
 @token_required
-@role_required("beekeeper")
+@role_required("beekeeper", "citizen", "admin")
 def mark_read(notification_id):
-    rc = NotificationService.mark_read(notification_id, g.user_id)
+    rc = NotificationService.mark_read_for_user(notification_id, g.role, g.user_id)
     if rc == 0:
         return error("Notification not found.", status=404)
     return success("Marked as read.", status=200)
@@ -44,7 +49,7 @@ def mark_read(notification_id):
 # ── MARK ALL READ ──────────────────────────────
 @notification_bp.route("/read-all", methods=["POST"])
 @token_required
-@role_required("beekeeper")
+@role_required("beekeeper", "citizen", "admin")
 def mark_all_read():
-    NotificationService.mark_all_read(g.user_id)
+    NotificationService.mark_all_read_for_user(g.role, g.user_id)
     return success("All notifications marked as read.", status=200)

@@ -1,3 +1,4 @@
+// app/beekeeper/hives/page.tsx
 "use client";
 
 import { useCallback, useEffect, useState, Suspense } from "react";
@@ -32,6 +33,12 @@ type HivePayload = { hiveId: string };
 // Health statuses that should trigger the queen-alert popup
 // the moment the hive is tapped in the list.
 const QUEEN_ALERT_STATUSES = new Set(["Needs Attention", "Weak", "Diseased"]);
+
+// NEW — also warn when the hive has an open "Replace" recommendation
+// for any other reason (e.g. the queen is too old), even if Healthy.
+const needsQueenReplacement = (h: Hive) =>
+	QUEEN_ALERT_STATUSES.has(h.health_status) ||
+	h.queen_recommendation?.level === "Replace";
 
 const HIVE_PARAM = "hive";
 
@@ -125,7 +132,7 @@ const HivesInner = () => {
 	const handleSelectHive = (hive: Hive) => {
 		setSelectedId(hive.hive_id);
 		openHiveParam(hive.hive_id);
-		if (QUEEN_ALERT_STATUSES.has(hive.health_status)) {
+		if (needsQueenReplacement(hive)) {
 			setQueenAlertHive(hive);
 			setShowQueenAlert(true);
 		}
@@ -237,6 +244,9 @@ const HivesInner = () => {
 							yieldThisMonth={formatKg(
 								thisMonthKg[selectedHive.hive_id],
 							)}
+							replaceRecommended={needsQueenReplacement(selectedHive)}
+							replaceReason={selectedHive.queen_recommendation?.reason ?? null}
+							queenAgeDays={selectedHive.queen_age_days ?? null}
 						/>
 					) : (
 						<p className="text-[#a6a3a3]">
@@ -289,6 +299,9 @@ const HivesInner = () => {
 									yieldThisMonth={formatKg(
 										thisMonthKg[selectedHive.hive_id],
 									)}
+									replaceRecommended={needsQueenReplacement(selectedHive)}
+									replaceReason={selectedHive.queen_recommendation?.reason ?? null}
+									queenAgeDays={selectedHive.queen_age_days ?? null}
 								/>
 							</div>
 						)}
@@ -306,6 +319,9 @@ const HivesInner = () => {
 								hiveId: queenAlertHive.hive_id,
 								hiveName: queenAlertHive.hive_name,
 								healthStatus: queenAlertHive.health_status,
+								reasonCode:
+									queenAlertHive.queen_recommendation?.reason_code,
+								reason: queenAlertHive.queen_recommendation?.reason,
 							}
 						: null
 				}

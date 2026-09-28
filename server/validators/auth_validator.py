@@ -1,8 +1,10 @@
+# validators/auth_validator.py
 import re
 from email_validator import validate_email, EmailNotValidError
 
 
 ALLOWED_ROLES = {"citizen", "beekeeper"}
+ADDRESS_MAX_LEN = 255  # must match citizens/beekeepers.address VARCHAR(255)
 ALLOWED_APIARY_TYPES = {"Commercial Farm", "Backyard", "Rooftop", "Wild/Forest"}
 
 
@@ -93,10 +95,14 @@ def validate_register_payload(payload: dict) -> tuple[dict, dict]:
         cleaned["password"] = password
 
     # Address (optional, max 100)
+    # Full address = house no./street + barangay + city + region, e.g.
+    # "Lot 1 Blk 5, De Leon St., Moonwalk, City of Parañaque, National
+    # Capital Region (NCR)". 100 was too short for longer addresses, so
+    # the limit is now 255 (see migration_022_address_length.sql).
     address = payload.get("address")
     if address is not None:
-        if not isinstance(address, str) or len(address) > 100:
-            field_errors["address"] = "Address must be 100 characters or fewer."
+        if not isinstance(address, str) or len(address) > ADDRESS_MAX_LEN:
+            field_errors["address"] = f"Address must be {ADDRESS_MAX_LEN} characters or fewer."
         else:
             cleaned["address"] = address.strip() or None
 
@@ -281,4 +287,68 @@ def validate_otp_payload(payload: dict, require_code: bool = True) -> tuple[dict
         else:
             cleaned["code"] = code.strip()
 
+    return cleaned, field_errors
+
+# ── FORGOT PASSWORD (NEW) ─────────────────────
+def _clean_email_field(payload: dict, field_errors: dict, cleaned: dict) -> None:
+    email = payload.get("email")
+    if not _is_nonempty_str(email, max_len=50):
+        field_errors["email"] = "Email is required."
+        return
+    norm = _valid_email(email.strip())
+    if not norm:
+        field_errors["email"] = "Please enter a valid email address."
+    else:
+        cleaned["email"] = norm
+
+
+def validate_forgot_password_payload(payload: dict) -> tuple[dict, dict]:
+    """POST /auth/forgot-password — { email }"""
+    if not isinstance(payload, dict):
+        return {}, {"_": "Invalid request body."}
+    field_errors: dict[str, str] = {}
+    cleaned: dict = {}
+    _clean_email_field(payload, field_errors, cleaned)
+    return cleaned, field_errors
+
+
+def validate_verify_reset_code_payload(payload: dict) -> tuple[dict, dict]:
+    """POST /auth/verify-reset-code — { email, code }"""
+    if not isinstance(payload, dict):
+        return {}, {"_": "Invalid request body."}
+    field_errors: dict[str, str] = {}
+    cleaned: dict = {}
+    _clean_email_field(payload, field_errors, cleaned)
+
+    code = payload.get("code")
+    if not isinstance(code, str) or not re.fullmatch(r"\d{6}", code.strip()):
+        field_errors["code"] = "Enter the 6-digit code."
+    else:
+        cleaned["code"] = code.strip()
+    return cleaned, field_errors
+
+
+def validate_reset_password_payload(payload: dict) -> tuple[dict, dict]:
+    """POST /auth/reset-password — { reset_token, password, confirm_password }"""
+    if not isinstance(payload, dict):
+        return {}, {"_": "Invalid request body."}
+    field_errors: dict[str, str] = {}
+    cleaned: dict = {}
+
+    token = payload.get("reset_token")
+    if not _is_nonempty_str(token):
+        field_errors["reset_token"] = "Reset session missing. Please start again."
+    else:
+        cleaned["reset_token"] = token.strip()
+
+    password = payload.get("password")
+    confirm = payload.get("confirm_password")
+    if not _valid_password(password):
+        field_errors["password"] = (
+            "Password must be 8–72 chars and include both letters and numbers."
+        )
+    if password != confirm:
+        field_errors["confirm_password"] = "Passwords do not match."
+    if _valid_password(password) and password == confirm:
+        cleaned["password"] = password
     return cleaned, field_errors

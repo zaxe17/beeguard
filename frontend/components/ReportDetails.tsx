@@ -1,7 +1,22 @@
+// components/ReportDetails.tsx
+"use client";
+
 import Image from "next/image";
-import { reportStatus, type ReportProps } from "./ui/ReportCard";
+import dynamic from "next/dynamic";
+import { reportStatus, statusLabel, type ReportProps } from "./ui/ReportCard";
+import { usePlaceName } from "@/hooks/usePlaceName";
 
 import bee from "@/public/assets/bee_example.jpg";
+
+// Leaflet needs `window` — load the map in the browser only.
+const Map = dynamic(() => import("./ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
 
 const ReportDetails = ({
 	status,
@@ -13,7 +28,19 @@ const ReportDetails = ({
 	details,
 	activity,
 	danger,
+	imageUrl,
+	latitude,
+	longitude,
 }: ReportProps) => {
+	// Reports store only coordinates — look the place name up for display.
+	const placeName = usePlaceName(latitude, longitude);
+	const shownLocation = location || placeName;
+	// NEW — pin of where the bees were reported.
+	const pin =
+		latitude != null && longitude != null
+			? { lat: Number(latitude), lng: Number(longitude) }
+			: null;
+
 	return (
 		<div className="flex flex-col gap-4 w-full">
 			{/* HIVES DETAILS */}
@@ -24,12 +51,21 @@ const ReportDetails = ({
 				}}>
 				{/* LEFT */}
 				<div className="w-full h-full overflow-hidden">
-					<Image
-						src={bee}
-						alt="hive_icon"
-						className="w-full h-full object-cover rounded-md"
-						priority
-					/>
+					{imageUrl ? (
+						// eslint-disable-next-line @next/next/no-img-element
+						<img
+							src={imageUrl}
+							alt="Reported bees"
+							className="w-full h-full max-h-80 object-cover rounded-md"
+						/>
+					) : (
+						<Image
+							src={bee}
+							alt="hive_icon"
+							className="w-full h-full object-cover rounded-md"
+							priority
+						/>
+					)}
 				</div>
 
 				{/* RIGHT */}
@@ -45,7 +81,7 @@ const ReportDetails = ({
 								color: reportStatus[status].color,
 								backgroundColor: `${reportStatus[status].color}66`,
 							}}>
-							{status}
+							{statusLabel(status)}
 						</span>
 					</div>
 
@@ -67,7 +103,7 @@ const ReportDetails = ({
 						Location
 					</h2>
 					<p className="leading-4 text-[#4A2F00] font-medium">
-						{location}
+						{shownLocation}
 					</p>
 
 					{/* DATE AND TIME */}
@@ -115,6 +151,27 @@ const ReportDetails = ({
 					</p>
 				</div>
 			</div>
+
+			{/* LOCATION MAP (NEW) — read-only pin of the reported swarm */}
+			{pin && (
+				<div className="flex flex-col gap-1">
+					<div className="w-full h-56 rounded-xl overflow-hidden border border-[#e2e2e6] relative isolate">
+						<Map
+							key={`${pin.lat},${pin.lng}`}
+							initialCenter={pin}
+							markerPosition={pin}
+							readOnly
+						/>
+					</div>
+					<a
+						href={`https://www.google.com/maps/dir/?api=1&destination=${pin.lat},${pin.lng}`}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="self-end text-xs text-[#ff9a00] Poppins-SemiBold hover:underline">
+						Get directions ↗
+					</a>
+				</div>
+			)}
 
 			{/* BUTTONS */}
 			<div className="flex flex-col items-center justify-center gap-5"></div>

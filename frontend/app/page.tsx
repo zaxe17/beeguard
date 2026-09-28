@@ -1,7 +1,8 @@
+// app/page.tsx  (LOGIN PAGE)
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Background from "@/components/Background";
@@ -12,9 +13,16 @@ import { CheckBox, Input } from "@/components/ui/Input";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
 
+// REMEMBER ME — the username/email is kept here so it's filled in next
+// time. (The login token itself is kept by tokenStore in services/api.ts.)
+const REMEMBER_ID_KEY = "beeguard_remember_identifier";
+
+const homeFor = (role?: string) =>
+	role === "citizen" ? "/citizen" : role === "beekeeper" ? "/beekeeper" : "/admin";
+
 const Login = () => {
 	const router = useRouter();
-	const { refresh } = useAuth();
+	const { user, loading, refresh } = useAuth();
 
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
@@ -22,8 +30,27 @@ const Login = () => {
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-	const handleSubmit = async (e?: FormEvent) => {
-		e?.preventDefault();
+	// Remember me: fill in the saved username and keep the box ticked.
+	useEffect(() => {
+		try {
+			const saved = localStorage.getItem(REMEMBER_ID_KEY);
+			if (saved) {
+				setUsername(saved);
+				setRemember(true);
+			}
+		} catch {
+			// storage blocked — just start empty
+		}
+	}, []);
+
+	// Remember me: still signed in (saved token is valid) -> skip the
+	// login form and go straight to your dashboard.
+	useEffect(() => {
+		if (!loading && user) router.replace(homeFor(user.role));
+	}, [loading, user, router]);
+
+	const handleSubmit = async () => {
+		if (submitting) return; // Enter pressed twice
 		setErrorMsg(null);
 
 		if (!username.trim() || !password) {
@@ -62,11 +89,14 @@ const Login = () => {
 
 		if (res.success) {
 			const resolvedRole = res.data?.user?.role;
+			try {
+				if (remember) localStorage.setItem(REMEMBER_ID_KEY, username.trim());
+				else localStorage.removeItem(REMEMBER_ID_KEY);
+			} catch {
+				// storage blocked — login still works
+			}
 			await refresh();
-			if (resolvedRole === "citizen") router.push("/citizen");
-			else if (resolvedRole === "beekeeper")
-				router.push("/beekeeper"); // TODO: replace when beekeeper dashboard exists
-			else router.push("/admin"); // TODO: admin dashboard route
+			router.push(homeFor(resolvedRole));
 			setSubmitting(false);
 			return;
 		}
@@ -87,7 +117,7 @@ const Login = () => {
 					{/* LOGO */}
 					<Logo />
 
-					<FormContainer width="lg:w-130 w-full">
+					<FormContainer width="lg:w-130 w-full" onSubmit={handleSubmit}>
 						{/* FORM HEADER */}
 						<h1 className="Poppins-Bold text-[#4A2F00] lg:text-5xl text-5xl lg:block hidden">
 							Welcome Back!
@@ -117,7 +147,7 @@ const Login = () => {
 									onCheckedChange={setRemember}
 								/>
 								<Link
-									href=""
+									href="/forgot-password"
 									className="hover:underline text-[#ff9a00] font-extrabold lg:text-lg text-sm">
 									Forgot Password?
 								</Link>
@@ -132,12 +162,17 @@ const Login = () => {
 
 						<div className="flex flex-col gap-4 mt-10 text-center">
 							{/* SUBMIT BUTTON */}
+							{/* type="submit" -> clicking it OR pressing Enter signs in */}
 							<Button
-								buttonType="button"
+								buttonType="submit"
 								label={submitting ? "Signing in..." : "Sign In"}
-								onClick={() => handleSubmit()}
 								disabled={submitting}
 							/>
+
+							{/* GUEST BEE IDENTIFICATION (no login) */}
+							<Link href="/guest" className="hover:underline">
+								<span>use bee identification</span>
+							</Link>
 
 							{/* SIGN UP ROUTE */}
 							<span className="">

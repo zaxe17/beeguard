@@ -3,6 +3,9 @@ import { api, ApiEnvelope } from "./api";
 export type PesticideType = "Insecticide" | "Herbicide" | "Fungicide";
 export type RiskLevel = "Low" | "Medium" | "High";
 export type AlertSource = "admin" | "beekeeper";
+// Beekeeper-reported alerts wait for an admin (Migration 014).
+// Admin-created alerts are "Approved" right away.
+export type AlertApprovalStatus = "Pending" | "Approved" | "Rejected";
 
 export interface CreateAlertPayload {
 	title: string;
@@ -25,6 +28,8 @@ export interface AlertRecipient {
 
 export interface CreateAlertResult {
 	alert_id: string;
+	// "Pending" when a beekeeper submitted it (nobody notified yet).
+	approval_status: AlertApprovalStatus;
 	danger_radius_km: number;
 	// Number of beekeepers actually inside the danger radius.
 	matched_count: number;
@@ -53,6 +58,25 @@ export interface AlertRecord {
 	// present only on /alerts/mine (joined from alert_recipients)
 	distance_km?: number;
 	notified_at?: string;
+	source?: AlertSource;
+	reported_by_beekeeper_id?: string | null;
+	approval_status?: AlertApprovalStatus;
+	rejection_reason?: string | null;
+	created_at?: string;
+}
+
+// GET /pesticide/alerts/review — admin Alerts page.
+export interface AdminAlertRecord extends AlertRecord {
+	description: string | null;
+	application_method: string | null;
+	source: AlertSource;
+	approval_status: AlertApprovalStatus;
+	reviewed_at: string | null;
+	created_at: string;
+	admin_name: string | null;
+	reporter_name: string | null;
+	reporter_contact: string | null;
+	reporter_farm: string | null;
 }
 
 // GET /pesticide/alerts/<alert_id> — full detail for the Alert Details
@@ -80,6 +104,10 @@ export interface AlertDetail {
 	// Only set when the viewer is a matched beekeeper recipient — null
 	// for admins and for self-authored alerts with no recipient match.
 	your_distance_km: number | null;
+
+	// Pending / Rejected are only visible to admins and the reporter.
+	approval_status?: AlertApprovalStatus;
+	rejection_reason?: string | null;
 }
 
 export type ApiEnvelopeWithFields<T> = ApiEnvelope<T> & {
@@ -96,8 +124,12 @@ export const pesticideService = {
 	// Admin — alerts this admin created
 	listAdminAlerts: () => api.get<AlertRecord[]>("/pesticide/alerts"),
 
-	// Any authenticated role — all currently active (non-expired) alerts
-	listActiveAlerts: () => api.get<AlertRecord[]>("/pesticide/alerts/active"),
+	// Any authenticated role — all currently active (non-expired) alerts.
+	// includePast = true also returns alerts that already ended (All tab).
+	listActiveAlerts: (includePast = false) =>
+		api.get<AlertRecord[]>(
+			`/pesticide/alerts/active${includePast ? "?include_past=1" : ""}`,
+		),
 
 	// Beekeeper — alerts they were actually matched/notified for
 	listMyAlerts: () => api.get<AlertRecord[]>("/pesticide/alerts/mine"),
@@ -112,4 +144,24 @@ export const pesticideService = {
 	// Admin — who was matched for a given alert
 	listAlertRecipients: (alertId: string) =>
 		api.get<AlertRecipient[]>(`/pesticide/alerts/${alertId}/recipients`),
+
+	// Admin — every alert for review ("Pending" | "Approved" | "Rejected" | "all")
+	listForReview: (status: AlertApprovalStatus | "all" = "all") =>
+		api.get<AdminAlertRecord[]>(
+			`/pesticide/alerts/review?status=${encodeURIComponent(status)}`,
+		),
+
+	// Admin — approve a beekeeper's alert (it's sent out to beekeepers)
+	approveAlert: (alertId: string) =>
+		api.post<CreateAlertResult>(
+			`/pesticide/alerts/${encodeURIComponent(alertId)}/approve`,
+			{},
+		),
+
+	// Admin — reject a beekeeper's alert (reporter is told the reason)
+	rejectAlert: (alertId: string, reason: string) =>
+		api.post<{ alert_id: string; approval_status: AlertApprovalStatus; rejection_reason: string }>(
+			`/pesticide/alerts/${encodeURIComponent(alertId)}/reject`,
+			{ reason },
+		),
 };

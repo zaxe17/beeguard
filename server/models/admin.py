@@ -19,6 +19,17 @@ class AdminModel:
         sql = f"SELECT * FROM {AdminModel.TABLE} WHERE adminID = %s LIMIT 1"
         return Database.execute(sql, (admin_id,), fetchone=True)
 
+    # NEW — Forgot Password. `hashed_password` is already bcrypt-hashed
+    # (AuthService.hash_password).
+    @staticmethod
+    def update_password_by_email(email: str, hashed_password: str) -> int:
+        sql = f"""
+            UPDATE {AdminModel.TABLE}
+            SET password = %s
+            WHERE email = %s AND deleted_at IS NULL
+        """
+        return Database.execute(sql, (hashed_password, email), commit=True)
+
     @staticmethod
     def delete(admin_id: str) -> int:
         """

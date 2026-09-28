@@ -8,6 +8,12 @@ import { PesticideAlert } from "@/components/ui/Alert";
 import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import { pesticideService, AlertRecord } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
+import { useAuth } from "@/context/AuthContext";
+import {
+	emptyMessage,
+	filterAlerts,
+	useAlertFilter,
+} from "@/context/AlertFilterContext";
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -22,6 +28,9 @@ function toDisplayTime(a: AlertRecord): string {
 
 const Alert = () => {
 	const router = useRouter();
+	const { user } = useAuth();
+	// Search bar + filter icon in app/beekeeper/alert/layout.tsx
+	const { filter, search } = useAlertFilter();
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -33,7 +42,8 @@ const Alert = () => {
 	const loadAlerts = useCallback(async () => {
 		setLoading(true);
 		setErrorMsg(null);
-		const res = await pesticideService.listActiveAlerts();
+		// All tab = every alert, including past ones.
+		const res = await pesticideService.listActiveAlerts(true);
 		if (res.success && res.data) {
 			setAlerts(res.data);
 		} else if (!res.success) {
@@ -55,10 +65,18 @@ const Alert = () => {
 		return () => window.removeEventListener(ALERTS_CHANGED_EVENT, handler);
 	}, [loadAlerts]);
 
-	const sorted = [...alerts].sort(
+	// Filter + search, then newest first so past alerts end up at the bottom.
+	const shown = filterAlerts(
+		alerts,
+		filter,
+		search,
+		(a) => getAlertLocation(a, resolvedLocations),
+		user?.id,
+	);
+	const sorted = [...shown].sort(
 		(a, b) =>
-			new Date(a.scheduled_date).getTime() -
-			new Date(b.scheduled_date).getTime(),
+			new Date(b.scheduled_date).getTime() -
+			new Date(a.scheduled_date).getTime(),
 	);
 
 	return (
@@ -73,7 +91,7 @@ const Alert = () => {
 				</p>
 			) : sorted.length === 0 ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
-					No active alerts.
+					{emptyMessage(filter, search, "No alerts yet.")}
 				</p>
 			) : (
 				sorted.map((a) => (
@@ -93,6 +111,8 @@ const Alert = () => {
 								`/beekeeper/alert/details?id=${a.alert_id}`,
 							)
 						}
+						// Your own alert that the admin hasn't approved yet.
+						approvalStatus={a.approval_status}
 					/>
 				))
 			)}

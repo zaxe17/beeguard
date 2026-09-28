@@ -16,8 +16,9 @@ def _field_errors_to_list(fe: dict) -> list[str]:
     return [f"{k}: {v}" if k != "_" else v for k, v in fe.items()]
 
 
-# ── CREATE ALERT (admin OR beekeeper — beekeeper self-reports
-#    publish immediately, no separate admin confirmation step) ─
+# ── CREATE ALERT (admin OR beekeeper) ─────────
+#    Admin alerts go out right away. A beekeeper's alert is saved as
+#    Pending and only goes out once an admin approves it.
 @pesticide_bp.route("/alerts", methods=["POST"])
 @token_required
 @role_required("admin", "beekeeper")
@@ -35,6 +36,14 @@ def create_alert():
     except Exception as e:
         print(f"[PESTICIDE-CREATE] Unhandled error: {e}")
         return error("Failed to create alert. Please try again.", status=500)
+
+    if result.get("approval_status") == "Pending":
+        return success(
+            "Alert submitted. It will be shown to other beekeepers once an "
+            "admin approves it.",
+            data=result,
+            status=201,
+        )
 
     # `notified_count` is the number of OTHER beekeepers we sent a
     # notification to (matched + unlocated + outside-radius heads-ups),
@@ -57,6 +66,59 @@ def list_admin_alerts():
     return success("OK", data=alerts, status=200)
 
 
+# ── ADMIN REVIEW — every alert, filter by approval status ─────
+#    GET /api/pesticide/alerts/review?status=Pending|Approved|Rejected|all
+@pesticide_bp.route("/alerts/review", methods=["GET"])
+@token_required
+@role_required("admin")
+def list_alerts_for_review():
+    status = (request.args.get("status") or "all").strip().capitalize()
+    alerts = PesticideService.list_for_review(None if status == "All" else status)
+    return success("OK", data=alerts, status=200)
+
+
+# ── ADMIN REVIEW — approve (sends the alert out) ─────
+@pesticide_bp.route("/alerts/<alert_id>/approve", methods=["POST"])
+@token_required
+@role_required("admin")
+def approve_alert(alert_id):
+    try:
+        result = PesticideService.approve_alert(alert_id, g.user_id)
+    except LookupError:
+        return error("Alert not found.", status=404)
+    except ValueError as e:
+        return error(str(e), status=409)
+    except Exception as e:
+        print(f"[PESTICIDE-APPROVE] Unhandled error: {e}")
+        return error("Failed to approve alert. Please try again.", status=500)
+
+    return success(
+        f"Alert approved and sent to {result['notified_count']} beekeeper(s) "
+        f"({result['matched_count']} inside the danger radius).",
+        data=result,
+        status=200,
+    )
+
+
+# ── ADMIN REVIEW — reject (stays hidden, reporter is told why) ──
+@pesticide_bp.route("/alerts/<alert_id>/reject", methods=["POST"])
+@token_required
+@role_required("admin")
+def reject_alert(alert_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = PesticideService.reject_alert(alert_id, g.user_id, payload.get("reason"))
+    except LookupError:
+        return error("Alert not found.", status=404)
+    except ValueError as e:
+        return error(str(e), status=422)
+    except Exception as e:
+        print(f"[PESTICIDE-REJECT] Unhandled error: {e}")
+        return error("Failed to reject alert. Please try again.", status=500)
+
+    return success("Alert rejected. The beekeeper has been notified.", data=result, status=200)
+
+
 # ── LIST — all currently active alerts (any authenticated role) ─
 @pesticide_bp.route("/alerts/active", methods=["GET"])
 @token_required
@@ -66,7 +128,11 @@ def list_active_alerts():
     # risk_level, since there's no single beekeeper's farm to compute
     # a distance against.
     beekeeper_id = g.user_id if g.role == "beekeeper" else None
-    alerts = PesticideService.list_active(beekeeper_id=beekeeper_id)
+    # ?include_past=1 -> also alerts that already ended (beekeeper "All" tab)
+    include_past = (request.args.get("include_past") or "").lower() in ("1", "true", "yes")
+    alerts = PesticideService.list_active(
+        beekeeper_id=beekeeper_id, include_past=include_past
+    )
     return success("OK", data=alerts, status=200)
 
 

@@ -1,10 +1,12 @@
+// app/beekeeper/layout.tsx
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { AddAlert } from "@/components/modal/AlertModal";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { AddAlert, ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import {
 	AddHiveModal,
 	AddYield,
+	HIVES_CHANGED_EVENT,
 	MonitorHealth,
 	QueenReplace,
 	ViewHistory,
@@ -16,6 +18,28 @@ import { hiveService, Hive } from "@/services/hive";
 import { mapHealthStatusToUi } from "@/components/HiveContainer";
 import { WarningQueenReplacment } from "@/components/popup/PopUp";
 import { Delete, Report } from "@/components/modal/ChatModal";
+// OFFLINE MODE
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { OFFLINE_SYNCED_EVENT } from "@/lib/offlineStatus";
+import { BEEKEEPER_REPORTS_CHANGED_EVENT } from "@/services/beekeeperReport";
+
+// Beekeeper pages saved on the phone so they still open offline.
+const OFFLINE_PAGES = [
+	"/beekeeper",
+	"/beekeeper/hives",
+	"/beekeeper/alert",
+	"/beekeeper/alert/today",
+	"/beekeeper/report",
+	"/beekeeper/history",
+	"/beekeeper/profile",
+];
+
+// Tell every page to load fresh data (same events the modals already use).
+const reloadAllPages = () => {
+	window.dispatchEvent(new Event(HIVES_CHANGED_EVENT));
+	window.dispatchEvent(new Event(ALERTS_CHANGED_EVENT));
+	window.dispatchEvent(new Event(BEEKEEPER_REPORTS_CHANGED_EVENT));
+};
 
 // "ReportOffer" removed — that modal is now nested locally inside
 // BeeReportContent (in ReportModal.tsx), not controlled globally.
@@ -45,6 +69,14 @@ const BeekeeperLayoutContent = ({
 
 	const [targetHive, setTargetHive] = useState<Hive | null>(null);
 
+	// OFFLINE MODE — offline changes just reached the server: reload pages.
+	useEffect(() => {
+		window.addEventListener(OFFLINE_SYNCED_EVENT, reloadAllPages);
+		return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, reloadAllPages);
+	}, []);
+
+	const handleBackOnline = useCallback(() => reloadAllPages(), []);
+
 	const hiveScoped =
 		isModalOpen("monitorHealth") ||
 		isModalOpen("addYield") ||
@@ -72,6 +104,11 @@ const BeekeeperLayoutContent = ({
 
 			<main className="w-full flex-1 min-h-0 flex flex-col relative overflow-y-auto">
 				<div className="absolute top-0 z-[-2] h-full w-full bg-white bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,219,79,0.3),rgba(255,255,255,0))]"></div>
+				{/* OFFLINE MODE — offline notice + changes waiting to sync */}
+				<OfflineBanner
+					onBackOnline={handleBackOnline}
+					warmRoutes={OFFLINE_PAGES}
+				/>
 				{children}
 			</main>
 

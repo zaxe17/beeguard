@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import pesticides from "@/data/typesOfPesticide.json";
 import { pesticideService, PesticideType } from "@/services/pesticide";
 import { authService } from "@/services/auth";
+import { useAuth } from "@/context/AuthContext";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — load it client-side only. AddAlert stays mounted
@@ -30,6 +31,13 @@ type AddAlertProps = {
 };
 
 const OTHERS_VALUE = "others";
+
+// The backend only accepts these three pesticide types (see
+// validators/pesticide_validator.py). Anything else from the dropdown
+// used to be sent as-is and the alert was refused ("pesticide_type must
+// be one of ..."). Now any other choice is sent as "no type" and its
+// name goes into the alert title instead.
+const BACKEND_PESTICIDE_TYPES = new Set(["Insecticide", "Herbicide", "Fungicide"]);
 
 // Mirrors the backend's RADIUS_KM_BY_TYPE in pesticide_service.py —
 // keep these two in sync if the defaults ever change there.
@@ -56,6 +64,12 @@ function notifyAlertsChanged() {
 type LatLng = { lat: number; lng: number };
 
 export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
+	// Beekeepers' alerts wait for admin approval; admins' go out right away.
+	const { user } = useAuth();
+	const needsApproval = user?.role === "beekeeper";
+	// Shows the "sent for approval" message after a beekeeper submits.
+	const [submittedForReview, setSubmittedForReview] = useState(false);
+
 	const [selectedPesticide, setSelectedPesticide] = useState("");
 	const [otherPesticide, setOtherPesticide] = useState("");
 	const [scheduledDate, setScheduledDate] = useState("");
@@ -160,17 +174,21 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		// to go there, so it stays null and the name is folded into
 		// the auto-generated title instead so it isn't lost.
 		const isOthers = selectedPesticide === OTHERS_VALUE;
-		const pesticideType = isOthers
-			? null
-			: (selectedPesticide as PesticideType) || null;
+		const pesticideType =
+			!isOthers && BACKEND_PESTICIDE_TYPES.has(selectedPesticide)
+				? (selectedPesticide as PesticideType)
+				: null;
 		const pesticideLabel = isOthers
 			? otherPesticide.trim()
-			: selectedPesticide || "Pesticide";
+			: pesticideOptions.find((o) => o.value === selectedPesticide)?.label ||
+				selectedPesticide ||
+				"Pesticide";
 
 		// No title field in this form — auto-generate one from what's
 		// already here, since the backend requires a title but the
 		// modal itself never asked for one.
-		const autoTitle = `${pesticideLabel} Application`;
+		// Backend limit: title max 50 characters.
+		const autoTitle = `${pesticideLabel} Application`.slice(0, 50);
 
 		setSubmitting(true);
 		try {
@@ -200,6 +218,11 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 			resetForm();
 			notifyAlertsChanged();
 			onConfirm?.();
+			if (res.data?.approval_status === "Pending") {
+				// Keep the modal open to tell them it's waiting for the admin.
+				setSubmittedForReview(true);
+				return;
+			}
 			onClose();
 		} catch {
 			setErrorMsg("Network error. Please try again.");
@@ -207,12 +230,41 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		}
 	};
 
+	const handleClose = () => {
+		setSubmittedForReview(false);
+		onClose();
+	};
+
+	if (submittedForReview) {
+		return (
+			<ModalContainer
+				open={open}
+				width="lg:w-1/3 w-full"
+				header="Alert Submitted"
+				onClose={handleClose}>
+				<div className="flex flex-col items-center text-center gap-3 py-4">
+					<div className="w-16 h-16 rounded-full bg-[#ffdb4f]/40 flex items-center justify-center text-3xl">
+						⏳
+					</div>
+					<h2 className="Poppins-SemiBold text-[#4a2f00]">
+						Waiting for admin approval
+					</h2>
+					<p className="text-sm text-[#817b70]">
+						Your alert was sent to the admin. It will be shown to other
+						beekeepers once it&apos;s approved. We&apos;ll notify you either way.
+					</p>
+					<Button buttonType="button" label="OK" onClick={handleClose} />
+				</div>
+			</ModalContainer>
+		);
+	}
+
 	return (
 		<ModalContainer
 			open={open}
 			width="lg:w-1/3 w-full"
 			header="Add New Alert"
-			onClose={onClose}>
+			onClose={handleClose}>
 			{/* MAP — shows the selected point and a live radius circle
 			    that updates as the slider or pesticide type changes. */}
 			<div className="w-full h-60 rounded-xl relative overflow-hidden">
@@ -232,6 +284,13 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 				<h2 className="Poppins-SemiBold text-[#817b70]">
 					Alert Information
 				</h2>
+
+				{needsApproval && (
+					<p className="text-xs text-[#854F0B] bg-[#FAEEDA] rounded-md p-2">
+						An admin will review your alert before other beekeepers can
+						see it.
+					</p>
+				)}
 
 				{/* SELECT PESTICIDE TYPE */}
 				<Select
@@ -273,10 +332,18 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 
 				{/* BUTTONS */}
 				<div className="flex items-center gap-3 w-full">
-					<CancelButton onClick={onClose} disabled={submitting} />
+					<CancelButton onClick={handleClose} disabled={submitting} />
 					<Button
 						buttonType="button"
-						label={submitting ? "Publishing..." : "Publish Alert"}
+						label={
+							submitting
+								? needsApproval
+									? "Submitting..."
+									: "Publishing..."
+								: needsApproval
+									? "Submit for Approval"
+									: "Publish Alert"
+						}
 						onClick={handleSubmit}
 						disabled={submitting}
 					/>

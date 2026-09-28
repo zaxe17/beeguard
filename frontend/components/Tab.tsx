@@ -68,6 +68,11 @@ type SettingsProps = {
 	onClick?: () => void;
 	active?: boolean;
 	subContent?: React.ReactNode;
+	// NEW (SwitchTab) — control the switch from the page, e.g. a saved
+	// setting. Without `checked` it keeps its own on/off like before.
+	checked?: boolean;
+	onChange?: (checked: boolean) => void;
+	disabled?: boolean;
 };
 
 export const SettingsTabs = ({
@@ -115,12 +120,28 @@ export const SettingsTabs = ({
 	);
 };
 
-export const SwitchTab = ({ icon, label, desc }: SettingsProps) => {
-	const [enabled, setEnabled] = useState(true);
+export const SwitchTab = ({
+	icon,
+	label,
+	desc,
+	checked,
+	onChange,
+	disabled = false,
+}: SettingsProps) => {
+	const [ownEnabled, setOwnEnabled] = useState(true);
+	const controlled = checked !== undefined;
+	const enabled = controlled ? checked : ownEnabled;
+	const setEnabled = (v: boolean) => {
+		if (disabled) return;
+		if (!controlled) setOwnEnabled(v);
+		onChange?.(v);
+	};
 
 	return (
 		<div
-			className="group rounded-xl p-2.5 capitalize flex flex-row gap-5 items-center justify-between"
+			className={`group rounded-xl p-2.5 capitalize flex flex-row gap-5 items-center justify-between transition-opacity ${
+				disabled ? "opacity-50 pointer-events-none" : ""
+			}`}
 			style={{
 				boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
 			}}>

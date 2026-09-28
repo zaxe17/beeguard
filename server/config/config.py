@@ -48,3 +48,36 @@ class Config:
     YIELD_REPLACE_THRESHOLD_PCT = float(
         os.getenv("YIELD_REPLACE_THRESHOLD_PCT", "60")
     )
+
+    # ── Local YOLO model (bee/insect species identification — Feature: CV Scan) ──
+    # Replaces the old Roboflow-hosted-inference setup. Custom-trained weights
+    # (Apis cerana / Apis mellifera / Tetragonula biroi) live on disk inside
+    # the backend repo by default at backend/weights/best.pt; override with
+    # CV_SCAN_MODEL_PATH if you keep it somewhere else.
+    CV_SCAN_MODEL_PATH = os.getenv(
+        "CV_SCAN_MODEL_PATH",
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "weights", "best.pt"
+        ),
+    )
+    # Boxes below this confidence are dropped before majority-voting runs.
+    CV_SCAN_CONF_THRESHOLD = float(os.getenv("CV_SCAN_CONF_THRESHOLD", "0.4"))
+    # "cpu", "cuda", "cuda:0", etc. — leave as "cpu" unless the server has a GPU.
+    CV_SCAN_DEVICE = os.getenv("CV_SCAN_DEVICE", "cpu")
+    # Longest side the image is resized to before inference (YOLO handles this
+    # internally, this just controls the tradeoff between speed and accuracy).
+    CV_SCAN_IMGSZ = int(os.getenv("CV_SCAN_IMGSZ", "1024"))
+
+    # CV Scan image storage — saved to local disk for now (no cloud
+    # storage account set up yet). CV_SCAN_UPLOAD_FOLDER is a real
+    # filesystem path where uploaded images are written;
+    # CV_SCAN_URL_PREFIX is the URL path Flask serves that same folder
+    # under (see app.py's static route), stored in cv_scans.image_url.
+    CV_SCAN_UPLOAD_FOLDER = os.getenv(
+        "CV_SCAN_UPLOAD_FOLDER",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "cv_scans"),
+    )
+    CV_SCAN_URL_PREFIX = "/uploads/cv-scans"
+
+    # Reject multipart bodies over 27 MB at the WSGI level (service checks 25 MB)
+    MAX_CONTENT_LENGTH = 27 * 1024 * 1024

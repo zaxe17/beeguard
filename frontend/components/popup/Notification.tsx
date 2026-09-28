@@ -2,13 +2,19 @@
 
 import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
 	notificationService,
 	NotificationRecord,
 } from "@/services/notification";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { useModal } from "@/context/ModalContext";
+
+// Opens the same Report Details modal the Report tab uses
+// (<BeeReport /> in app/beekeeper/layout.tsx reads this payload).
+type ModalType = "BeeReport";
+type BeeReportPayload = { reportId: string };
 
 const typeStyle: Record<string, { icon: string; color: string }> = {
 	pesticide_alert: {
@@ -18,6 +24,47 @@ const typeStyle: Record<string, { icon: string; color: string }> = {
 	queen_recommendation: {
 		icon: "fluent:crown-24-filled",
 		color: "#ffdb4f",
+	},
+	// NEW — a citizen reported a swarm near this beekeeper's farm.
+	rescue_report: {
+		icon: "mdi:bee",
+		color: "#ff9a00",
+	},
+	// NEW — citizen accepted / declined this beekeeper's offer, or
+	// cancelled the report.
+	offer_update: {
+		icon: "mdi:handshake",
+		color: "#1f6f5f",
+	},
+	// NEW (citizen) — a beekeeper offered to rescue their reported bees.
+	rescue_offer: {
+		icon: "mdi:hand-coin",
+		color: "#ff9a00",
+	},
+	// NEW (both) — the rescue was marked done.
+	rescue_resolved: {
+		icon: "mdi:check-decagram",
+		color: "#00cc00",
+	},
+	// NEW (beekeeper) — admin approved / rejected their verification.
+	verification: {
+		icon: "mdi:shield-check",
+		color: "#38b6ff",
+	},
+	// NEW (admin) — a citizen sent a swarm report.
+	new_report: {
+		icon: "pinhead:bee",
+		color: "#ff9a00",
+	},
+	// NEW (admin) — a beekeeper's pesticide alert is waiting for approval.
+	alert_review: {
+		icon: "mdi:clock-alert-outline",
+		color: "#ff0000",
+	},
+	// NEW (admin) — a beekeeper uploaded a verification document.
+	verify_request: {
+		icon: "mdi:shield-account",
+		color: "#38b6ff",
 	},
 };
 const DEFAULT_STYLE = { icon: "mingcute:alert-fill", color: "#ff0000" };
@@ -86,6 +133,9 @@ type NotificationProps = {
 // Shared logic + content — used by both desktop dropdown and mobile overlay
 const useNotifications = (onNotificationRead?: () => void) => {
 	const router = useRouter();
+	const pathname = usePathname();
+	const isCitizen = pathname.startsWith("/citizen");
+	const { openModal } = useModal<ModalType, BeeReportPayload>();
 	const [notifs, setNotifs] = useState<NotificationRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -117,8 +167,46 @@ const useNotifications = (onNotificationRead?: () => void) => {
 			onNotificationRead?.();
 		}
 
+		// Admin notifications -> the page where the admin acts on it.
+		if (pathname.startsWith("/admin")) {
+			if (notif.notification_type === "new_report" && notif.reportID) {
+				router.push(`/admin/report?report=${encodeURIComponent(notif.reportID)}`);
+			} else if (notif.notification_type === "alert_review") {
+				router.push("/admin/alert?tab=pending");
+			} else if (notif.notification_type === "verify_request") {
+				router.push("/admin/profile?tab=verification");
+			}
+			return;
+		}
+
 		if (notif.notification_type === "pesticide_alert" && notif.alert_id) {
 			router.push(`/beekeeper/alert/details?id=${notif.alert_id}`);
+			return;
+		}
+
+		// Verification result -> Profile > Verify Your Account.
+		if (notif.notification_type === "verification") {
+			router.push("/beekeeper/profile?view=main&detail=verify");
+			return;
+		}
+
+		if (!notif.reportID) return;
+
+		// Citizen: offers / resolved rescue -> Documents on that report
+		// (where they accept offers and rate the beekeeper).
+		if (isCitizen) {
+			router.push(`/citizen/document?report=${encodeURIComponent(notif.reportID)}`);
+			return;
+		}
+
+		// Beekeeper: report notifications -> Report tab + that report's details.
+		if (
+			notif.notification_type === "rescue_report" ||
+			notif.notification_type === "offer_update" ||
+			notif.notification_type === "rescue_resolved"
+		) {
+			router.push("/beekeeper/report");
+			openModal("BeeReport", { reportId: notif.reportID });
 		}
 	};
 

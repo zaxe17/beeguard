@@ -1,3 +1,5 @@
+// services/analytics.ts
+
 import { api, ApiEnvelope } from "./api";
 
 export interface HiveCounts {
@@ -25,7 +27,8 @@ export interface DashboardSummary {
 		this_month: YieldAggregate;
 		prev_month: YieldAggregate;
 		change_amount: number;
-		change_percent: number;
+		// null = no harvest last month, so there's no % to show
+		change_percent: number | null;
 	};
 	recommendations: {
 		open: number;
@@ -70,6 +73,12 @@ export interface SeasonalComparisonRow {
 export const analyticsService = {
 	dashboardSummary: () => api.get<DashboardSummary>("/analytics/dashboard"),
 
+	// NEW — Dashboard chart: total kg per month (empty months = 0),
+	// labels like "Sep 2026". Same YieldTrend shape as yieldTrend.
+	monthlyYield: (months = 6) =>
+		api.get<YieldTrend>(`/analytics/monthly-yield?months=${months}`),
+
+	// One point PER HARVEST (used by reports / History-style views).
 	yieldTrend: (months = 12) =>
 		api.get<YieldTrend>(`/analytics/yield-trend?months=${months}`),
 

@@ -1,3 +1,4 @@
+// components/ui/Alert.tsx
 "use client";
 
 import { Icon } from "@iconify/react";
@@ -18,6 +19,22 @@ export type AlertProps = {
 	// styled like it (it already had cursor-pointer/hover before,
 	// with nothing behind it).
 	onClick?: () => void;
+	// NEW — a beekeeper's alert waits for admin approval. "Pending" /
+	// "Rejected" add a small badge; "Approved" (or unset) shows nothing.
+	approvalStatus?: "Pending" | "Approved" | "Rejected" | null;
+	// NEW — highlights the card (e.g. the one open on the admin map).
+	selected?: boolean;
+};
+
+const APPROVAL_BADGE: Record<string, { label: string; className: string }> = {
+	Pending: {
+		label: "Waiting for approval",
+		className: "bg-[#ffdb4f]/40 text-[#854F0B]",
+	},
+	Rejected: {
+		label: "Rejected",
+		className: "bg-red-600/15 text-red-600",
+	},
 };
 
 const alertLevels = {
@@ -38,13 +55,23 @@ const alertLevels = {
 	},
 };
 
+// Map pin / radius color for each risk level (same as the alert cards).
+export const ALERT_PIN_COLORS: Record<AlertProps["status"], string> = {
+	high: alertLevels.high.bg,
+	medium: alertLevels.medium.bg,
+	low: alertLevels.low.bg,
+};
+
 export const PesticideAlert = ({
 	location,
 	date,
 	time,
 	status,
 	onClick,
+	approvalStatus,
+	selected = false,
 }: AlertProps) => {
+	const approvalBadge = approvalStatus ? APPROVAL_BADGE[approvalStatus] : undefined;
 	return (
 		<div
 			role={onClick ? "button" : undefined}
@@ -69,7 +96,7 @@ export const PesticideAlert = ({
 				style={
 					{
 						borderColor: alertLevels[status].bg,
-						"--idle-bg": "#fffdf5",
+						"--idle-bg": selected ? alertLevels[status].hoverBg : "#fffdf5",
 						"--hover-bg": alertLevels[status].hoverBg,
 					} as React.CSSProperties
 				}>
@@ -87,7 +114,7 @@ export const PesticideAlert = ({
 							<h3
 								className="Poppins-Bold text-black lg:text-base text-sm"
 								style={{ color: alertLevels[status].bg }}>
-								Pestiside Spraying Alert
+								Pesticide Spraying Alert
 							</h3>
 
 							<span
@@ -101,8 +128,14 @@ export const PesticideAlert = ({
 						</div>
 
 						<span className="Poppins-SemiBold">{location}</span>
-						<span className="Poppins-SemiBold">
+						<span className="Poppins-SemiBold flex items-center gap-2 flex-wrap">
 							{date} • {time}
+							{approvalBadge && (
+								<span
+									className={`normal-case text-[10px] py-0.5 px-2 rounded-full ${approvalBadge.className}`}>
+									{approvalBadge.label}
+								</span>
+							)}
 						</span>
 					</div>
 				</div>

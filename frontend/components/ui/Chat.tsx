@@ -1,10 +1,39 @@
+"use client";
+
 import { Icon } from "@iconify/react";
 import { useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { ProfilePhoto } from "../ProfilePhoto";
 import { MessagePopupMenu, MessageBottomSheet } from "../popup/MessagePopup";
 import { AnimatePresence } from "framer-motion";
 
+// Leaflet needs `window`, so the map is only loaded in the browser.
+const LocationMap = dynamic(() => import("./LocationMap"), {
+	ssr: false,
+	loading: () => <div className="w-full h-full bg-[#f3eed8] animate-pulse" />,
+});
+
+// Shape returned by GET/POST /api/chats/<id>/messages and
+// POST /api/chats/<id>/location (see services/chat_service.py).
+export type ChatMessage = {
+	message_id: number;
+	chat_id: number;
+	sender_role: "Citizen" | "Beekeeper";
+	content: string;
+	is_read: boolean;
+	sent_at: string;
+	message_type: "text" | "location" | "image";
+	image_url: string | null;
+	latitude: number | null;
+	longitude: number | null;
+	live_share: boolean; // was sent as a live share (even if it has ended)
+	is_live: boolean; // still live right now
+	live_seconds_left: number;
+	location_age_seconds: number | null;
+};
+
 type UserMessCardProp = {
+	chatId: number;
 	read?: boolean;
 	active?: boolean;
 	name?: string;
@@ -15,12 +44,14 @@ type UserMessCardProp = {
 
 type BubbleChatProps = {
 	sender: "user" | "client";
-	messages: string[];
+	messages: ChatMessage[];
+	onStopLive?: (messageId: number) => void;
 };
 
 const LONG_PRESS_MS = 450;
 
 export const UserMessageCard = ({
+	chatId,
 	read,
 	active,
 	name,
@@ -55,7 +86,9 @@ export const UserMessageCard = ({
 		if (label === "Mark as unread") {
 			onMarkUnread?.();
 		}
-		// TODO: Archive / Delete / Report cases
+		// Delete / Report are handled by the DeleteChat / ReportChat
+		// modals themselves (mounted globally in layout.tsx) — this
+		// component only needs to close its own menu/sheet.
 		setMenuPos(null);
 		setSheetOpen(false);
 	};
@@ -125,6 +158,7 @@ export const UserMessageCard = ({
 							}}
 						/>
 						<MessagePopupMenu
+							chatId={chatId}
 							top={menuPos.top}
 							left={menuPos.left}
 							onAction={handleAction}
@@ -136,6 +170,7 @@ export const UserMessageCard = ({
 			<AnimatePresence>
 				{sheetOpen && (
 					<MessageBottomSheet
+						chatId={chatId}
 						onClose={() => setSheetOpen(false)}
 						onAction={handleAction}
 					/>
@@ -155,7 +190,122 @@ export const DateTimeMessage = () => {
 	);
 };
 
-export const BubbleChat = ({ sender, messages }: BubbleChatProps) => {
+// ── LOCATION BUBBLE ─────────────────────────────
+
+const formatTimeLeft = (seconds: number) => {
+	if (seconds >= 3600) {
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		return m ? `${h} hr ${m} min` : `${h} hr`;
+	}
+	if (seconds >= 60) return `${Math.floor(seconds / 60)} min`;
+	return "under a minute";
+};
+
+const formatAgo = (seconds: number) =>
+	seconds < 3600
+		? `${Math.max(1, Math.floor(seconds / 60))} min ago`
+		: `${Math.floor(seconds / 3600)} hr ago`;
+
+const LocationBubble = ({
+	message,
+	isUser,
+	onStopLive,
+}: {
+	message: ChatMessage;
+	isUser: boolean;
+	onStopLive?: (messageId: number) => void;
+}) => {
+	const lat = message.latitude as number;
+	const lng = message.longitude as number;
+	const live = message.is_live;
+	const ended = message.live_share && !live;
+	const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+	const title = isUser
+		? live
+			? "You're sharing your live location"
+			: "You shared a location"
+		: live
+			? "Sharing live location"
+			: "Shared a location";
+
+	let status = "Pinned location";
+	if (live) status = `Live · ${formatTimeLeft(message.live_seconds_left)} left`;
+	else if (ended) status = "Live location ended";
+
+	// Sender's device stopped sending updates (tab closed, no signal…).
+	const stale =
+		live &&
+		message.location_age_seconds !== null &&
+		message.location_age_seconds > 60;
+
+	return (
+		<div
+			className={`w-64 overflow-hidden rounded-2xl shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"}`}>
+			{/* MAP — `isolate` keeps Leaflet's z-indexes inside the bubble */}
+			<div className={`relative w-full h-36 isolate ${ended ? "grayscale opacity-70" : ""}`}>
+				<LocationMap latitude={lat} longitude={lng} live={live} />
+				{live && (
+					<span className="absolute top-2 left-2 z-500 flex items-center gap-1 bg-[#ffa004] text-white text-[10px] Poppins-SemiBold px-2 py-0.5 rounded-full">
+						<span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+						LIVE
+					</span>
+				)}
+			</div>
+
+			<div className="px-3 py-2 flex flex-col gap-1">
+				<div className="flex items-center gap-1.5">
+					<Icon
+						icon={live ? "mdi:crosshairs-gps" : "mdi:map-marker"}
+						className="w-4 h-4 text-[#4a2f00] shrink-0"
+					/>
+					<span className="text-sm Poppins-SemiBold text-[#4a2f00]">{title}</span>
+				</div>
+				<span className="text-[11px] text-[#6b5a2e]">
+					{status}
+					{stale && ` · updated ${formatAgo(message.location_age_seconds as number)}`}
+				</span>
+
+				<div className="flex gap-2 mt-1">
+					<a
+						href={mapsUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="flex-1 text-center text-xs Poppins-Medium bg-white/70 hover:bg-white rounded-full py-1.5 transition-all duration-130 ease-in">
+						Open in Maps
+					</a>
+					{isUser && live && onStopLive && (
+						<button
+							onClick={() => onStopLive(message.message_id)}
+							className="flex-1 text-xs Poppins-Medium text-white bg-red-600 hover:bg-red-700 rounded-full py-1.5 transition-all duration-130 ease-in">
+							Stop sharing
+						</button>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+};
+
+// ── IMAGE BUBBLE ────────────────────────────────
+const ImageBubble = ({ message }: { message: ChatMessage }) => (
+	<a
+		href={message.image_url as string}
+		target="_blank"
+		rel="noopener noreferrer"
+		className="block max-w-64 overflow-hidden rounded-2xl shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] bg-[#f3eed8]">
+		{/* eslint-disable-next-line @next/next/no-img-element */}
+		<img
+			src={message.image_url as string}
+			alt="Photo"
+			loading="lazy"
+			className="block w-full h-auto max-h-80 object-cover"
+		/>
+	</a>
+);
+
+export const BubbleChat = ({ sender, messages, onStopLive }: BubbleChatProps) => {
 	const isUser = sender === "user";
 
 	return (
@@ -166,13 +316,26 @@ export const BubbleChat = ({ sender, messages }: BubbleChatProps) => {
 			</div>
 			<div
 				className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
-				{messages.map((msg, i) => (
-					<div
-						key={i}
-						className={`max-w-100 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
-						<p className="text-sm">{msg}</p>
-					</div>
-				))}
+				{messages.map((msg) =>
+					msg.message_type === "image" && msg.image_url ? (
+						<ImageBubble key={msg.message_id} message={msg} />
+					) : msg.message_type === "location" &&
+					msg.latitude !== null &&
+					msg.longitude !== null ? (
+						<LocationBubble
+							key={msg.message_id}
+							message={msg}
+							isUser={isUser}
+							onStopLive={onStopLive}
+						/>
+					) : (
+						<div
+							key={msg.message_id}
+							className={`max-w-100 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
+							<p className="text-sm">{msg.content}</p>
+						</div>
+					),
+				)}
 			</div>
 		</div>
 	);

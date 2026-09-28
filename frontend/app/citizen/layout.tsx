@@ -5,11 +5,13 @@ import Sidebar from "@/components/Sidebar";
 import { BeeIdentify, SwarmNotice } from "@/components/modal/ReportModal";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 import { Delete, Report } from "@/components/modal/ChatModal";
+import { ReportFlowProvider, useReportFlow } from "@/context/ReportFlowContext";
 
 type ModalType = "beeIdentify" | "swarmNotice" | "DeleteChat" | "ReportChat";
 
 const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
-	const { isModalOpen, closeModal } = useModal<ModalType>();
+	const { isModalOpen, closeModal, openModal } = useModal<ModalType>();
+	const { advanceStep } = useReportFlow();
 
 	return (
 		<div className="w-full h-svh flex lg:flex-row flex-col-reverse overflow-hidden">
@@ -24,10 +26,23 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 			<BeeIdentify
 				isOpen={isModalOpen("beeIdentify")}
 				onClose={closeModal}
+				// Confirming the identified species shows the Swarm Notice
+				// (fees / offers) next; its Continue is what moves the
+				// report flow from step 1 (photo) to step 2 (details).
+				onSubmit={() => {
+					closeModal();
+					openModal("swarmNotice");
+				}}
 			/>
+			{/* Opened by BeeIdentify's "Submit Photo" above.
+			    Continue moves the report flow on to step 2 (details). */}
 			<SwarmNotice
 				isOpen={isModalOpen("swarmNotice")}
 				onClose={closeModal}
+				onContinue={() => {
+					advanceStep();
+					closeModal();
+				}}
 			/>
 
 			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
@@ -40,9 +55,11 @@ const CitizenLayoutContent = ({ children }: { children: React.ReactNode }) => {
 const CitizenLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<Suspense fallback={null}>
-				<CitizenLayoutContent>{children}</CitizenLayoutContent>
-			</Suspense>
+			<ReportFlowProvider>
+				<Suspense fallback={null}>
+					<CitizenLayoutContent>{children}</CitizenLayoutContent>
+				</Suspense>
+			</ReportFlowProvider>
 		</ModalProvider>
 	);
 };

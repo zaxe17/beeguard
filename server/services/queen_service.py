@@ -30,6 +30,7 @@ longer drive `level`/`reason_code` here.
 import datetime as dt
 
 from config.config import Config
+from utils.dates import ph_today
 from config.database import Database
 from models.hive import HiveModel
 from models.yield_record import YieldModel
@@ -50,7 +51,7 @@ R_NORMAL               = "NORMAL"
 
 
 def _queen_age_days(hive: dict, today: dt.date | None = None) -> int | None:
-    today = today or dt.date.today()
+    today = today or ph_today()
     installed = hive.get("queen_installed_date") or hive.get("date_established")
     if not installed:
         return None
@@ -83,9 +84,9 @@ class QueenService:
         # Informational only (display) — current year's cumulative vs
         # its resolved annual baseline. Does NOT drive level/reason
         # below; that's the harvest_health engine's job at entry time.
-        year = get_harvest_year(dt.date.today())
-        current_kg = total_harvest_for_year(hive_id, year) or None
-        baseline = resolve_annual_baseline(hive, year)
+        year = get_harvest_year(ph_today())
+        current_kg = total_harvest_for_year(hive_id, year, conn=conn) or None
+        baseline = resolve_annual_baseline(hive, year, conn=conn)
         pct = round((current_kg / baseline) * 100.0, 2) if (current_kg and baseline) else None
 
         level, code, reason = "Normal", R_NORMAL, "Hive is performing within expected parameters."
@@ -202,7 +203,7 @@ class QueenService:
     @staticmethod
     def confirm_replacement(hive_id: str, beekeeper_id: str,
                              installed_on: dt.date | None = None) -> dict:
-        installed_on = installed_on or dt.date.today()
+        installed_on = installed_on or ph_today()
         conn = Database.get_connection()
         try:
             HiveModel.update_queen_installed(conn, hive_id, installed_on)

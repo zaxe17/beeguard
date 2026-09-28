@@ -6,7 +6,12 @@ Returns (cleaned, field_errors) — same shape as auth_validator.
 """
 import datetime as dt
 
+from utils.dates import ph_today
+
 VALID_HEALTH  = {"Healthy", "Needs Attention", "Weak", "Diseased"}
+# NEW — the only species a hive can be (Add Hive dropdown). Keep in sync
+# with HIVE_SPECIES in frontend/data/species.ts.
+HIVE_SPECIES  = ("Apis cerana", "Apis mellifera", "Tetragonula biroi")
 VALID_STATE   = {"Active", "Inactive"}
 NORMAL_LABEL  = "Normal / Healthy"
 VALID_INSPECT = {
@@ -50,18 +55,23 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
     else:
         cleaned["hive_name"] = hn
 
-    # bee_species (VARCHAR 50)
+    # bee_species — must be one of the supported species (dropdown).
+    # Matched without caring about upper/lower case, saved in the
+    # standard spelling (e.g. "Apis cerana").
     bs = (payload.get("bee_species") or "").strip()
-    if not _nonempty(bs, 50):
-        errors["bee_species"] = "Bee species is required (max 50 characters)."
+    match = next((sp for sp in HIVE_SPECIES if sp.lower() == bs.lower()), None)
+    if not bs:
+        errors["bee_species"] = "Bee species is required."
+    elif match is None:
+        errors["bee_species"] = f"Bee species must be one of: {', '.join(HIVE_SPECIES)}."
     else:
-        cleaned["bee_species"] = bs
+        cleaned["bee_species"] = match
 
     # date_established
     de = _parse_date(payload.get("date_established"))
     if de is None:
         errors["date_established"] = "date_established must be an ISO date (YYYY-MM-DD)."
-    elif de > dt.date.today():
+    elif de > ph_today():
         errors["date_established"] = "date_established cannot be in the future."
     else:
         cleaned["date_established"] = de
@@ -72,7 +82,7 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
         qid = _parse_date(qid_raw)
         if qid is None:
             errors["queen_installed_date"] = "queen_installed_date must be YYYY-MM-DD."
-        elif qid > dt.date.today():
+        elif qid > ph_today():
             errors["queen_installed_date"] = "queen_installed_date cannot be in the future."
         elif de and qid < de:
             errors["queen_installed_date"] = "Queen cannot be installed before the hive was established."
@@ -116,12 +126,12 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
                 errors["historical_yield_kg"] = "historical_yield_kg must be a positive number."
             try:
                 hyy = int(hyy_raw)
-                current_year = dt.date.today().year
+                current_year = ph_today().year
                 if hyy < 1970 or hyy > current_year:
                     raise ValueError()
                 cleaned["historical_yield_year"] = hyy
             except (TypeError, ValueError):
-                errors["historical_yield_year"] = f"historical_yield_year must be between 1970 and {dt.date.today().year}."
+                errors["historical_yield_year"] = f"historical_yield_year must be between 1970 and {ph_today().year}."
 
     return cleaned, errors
 
@@ -166,7 +176,7 @@ def validate_physical_inspection(payload: dict) -> tuple[dict, dict]:
         ad = _parse_date(ad_raw)
         if ad is None:
             errors["activity_date"] = "activity_date must be YYYY-MM-DD."
-        elif ad > dt.date.today():
+        elif ad > ph_today():
             errors["activity_date"] = "activity_date cannot be in the future."
         else:
             cleaned["activity_date"] = ad

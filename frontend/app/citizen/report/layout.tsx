@@ -2,26 +2,32 @@
 
 import React from "react";
 import { Container } from "@/components/ui/Container";
-import { Button } from "@/components/ui/Button";
-import { useModal } from "@/context/ModalContext";
+import { Button, CancelButton } from "@/components/ui/Button";
 import { usePathname } from "next/navigation";
 import { useIsPage } from "@/hooks/useIsPage";
-
-type ModalType = "beeIdentify" | "swarmNotice";
+import { useReportFlow } from "@/context/ReportFlowContext";
 
 // STEPS
 const Steps = () => {
-	const location = useIsPage("/citizen/report/submitted");
+	const { step, submission } = useReportFlow();
+	// Hidden on the "Report Submitted!" screen (route or in-page).
+	const location = useIsPage("/citizen/report/submitted") || !!submission;
 
 	return (
 		<div
 			className={`lg:w-1/2 w-full relative items-center justify-between ${location ? "hidden" : "flex"}`}>
 			<div className="relative z-10 w-full flex items-center justify-between">
-				{[1, 2, 3].map((step) => (
+				{[1, 2, 3].map((s) => (
 					<div
-						key={step}
-						className="Poppins-SemiBold bg-white w-13 h-13 border-3 border-[#ffce1c] text-[#a6a3a3] text-3xl flex justify-center items-center rounded-full">
-						{step}
+						key={s}
+						className={`Poppins-SemiBold w-13 h-13 border-3 border-[#ffce1c] text-3xl flex justify-center items-center rounded-full ${
+							s === step
+								? "bg-[#ffce1c] text-white"
+								: s < step
+									? "bg-white text-[#4a2f00]"
+									: "bg-white text-[#a6a3a3]"
+						}`}>
+						{s}
 					</div>
 				))}
 			</div>
@@ -32,8 +38,10 @@ const Steps = () => {
 };
 
 const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
-	const { openModal } = useModal<ModalType>();
-	const location = useIsPage("/citizen/report/submitted");
+	const { step, canProceed, scanning, submitting, submission, triggerNext, goBack } =
+		useReportFlow();
+	// Hidden on the "Report Submitted!" screen (route or in-page).
+	const location = useIsPage("/citizen/report/submitted") || !!submission;
 
 	return (
 		<div className="w-full h-full lg:p-5 p-3 flex items-start flex-col gap-3 min-h-0">
@@ -41,8 +49,7 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 			<Container width="100%" height="100%" scroll>
 				<div className="w-full h-full flex flex-col min-h-0">
 					{/* TITLE */}
-					<div
-						className={`shrink-0 ${location ? "hidden" : "block"}`}>
+					<div className={`shrink-0 ${location ? "hidden" : "block"}`}>
 						<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
 							Report a Swarm
 						</h2>
@@ -63,11 +70,28 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 
 						{/* BUTTON */}
 						<div
-							className={`w-full shrink-0 justify-center ${location ? "hidden" : "flex"}`}>
+							className={`w-full shrink-0 justify-center gap-3 ${location ? "hidden" : "flex"}`}>
+							{/* BACK — steps 2 and 3 keep everything entered so far */}
+							{step > 1 && (
+								<CancelButton
+									label="Back"
+									width="30%"
+									onClick={submitting ? undefined : goBack}
+								/>
+							)}
 							<Button
 								width="50%"
-								label="Next"
-								onClick={() => openModal("beeIdentify")}
+								label={
+									scanning
+										? "Identifying..."
+										: submitting
+											? "Submitting..."
+											: step === 3
+												? "Submit Report"
+												: "Next"
+								}
+								onClick={triggerNext}
+								disabled={!canProceed || scanning || submitting}
 							/>
 						</div>
 					</div>

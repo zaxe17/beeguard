@@ -8,6 +8,12 @@ import { PesticideAlert } from "@/components/ui/Alert";
 import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import { pesticideService, AlertRecord } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
+import { useAuth } from "@/context/AuthContext";
+import {
+	emptyMessage,
+	filterAlerts,
+	useAlertFilter,
+} from "@/context/AlertFilterContext";
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -32,6 +38,9 @@ function isToday(a: AlertRecord): boolean {
 
 const TodayAlert = () => {
 	const router = useRouter();
+	const { user } = useAuth();
+	// Search bar + filter icon in app/beekeeper/alert/layout.tsx
+	const { filter, search } = useAlertFilter();
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -63,8 +72,13 @@ const TodayAlert = () => {
 		return () => window.removeEventListener(ALERTS_CHANGED_EVENT, handler);
 	}, [loadAlerts]);
 
-	const todayOnly = alerts
-		.filter(isToday)
+	const todayOnly = filterAlerts(
+		alerts.filter(isToday),
+		filter,
+		search,
+		(a) => getAlertLocation(a, resolvedLocations),
+		user?.id,
+	)
 		.sort(
 			(a, b) =>
 				new Date(a.scheduled_date).getTime() -
@@ -83,7 +97,7 @@ const TodayAlert = () => {
 				</p>
 			) : todayOnly.length === 0 ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
-					No alerts scheduled for today.
+					{emptyMessage(filter, search, "No alerts scheduled for today.")}
 				</p>
 			) : (
 				todayOnly.map((a) => (
@@ -96,6 +110,8 @@ const TodayAlert = () => {
 						onClick={() =>
 							router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
 						}
+						// Your own alert that the admin hasn't approved yet.
+						approvalStatus={a.approval_status}
 					/>
 				))
 			)}

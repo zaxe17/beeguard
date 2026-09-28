@@ -27,6 +27,12 @@ export interface LoginPayload {
     remember_me?: boolean;
 }
 
+export type BeekeeperVerificationStatus =
+    | "Unverified"
+    | "Pending"
+    | "Verified"
+    | "Rejected";
+
 export interface AuthUser {
     id: string;
     role: Role;
@@ -38,6 +44,12 @@ export interface AuthUser {
     // partially set) at registration; undefined for admins.
     latitude?: number | null;
     longitude?: number | null;
+    // Beekeeper-only — undefined for citizens/admins. Certain features
+    // (e.g. the Report tab) are gated on this being "Verified".
+    verification_status?: BeekeeperVerificationStatus;
+    // Citizen/beekeeper own profile photo ("/uploads/profile/...");
+    // null = default picture. Shown via <ProfilePhoto me />.
+    profile_photo?: string | null;
 }
 
 export interface LoginData {
@@ -66,6 +78,27 @@ export interface VerifyOtpPayload {
 export interface ResendOtpPayload {
     role: "citizen" | "beekeeper";
     email: string;
+}
+
+// ── FORGOT PASSWORD (NEW) ──
+export interface ForgotPasswordPayload {
+    email: string;
+}
+
+export interface VerifyResetCodePayload {
+    email: string;
+    code: string;
+}
+
+export interface VerifyResetCodeData {
+    reset_token: string;
+    expires_in_minutes: number;
+}
+
+export interface ResetPasswordPayload {
+    reset_token: string;
+    password: string;
+    confirm_password: string;
 }
 
 export const authService = {
@@ -99,9 +132,30 @@ export const authService = {
 
     login: async (payload: LoginPayload): Promise<ApiEnvelope<LoginData>> => {
         const res = await api.post<LoginData>("/auth/login", payload);
-        if (res.success && res.data?.token) tokenStore.set(res.data.token);
+        // Remember me: ticked -> token kept after the browser closes
+        // (localStorage); unticked -> only for this browser session.
+        if (res.success && res.data?.token)
+            tokenStore.set(res.data.token, !!payload.remember_me);
         return res;
     },
+
+    // Forgot Password step 1 — also used for "Resend Code".
+    forgotPassword: (payload: ForgotPasswordPayload) =>
+        api.post<Record<string, never>>("/auth/forgot-password", payload),
+
+    // Step 2 — returns a short-lived reset_token.
+    verifyResetCode: (payload: VerifyResetCodePayload) =>
+        api.post<VerifyResetCodeData>(
+            "/auth/verify-reset-code",
+            payload,
+        ) as Promise<ApiEnvelopeWithFields<VerifyResetCodeData>>,
+
+    // Step 3 — set the new password.
+    resetPassword: (payload: ResetPasswordPayload) =>
+        api.post<Record<string, never>>(
+            "/auth/reset-password",
+            payload,
+        ) as Promise<ApiEnvelopeWithFields<Record<string, never>>>,
 
     me: () => api.get<AuthUser>("/auth/me"),
 

@@ -8,6 +8,9 @@ interface ContainerProps {
 	borderNone?: boolean;
 	scroll?: boolean;
 	className?: string;
+	// FormContainer only — runs when Enter is pressed in a field or a
+	// buttonType="submit" button is clicked.
+	onSubmit?: () => void;
 }
 
 type BeeFarmProps = {
@@ -18,10 +21,17 @@ type BeeFarmProps = {
 };
 
 // FORM CONTAINER
-export const FormContainer = ({ children, width }: ContainerProps) => {
+export const FormContainer = ({ children, width, onSubmit }: ContainerProps) => {
 	return (
 		<form
 			action=""
+			noValidate
+			onSubmit={(e) => {
+				// Never let the browser reload the page on submit — pressing
+				// Enter now just runs the page's own submit handler.
+				e.preventDefault();
+				onSubmit?.();
+			}}
 			className={`${width} lg:p-4.75 lg:bg-white/20 bg-transparent rounded-3xl lg:backdrop-blur-md border border-white/30 flex flex-col min-h-0 lg:shadow-[0_8px_32px_0_rgba(31,38,135,0.15),inset_0_1px_0_0_rgba(255,255,255,0.4)]`}>
 			<div className="lg:p-4.75 py-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 				{children}
@@ -66,14 +76,26 @@ export const BeefarmContainer = ({
 			<div className="w-full flex gap-3 cursor-pointer">
 				{/* BEEFARM PICTURE */}
 				<div className="border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">
-					<Image
-						src={image}
-						alt="nearby_beekeeper"
-						width={100}
-						height={100}
-						className="w-full h-full object-cover"
-						priority
-					/>
+					{typeof image === "string" && /^https?:\/\//.test(image) ? (
+						// Uploaded farm photo (Flask server) — plain <img>,
+						// no next.config image domains needed.
+						// eslint-disable-next-line @next/next/no-img-element
+						<img
+							src={image}
+							alt="nearby_beekeeper"
+							loading="lazy"
+							className="w-full h-full object-cover"
+						/>
+					) : (
+						<Image
+							src={image}
+							alt="nearby_beekeeper"
+							width={100}
+							height={100}
+							className="w-full h-full object-cover"
+							priority
+						/>
+					)}
 				</div>
 
 				{/* BEEFARM NAME & LOCATION */}
@@ -87,9 +109,13 @@ export const BeefarmContainer = ({
 						</p>
 					</div>
 
-					<span className="text-xs text-[#a6a3a3] font-bold text-end">
-						{miles} km
-					</span>
+					{/* Hidden when the distance is unknown (citizen's location
+					    not shared, or the farm has no map pin yet). */}
+					{miles != null && (
+						<span className="text-xs text-[#a6a3a3] font-bold text-end">
+							{miles} km
+						</span>
+					)}
 				</div>
 			</div>
 		</div>

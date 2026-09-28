@@ -1,123 +1,81 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { TotalStatusCard } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
 import { UserNav } from "@/components/UserNav";
 import { Icon } from "@iconify/react";
-import {
-	BeefarmOperation,
-	BeeFarmProps,
-} from "@/components/ui/BeefarmContainer";
-import { PesticideAlert } from "@/components/ui/Alert";
-
-import * as Icons from "@/public/assets/icons/icons";
-
-import {
-	analyticsService,
-	DashboardSummary,
-	HiveHealthSlice,
-	YieldTrend,
-} from "@/services/analytics";
-import { pesticideService, AlertRecord } from "@/services/pesticide";
-
-import beefarmsData from "@/data/beefarms.json";
 import { ReportCard } from "@/components/ui/ReportCard";
-import { ReportOverview, YieldSummaryChart } from "@/components/graph/Line";
-const beefarms = beefarmsData as BeeFarmProps[];
+import { ReportOverview } from "@/components/graph/Line";
+import { adminService, type AdminDashboard } from "@/services/admin";
+import {
+	formatDate,
+	formatTime,
+	reportImageSrc,
+	toAdminUiStatus,
+} from "@/services/citizenReport";
 
-interface GraphProps {
-	children?: React.ReactNode;
-	title?: string;
-	onClick?: () => void;
-}
+const formatCount = (n: number | undefined) => (n ?? 0).toLocaleString();
 
-const DEFAULT_HEALTH_COLORS: Record<string, string> = {
-	Healthy: "#00cc00",
-	"Needs Attention": "#f89d36",
-	Weak: "#ffdb4f",
-	Diseased: "#ff0000",
-};
+const AdminDashboardPage = () => {
+	const router = useRouter();
+	const [data, setData] = useState<AdminDashboard | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-function formatKg(v: number | undefined | null) {
-	return `${(v ?? 0).toFixed(1)}kg`;
-}
+	useEffect(() => {
+		let cancelled = false;
+		adminService.dashboard().then((res) => {
+			if (cancelled) return;
+			if (res.success && res.data) setData(res.data);
+			else setErrorMsg(res.message || "Couldn't load the dashboard.");
+			setLoading(false);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
-function toAlertLocation(a: AlertRecord): string {
-	if (a.affected_area) return a.affected_area;
-	const lat = Number(a.latitude);
-	const lng = Number(a.longitude);
-	if (Number.isNaN(lat) || Number.isNaN(lng)) return "Unknown location";
-	return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-}
-
-const Beekeeper = () => {
-	// ---- DUMMY DATA (replace with analyticsService / pesticideService calls) ----
-	const hiveHealthChartData = [
-		{
-			label: "Healthy",
-			value: 18,
-			color: DEFAULT_HEALTH_COLORS["Healthy"],
-		},
-		{
-			label: "Needs Attention",
-			value: 5,
-			color: DEFAULT_HEALTH_COLORS["Needs Attention"],
-		},
-		{ label: "Weak", value: 3, color: DEFAULT_HEALTH_COLORS["Weak"] },
-		{
-			label: "Diseased",
-			value: 1,
-			color: DEFAULT_HEALTH_COLORS["Diseased"],
-		},
-	];
-
-	const recentAlerts: AlertRecord[] = [
-		{
-			alert_id: "1",
-			affected_area: "North Field",
-			latitude: 14.6091,
-			longitude: 121.0223,
-			scheduled_date: new Date().toISOString(),
-			risk_level: "High",
-		},
-		{
-			alert_id: "2",
-			affected_area: "",
-			latitude: 14.6519,
-			longitude: 121.0491,
-			scheduled_date: new Date().toISOString(),
-			risk_level: "Medium",
-		},
-	] as AlertRecord[];
-
+	const counts = data?.counts;
+	const changes = data?.changes;
 	const statusCard = [
 		{
 			icon: "fa7-solid:people-group",
-			count: "1,248",
+			count: loading ? "…" : formatCount(counts?.citizens),
 			title: "Citizen",
+			change: changes?.citizens,
+			upIsBad: false,
 			color: "#38b6ff",
 		},
 		{
 			icon: "mdi:beekeeper",
-			count: "342",
+			count: loading ? "…" : formatCount(counts?.beekeepers),
 			title: "Beekeepers",
+			change: changes?.beekeepers,
+			upIsBad: false,
 			color: "#ffdb4f",
 		},
 		{
 			icon: "pinhead:bee",
-			count: "1,248",
+			count: loading ? "…" : formatCount(counts?.reports),
 			title: "Swarm Reports",
+			change: changes?.reports,
+			upIsBad: false,
 			color: "#ff9a00",
 		},
 		{
 			icon: "boxicons:alert-triangle-filled",
-			count: "1,248",
+			count: loading ? "…" : formatCount(counts?.active_alerts),
 			title: "Active Alerts",
+			change: changes?.active_alerts,
+			upIsBad: true,
 			color: "#ff0000",
 		},
 	];
 
-	const reportStatuses = ["pending", "in-progress", "resolved"] as const;
+	const overview = data?.reports_overview;
+	const recent = data?.recent_reports ?? [];
 
 	return (
 		<div className="w-full h-full lg:overflow-hidden overflow-y-auto lg:p-5 p-0 flex items-start flex-col gap-3 lg:scrollbar-auto scrollbar-none">
@@ -131,6 +89,42 @@ const Beekeeper = () => {
 					Dashboard
 				</h2>
 
+				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
+
+				{/* Beekeepers waiting for verification */}
+				{!!counts?.pending_verifications && (
+					<div className="w-full bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-3 flex items-center gap-2">
+						<Icon icon="mdi:shield-account" className="w-5 h-5 shrink-0 text-[#854F0B]" />
+						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
+							{counts.pending_verifications} beekeeper
+							{counts.pending_verifications === 1 ? " is" : "s are"} waiting for
+							verification.
+						</p>
+						<span
+							onClick={() => router.push("/admin/profile?tab=verification")}
+							className="Poppins-SemiBold text-xs text-[#854F0B] underline cursor-pointer ml-auto shrink-0">
+							Review now
+						</span>
+					</div>
+				)}
+
+				{/* Beekeeper pesticide alerts waiting for approval */}
+				{!!counts?.pending_alerts && (
+					<div className="w-full bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-3 flex items-center gap-2">
+						<Icon icon="mdi:clock-alert-outline" className="w-5 h-5 shrink-0 text-[#854F0B]" />
+						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
+							{counts.pending_alerts} pesticide alert
+							{counts.pending_alerts === 1 ? " is" : "s are"} waiting for
+							approval.
+						</p>
+						<span
+							onClick={() => router.push("/admin/alert?tab=pending")}
+							className="Poppins-SemiBold text-xs text-[#854F0B] underline cursor-pointer ml-auto shrink-0">
+							Review now
+						</span>
+					</div>
+				)}
+
 				<div className="w-full grid lg:grid-cols-4 grid-cols-2 gap-3">
 					{statusCard.map((c, i) => (
 						<TotalStatusCard
@@ -139,6 +133,8 @@ const Beekeeper = () => {
 							count={c.count}
 							title={c.title}
 							color={c.color}
+							change={c.change}
+							upIsBad={c.upIsBad}
 						/>
 					))}
 				</div>
@@ -153,15 +149,20 @@ const Beekeeper = () => {
 							</span>
 
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0">
+								{/* One line per status: Pending, In Progress,
+								    Resolved, Cancelled (reports per month). */}
 								<ReportOverview
-									categories={[
-										"Jan",
-										"Feb",
-										"Mar",
-										"Apr",
-										"May",
-									]}
-									data={[80, 95, 110, 125, 142.5]}
+									categories={overview?.categories.length ? overview.categories : ["No data"]}
+									series={
+										overview?.series?.length
+											? overview.series
+											: [
+													{ key: "pending", label: "Pending", data: [0] },
+													{ key: "in-progress", label: "In Progress", data: [0] },
+													{ key: "resolved", label: "Resolved", data: [0] },
+													{ key: "cancelled", label: "Cancelled", data: [0] },
+												]
+									}
 								/>
 							</div>
 						</div>
@@ -175,17 +176,37 @@ const Beekeeper = () => {
 								Recent Swarm Reports
 								<span
 									className="text-xs text-[#ffce1c] cursor-pointer"
-									onClick={() =>
-										console.log("view all alerts")
-									}>
+									onClick={() => router.push("/admin/report")}>
 									view all
 								</span>
 							</span>
 
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0">
-								{reportStatuses.map((status) => (
-									<ReportCard key={status} status={status} />
-								))}
+								{!loading && recent.length === 0 && (
+									<p className="text-center text-sm text-[#a6a3a3] py-4 w-full">
+										No reports yet.
+									</p>
+								)}
+								{recent.map((r) => {
+									const when = r.sighted_at ?? r.reported_at;
+									return (
+										<ReportCard
+											key={r.reportID}
+											status={toAdminUiStatus(r.status)}
+											reportId={r.reportID}
+											latitude={r.latitude}
+											longitude={r.longitude}
+											date={formatDate(when)}
+											time={formatTime(when)}
+											imageUrl={reportImageSrc(r.image_url)}
+											onClick={() =>
+												router.push(
+													`/admin/report?report=${encodeURIComponent(r.reportID)}`,
+												)
+											}
+										/>
+									);
+								})}
 							</div>
 						</div>
 					</Container>
@@ -195,4 +216,4 @@ const Beekeeper = () => {
 	);
 };
 
-export default Beekeeper;
+export default AdminDashboardPage;

@@ -10,7 +10,11 @@ from services.email_service import EmailService
 
 
 class OtpService:
+    # Default purpose (registration email verification). Forgot Password
+    # passes purpose=OtpService.PURPOSE_PASSWORD_RESET so its codes and
+    # resend cooldown are tracked separately from verification codes.
     PURPOSE = "email_verification"
+    PURPOSE_PASSWORD_RESET = "password_reset"
 
     # ---- helpers ----
     @staticmethod
@@ -29,13 +33,15 @@ class OtpService:
 
     # ---- issue ----
     @staticmethod
-    def issue_and_send(email: str, role: str, name: str = "") -> tuple[bool, str]:
+    def issue_and_send(email: str, role: str, name: str = "",
+                       purpose: str = PURPOSE) -> tuple[bool, str]:
         """
         Consumes any outstanding OTPs, generates a new one, persists its
         hash, and emails the plaintext code. Returns (ok, message).
+        `purpose` picks the email template too.
         """
         # Resend cooldown check
-        latest = OtpModel.latest_any(email, OtpService.PURPOSE)
+        latest = OtpModel.latest_any(email, purpose)
         if latest and latest.get("created_at"):
             now = dt.datetime.utcnow()
             created = latest["created_at"]
@@ -47,7 +53,7 @@ class OtpService:
                         f"Please wait {remaining} seconds before requesting a new code."
                     )
 
-        OtpModel.invalidate_active(email, OtpService.PURPOSE)
+        OtpModel.invalidate_active(email, purpose)
 
         code = OtpService._generate_code()
         code_hash = OtpService._hash(code)
@@ -55,26 +61,35 @@ class OtpService:
             minutes=Config.OTP_TTL_MINUTES
         )
 
-        OtpModel.create(email, role, code_hash, expires_at, OtpService.PURPOSE)
+        OtpModel.create(email, role, code_hash, expires_at, purpose)
 
         try:
-            EmailService.send_verification_otp(
-                to_email=email,
-                name=name,
-                code=code,
-                ttl_minutes=Config.OTP_TTL_MINUTES,
-            )
+            if purpose == OtpService.PURPOSE_PASSWORD_RESET:
+                EmailService.send_password_reset_otp(
+                    to_email=email,
+                    name=name,
+                    code=code,
+                    ttl_minutes=Config.OTP_TTL_MINUTES,
+                )
+            else:
+                EmailService.send_verification_otp(
+                    to_email=email,
+                    name=name,
+                    code=code,
+                    ttl_minutes=Config.OTP_TTL_MINUTES,
+                )
         except Exception as e:
             # We deliberately do NOT reveal SMTP errors to the client.
             print(f"[OTP] Failed to send email to {email}: {e}")
-            return False, "Failed to send verification email. Please try again later."
+            return False, "Failed to send the code by email. Please try again later."
 
         return True, "Verification code sent."
 
     # ---- verify ----
     @staticmethod
-    def verify(email: str, code: str) -> tuple[bool, str]:
-        record = OtpModel.latest_active(email, OtpService.PURPOSE)
+    def verify(email: str, code: str,
+               purpose: str = PURPOSE) -> tuple[bool, str]:
+        record = OtpModel.latest_active(email, purpose)
         if not record:
             return False, "Verification code expired or not found. Please request a new one."
 

@@ -41,7 +41,24 @@ export type HiveProps = {
 	addYieldButton?: () => void;
 	history?: () => void;
 	replacement?: () => void;
+	// NEW — show the "Replace Queen" warning + button even for a Healthy
+	// hive (e.g. the queen is too old). Details panel only.
+	replaceRecommended?: boolean;
+	replaceReason?: string | null;
+	queenAgeDays?: number | null;
 };
+
+// "1 yr 3 mo" style queen age.
+function formatQueenAge(days?: number | null): string | null {
+	if (days == null || days < 0) return null;
+	const years = Math.floor(days / 365);
+	const months = Math.floor((days % 365) / 30);
+	if (years === 0 && months === 0) return `${days} day${days === 1 ? "" : "s"}`;
+	const parts: string[] = [];
+	if (years) parts.push(`${years} yr${years === 1 ? "" : "s"}`);
+	if (months) parts.push(`${months} mo`);
+	return parts.join(" ");
+}
 
 function getHiveIconKey(status: HiveProps["status"]) {
 	return status.replace(" ", "_") as keyof typeof HiveIcon;
@@ -94,15 +111,23 @@ export const HiveDetailsContainer = ({
 	status,
 	yieldThisMonth,
 	hiveState,
+	replaceRecommended,
+	replaceReason,
+	queenAgeDays,
 }: HiveProps) => {
 	const iconKey = getHiveIconKey(status);
+	const queenAge = formatQueenAge(queenAgeDays);
+	const showReplace =
+		replaceRecommended ||
+		status === "weak" ||
+		status === "needs attention" ||
+		status === "diseased";
 
 	return (
 		<div className="flex flex-col gap-4 w-full max-w-md">
-			{/* QUEEN BEE REPLACEMENT WARNING */}
-			{(status === "weak" ||
-				status === "needs attention" ||
-				status === "diseased") && (
+			{/* QUEEN BEE REPLACEMENT WARNING — unhealthy hive OR an open
+			    Replace recommendation (e.g. queen too old) */}
+			{showReplace && (
 				<div className="bg-[#FAEEDA] border-2 border-[#FAC775] border-solid rounded-lg p-2 flex flex-row gap-2 items-center justify-between">
 					<div className="flex items-center gap-2">
 						<div className="w-7 h-7 shrink-0">
@@ -112,8 +137,8 @@ export const HiveDetailsContainer = ({
 							/>
 						</div>
 						<p className="Poppins-Bold text-[#854F0B] text-[10px] lg:w-3/4 w-full">
-							Replacing the queen bee is recommended to improve
-							the hive's health and productivity.
+							{replaceReason ||
+								"Replacing the queen bee is recommended to improve the hive's health and productivity."}
 						</p>
 					</div>
 
@@ -177,6 +202,12 @@ export const HiveDetailsContainer = ({
 								{formatDateOnly(lastCheck)}
 							</span>
 						</span>
+						{queenAge && (
+							<span className="text-[#817b70] text-sm normal-case">
+								Queen age:{" "}
+								<span className="Poppins-SemiBold">{queenAge}</span>
+							</span>
+						)}
 					</div>
 
 					{/* YIELD TOTAL FOR THIS MONTH */}

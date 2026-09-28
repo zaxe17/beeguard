@@ -1,3 +1,5 @@
+# models/yield_record.py
+
 # yield_record.py
 
 from config.database import Database
@@ -27,7 +29,11 @@ class YieldModel:
         return Database.execute(sql, (hive_id,), fetchone=True)
 
     @staticmethod
-    def list_by_hive(hive_id: str, limit: int | None = None):
+    def list_by_hive(hive_id: str, limit: int | None = None, conn=None):
+        """
+        `conn` (NEW): read inside the caller's transaction, so a harvest
+        that was just inserted/updated but not committed yet is counted.
+        """
         limit_sql = f"LIMIT {int(limit)}" if limit else ""
         sql = f"""
             SELECT * FROM {YieldModel.TABLE}
@@ -35,7 +41,41 @@ class YieldModel:
             ORDER BY yield_date DESC, created_at DESC
             {limit_sql}
         """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id,))
+                return cur.fetchall() or []
         return Database.execute(sql, (hive_id,), fetchall=True) or []
+
+    @staticmethod
+    def find_same_day_harvest(hive_id: str, yield_date, conn=None):
+        """
+        NEW — the real (non-baseline) harvest already logged for this
+        hive on this exact date, if any. Used to ADD a second same-day
+        entry to it instead of saving it as a separate harvest.
+        """
+        sql = f"""
+            SELECT * FROM {YieldModel.TABLE}
+            WHERE hive_id = %s AND yield_date = %s AND is_baseline = FALSE
+            ORDER BY created_at ASC
+            LIMIT 1
+        """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (hive_id, yield_date))
+                return cur.fetchone()
+        return Database.execute(sql, (hive_id, yield_date), fetchone=True)
+
+    @staticmethod
+    def add_kg_with_conn(conn, yield_id: str, extra_kg: float) -> int:
+        """NEW — adds kg to an existing harvest row (same transaction)."""
+        sql = f"""
+            UPDATE {YieldModel.TABLE}
+            SET yield_kg = yield_kg + %s
+            WHERE yield_id = %s
+        """
+        with conn.cursor() as cur:
+            return cur.execute(sql, (float(extra_kg), yield_id))
 
     @staticmethod
     def latest_non_baseline(hive_id: str, conn=None):

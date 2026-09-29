@@ -38,12 +38,14 @@ const OFFER_BADGE: Record<AdminReportOffer["offer_status"], string> = {
 	Rejected: "bg-red-600/15 text-red-600",
 };
 
-// Admin side shows a declined offer as "Cancelled" (red), not "Rejected".
+// Offer badges: Pending / Accepted / Resolved / Rejected.
+// ("Cancelled" is only for the REPORT itself, when the citizen cancels it —
+// an offer the citizen declined, or that lost to another offer, is Rejected.)
 const OFFER_LABEL: Record<AdminReportOffer["offer_status"], string> = {
 	Pending: "Pending",
 	Accepted: "Accepted",
 	Resolved: "Resolved",
-	Rejected: "Cancelled",
+	Rejected: "Rejected",
 };
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -205,6 +207,10 @@ const Content = ({ reportId }: { reportId: string }) => {
 		</div>
 	);
 };
+
+// The same report view, used inline by Admin → Reports' split view
+// (app/admin/report/page.tsx). `key` it by reportId when switching.
+export const AdminReportDetails = Content;
 
 export const AdminReportModal = ({ reportId, onClose }: Props) => {
 	const isDesktop = useIsDesktop();

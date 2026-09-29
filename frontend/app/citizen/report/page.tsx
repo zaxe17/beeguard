@@ -161,13 +161,23 @@ const Camera = () => {
 		);
 	};
 
+	// ROTATE CAMERA — "environment" = back camera, "user" = front camera.
+	const [facing, setFacing] = useState<"environment" | "user">("environment");
+	// Only show the rotate button if the device has more than one camera.
+	const [canSwitch, setCanSwitch] = useState(false);
+	const [switching, setSwitching] = useState(false);
+
 	useEffect(() => {
 		let mounted = true;
 
 		const startCamera = async () => {
+			// Stop the camera that's running now before opening the other one
+			// (most phones can't open both at the same time).
+			streamRef.current?.getTracks().forEach((track) => track.stop());
+			streamRef.current = null;
 			try {
 				const stream = await navigator.mediaDevices.getUserMedia({
-					video: { facingMode: "environment" },
+					video: { facingMode: { ideal: facing } },
 					audio: false,
 				});
 
@@ -180,9 +190,18 @@ const Camera = () => {
 				if (videoRef.current) {
 					videoRef.current.srcObject = stream;
 				}
+				setError(null);
+
+				// Camera names/count are only visible after permission.
+				const devices = await navigator.mediaDevices.enumerateDevices();
+				if (mounted) {
+					setCanSwitch(devices.filter((d) => d.kind === "videoinput").length > 1);
+				}
 			} catch (err) {
 				console.error("Camera access error:", err);
-				setError("Unable to access camera");
+				if (mounted) setError("Unable to access camera");
+			} finally {
+				if (mounted) setSwitching(false);
 			}
 		};
 
@@ -192,7 +211,13 @@ const Camera = () => {
 			mounted = false;
 			streamRef.current?.getTracks().forEach((track) => track.stop());
 		};
-	}, []);
+	}, [facing]);
+
+	const handleRotateCamera = () => {
+		if (switching) return;
+		setSwitching(true);
+		setFacing((f) => (f === "environment" ? "user" : "environment"));
+	};
 
 	// "Retake Photo" (BeeIdentify popup, no bee detected): clear the photo
 	// and go back to the live camera.
@@ -219,7 +244,8 @@ const Camera = () => {
 	const handleTakePhoto = () => {
 		const video = videoRef.current;
 		const canvas = canvasRef.current;
-		if (!video || !canvas) return;
+		// No frame yet (camera still starting / switching) -> ignore.
+		if (!video || !canvas || !video.videoWidth) return;
 
 		canvas.width = video.videoWidth;
 		canvas.height = video.videoHeight;
@@ -332,6 +358,22 @@ const Camera = () => {
 						muted
 						className="w-full h-full object-cover rounded-2xl"
 					/>
+				)}
+
+				{/* ROTATE CAMERA (front / back) — phones with 2+ cameras */}
+				{!photo && canSwitch && (
+					<button
+						type="button"
+						onClick={handleRotateCamera}
+						disabled={switching}
+						aria-label="Switch camera"
+						title="Switch camera"
+						className="absolute top-3 right-3 z-10 w-11 h-11 p-2 rounded-full bg-black/40 hover:bg-black/55 backdrop-blur-sm flex items-center justify-center cursor-pointer disabled:opacity-50">
+						<Icon
+							icon={switching ? "svg-spinners:ring-resize" : "mdi:camera-flip-outline"}
+							className="w-full h-full text-white"
+						/>
+					</button>
 				)}
 
 				{error && (

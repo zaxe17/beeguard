@@ -210,7 +210,8 @@ class VerificationService:
     # ── ADMIN ─────────────────────────────────
     @staticmethod
     def list_for_admin(status: str | None = "Pending") -> list[dict]:
-        where = "deleted_at IS NULL"
+        # Only real accounts (OTP entered) — see services/admin_service.py.
+        where = "deleted_at IS NULL AND email_verified = TRUE"
         params: list = []
         if status and status.lower() != "all":
             where += " AND verification_status = %s"

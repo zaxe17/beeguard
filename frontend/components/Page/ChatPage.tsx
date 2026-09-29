@@ -1,3 +1,23 @@
+// components/Page/ChatPage.tsx
+//
+// CHANGES (deployment fixes):
+//  1. Opens at the LATEST message. The scroll area is anchored to the
+//     bottom (flex-col-reverse), so photos/maps that finish loading later
+//     no longer push the view back up. Before, the mobile view never
+//     scrolled down at all, and the desktop one jumped back to the bottom
+//     every 4 s while you were reading older messages.
+//  2. Messenger-style loading: only the latest 30 messages are fetched
+//     (and polled); older ones load when you scroll to the top.
+//     Before, all messages were downloaded again every 4 seconds.
+//  3. Sending feels instant: your message shows right away ("Sending…"),
+//     then becomes normal when the server saves it. If it fails it says
+//     "Not sent · tap to retry".
+//  4. Phone keyboard: the chat screen shrinks to the space above the
+//     keyboard (visualViewport), so the message box and the latest
+//     messages stay visible while typing.
+//  5. Real dates between messages (was always "Sept 16 • 5:41 AM").
+//  6. Chat sound when a new message comes in (works even without push).
+
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -12,15 +32,11 @@ import {
 import { Container } from "../ui/Container";
 import { SearchBar } from "../ui/Input";
 import { ProfilePhoto } from "../ProfilePhoto";
-import MobileOverlay from "@/components/MobileOverlay";
 import { useQueryParamState } from "@/hooks/useQueryParamState";
 import { ChatOptionMenu } from "../popup/MessagePopup";
 import { LocationShareModal } from "../ui/LocationShareModal";
 import { api } from "@/services/api";
-import {
-	ChatMessagesSkeleton,
-	UserMessageCardSkeleton,
-} from "@/components/loading/SkeletonLoading";
+import { playNotificationSound } from "@/lib/notifySound";
 
 // Shape returned by GET /api/chats (see services/chat_service.py).
 type ChatUser = {
@@ -36,16 +52,15 @@ type ChatUser = {
 // derived client-side from ChatMessage.sender_role, since the backend
 // just returns a flat, chronological list.
 type ChatEntry =
-	| {
-			type: "bubble";
-			sender: "user" | "client";
-			messages: ChatMessage[];
-			key: string;
-	  }
-	| { type: "date"; key: string };
+	| { type: "bubble"; sender: "user" | "client"; messages: ChatMessage[]; key: string }
+	| { type: "date"; key: string; date: string };
 
 const MESSAGE_POLL_MS = 4000;
 const LIST_POLL_MS = 8000;
+// Messages per page (first load, each poll, each "load older").
+const PAGE_SIZE = 30;
+// Start loading older messages this close (px) to the top.
+const LOAD_OLDER_AT_PX = 120;
 // How often the sender pushes a new position while a live share runs.
 const LIVE_UPDATE_MS = 10000;
 // Fired by ChatModal.tsx's Delete modal after a successful delete, so
@@ -66,10 +81,7 @@ const fileToCompressedDataUrl = (file: File) =>
 		const url = URL.createObjectURL(file);
 		const img = new window.Image();
 		img.onload = () => {
-			const scale = Math.min(
-				1,
-				IMAGE_MAX_SIDE / Math.max(img.width, img.height),
-			);
+			const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(img.width, img.height));
 			const canvas = document.createElement("canvas");
 			canvas.width = Math.round(img.width * scale);
 			canvas.height = Math.round(img.height * scale);
@@ -98,10 +110,7 @@ const sameDay = (a: string, b: string) =>
 
 // `myRole` decides which sender_role maps to "user" (right-aligned,
 // this device) vs "client" (left-aligned, the other party).
-const buildEntries = (
-	messages: ChatMessage[],
-	myRole: "citizen" | "beekeeper",
-): ChatEntry[] => {
+const buildEntries = (messages: ChatMessage[], myRole: "citizen" | "beekeeper"): ChatEntry[] => {
 	const mySenderRole = myRole === "citizen" ? "Citizen" : "Beekeeper";
 	const entries: ChatEntry[] = [];
 	let lastDate: string | null = null;
@@ -110,12 +119,7 @@ const buildEntries = (
 
 	const flushRun = (key: string) => {
 		if (runSender && runMessages.length) {
-			entries.push({
-				type: "bubble",
-				sender: runSender,
-				messages: runMessages,
-				key,
-			});
+			entries.push({ type: "bubble", sender: runSender, messages: runMessages, key });
 		}
 		runMessages = [];
 	};
@@ -124,12 +128,11 @@ const buildEntries = (
 		if (!lastDate || !sameDay(lastDate, m.sent_at)) {
 			flushRun(`flush-${i}`);
 			runSender = null;
-			entries.push({ type: "date", key: `date-${m.message_id}` });
+			entries.push({ type: "date", key: `date-${m.message_id}`, date: m.sent_at });
 		}
 		lastDate = m.sent_at;
 
-		const sender: "user" | "client" =
-			m.sender_role === mySenderRole ? "user" : "client";
+		const sender: "user" | "client" = m.sender_role === mySenderRole ? "user" : "client";
 		if (sender !== runSender) {
 			flushRun(`flush-${i}`);
 			runSender = sender;
@@ -139,6 +142,63 @@ const buildEntries = (
 	flushRun("flush-end");
 
 	return entries;
+};
+
+// ── Message list helpers ────────────────────────
+const byId = (a: ChatMessage, b: ChatMessage) => a.message_id - b.message_id;
+
+// Puts the latest page from the server into what we already have:
+// updates messages in that range (live locations move), adds new ones,
+// drops ones that were deleted, keeps older pages and my unsent messages.
+const mergeLatest = (prev: ChatMessage[], latest: ChatMessage[]): ChatMessage[] => {
+	const local = prev.filter((m) => m.client_status); // my "Sending…/Not sent"
+	const saved = prev.filter((m) => !m.client_status);
+	if (latest.length === 0) return [...local];
+	const oldestInPage = latest[0].message_id;
+	const kept = saved.filter((m) => m.message_id < oldestInPage);
+	return [...kept, ...latest].sort(byId).concat(local);
+};
+
+const tempIdSeq = { n: -1 };
+
+// true = desktop layout (Tailwind "lg", 1024px+), null = not known yet
+// (first render), so neither chat view flashes on the wrong screen.
+const useIsLargeScreen = () => {
+	const [large, setLarge] = useState<boolean | null>(null);
+	useEffect(() => {
+		const mq = window.matchMedia("(min-width: 1024px)");
+		const update = () => setLarge(mq.matches);
+		update();
+		mq.addEventListener("change", update);
+		return () => mq.removeEventListener("change", update);
+	}, []);
+	return large;
+};
+
+// Chat screen size on phones while the keyboard is open.
+// visualViewport = the part of the screen NOT covered by the keyboard.
+const useVisibleViewport = (active: boolean) => {
+	const [box, setBox] = useState<{ height: number; top: number } | null>(null);
+	useEffect(() => {
+		if (!active || typeof window === "undefined" || !window.visualViewport) {
+			setBox(null);
+			return;
+		}
+		const vv = window.visualViewport;
+		const update = () => setBox({ height: vv.height, top: vv.offsetTop });
+		update();
+		vv.addEventListener("resize", update);
+		vv.addEventListener("scroll", update);
+		// Don't let the page behind the chat scroll on iPhone.
+		const prevOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			vv.removeEventListener("resize", update);
+			vv.removeEventListener("scroll", update);
+			document.body.style.overflow = prevOverflow;
+		};
+	}, [active]);
+	return box;
 };
 
 // ── Geolocation helpers ─────────────────────────
@@ -176,22 +236,28 @@ const ChatPage = () => {
 
 	// get segment after "/" — "citizen", "admin", o "beekeeper"
 	const role = pathname.split("/")[1] as "citizen" | "beekeeper";
-	const apiRole: "citizen" | "beekeeper" =
-		role === "beekeeper" ? "beekeeper" : "citizen";
+	const apiRole: "citizen" | "beekeeper" = role === "beekeeper" ? "beekeeper" : "citizen";
 	const mySenderRole = apiRole === "citizen" ? "Citizen" : "Beekeeper";
 
 	const [users, setUsers] = useState<ChatUser[]>([]);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [draft, setDraft] = useState("");
+	// The scrolling message area that's on screen (desktop panel or phone).
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const setScrollEl = useCallback((el: HTMLDivElement | null) => {
+		if (el) scrollRef.current = el;
+	}, []);
 
-	// Loading states for the skeletons.
-	// chatsLoading: true only until the FIRST chat-list fetch finishes
-	// (the 8s polling never sets it back to true, so no flicker).
-	// messagesLoading: true whenever a different chat is opened, until
-	// its first fetch finishes.
-	const [chatsLoading, setChatsLoading] = useState(true);
-	const [messagesLoading, setMessagesLoading] = useState(false);
+	// Older messages (scroll-up loading)
+	const [hasOlder, setHasOlder] = useState(false);
+	const [loadingOlder, setLoadingOlder] = useState(false);
+	const [loadingFirst, setLoadingFirst] = useState(false);
+	const loadingOlderRef = useRef(false);
+
+	// For the chat sound: last message seen per chat, and the newest
+	// message id seen in the open chat.
+	const lastPreviewRef = useRef<Map<number, string> | null>(null);
+	const newestSeenRef = useRef<number | null>(null);
 
 	// Photo sending
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -212,11 +278,27 @@ const ChatPage = () => {
 	const selectedId = selectedIdParam ? Number(selectedIdParam) : null;
 	const selectedUser = users.find((u) => u.chat_id === selectedId) ?? null;
 	const mobileSelected = Boolean(selectedId);
+	const isDesktop = useIsLargeScreen();
+	const showMobileChat = isDesktop === false && mobileSelected && Boolean(selectedUser);
+	const viewport = useVisibleViewport(showMobileChat);
 
 	const loadChats = useCallback(async () => {
 		const res = await api.get<ChatUser[]>("/chats");
-		if (res.success && res.data) setUsers(res.data);
-		setChatsLoading(false); // <- FIX: wala ito dati, kaya nakaipit ang skeleton
+		if (res.success && res.data) {
+			// Ding when another chat gets a new unread message.
+			const prev = lastPreviewRef.current;
+			const next = new Map<number, string>();
+			let newIncoming = false;
+			for (const u of res.data) {
+				next.set(u.chat_id, u.message);
+				if (prev && prev.get(u.chat_id) !== u.message && u.read === false) {
+					newIncoming = true;
+				}
+			}
+			if (newIncoming && !res.offline) playNotificationSound("chat");
+			lastPreviewRef.current = next;
+			setUsers(res.data);
+		}
 	}, []);
 
 	// ── Load chat list, then keep it fresh ──────────────
@@ -230,15 +312,13 @@ const ChatPage = () => {
 	useEffect(() => {
 		const handleChanged = (e: Event) => {
 			loadChats();
-			const detail = (e as CustomEvent<{ deletedChatId?: number }>)
-				.detail;
+			const detail = (e as CustomEvent<{ deletedChatId?: number }>).detail;
 			if (detail?.deletedChatId && detail.deletedChatId === selectedId) {
 				closeChat();
 			}
 		};
 		window.addEventListener(CHATS_CHANGED_EVENT, handleChanged);
-		return () =>
-			window.removeEventListener(CHATS_CHANGED_EVENT, handleChanged);
+		return () => window.removeEventListener(CHATS_CHANGED_EVENT, handleChanged);
 	}, [loadChats, selectedId, closeChat]);
 
 	// ── "Location" clicked in the + menu ────────────────
@@ -248,8 +328,7 @@ const ChatPage = () => {
 			setLocationModalOpen(true);
 		};
 		window.addEventListener(SHARE_LOCATION_EVENT, openLocationModal);
-		return () =>
-			window.removeEventListener(SHARE_LOCATION_EVENT, openLocationModal);
+		return () => window.removeEventListener(SHARE_LOCATION_EVENT, openLocationModal);
 	}, []);
 
 	// ── "Image" clicked in the + menu ───────────────────
@@ -267,46 +346,106 @@ const ChatPage = () => {
 		setComposerError(null);
 	}, [selectedId]);
 
-	// ── Load + poll messages for the selected chat ──────
+	const scrollToLatest = useCallback(() => {
+		// The message area is flex-col-reverse: scrollTop 0 = the bottom.
+		const el = scrollRef.current;
+		if (el) el.scrollTop = 0;
+	}, []);
+
+	// ── Load + poll the LATEST messages for the selected chat ──
 	// Polling is also what moves the other person's live pin.
 	useEffect(() => {
-		if (!selectedId) {
-			setMessages([]);
-			setMessagesLoading(false);
-			return;
-		}
-		let cancelled = false;
-
-		// Huwag ipakita ang messages ng dating chat habang naglo-load ang bago.
 		setMessages([]);
-		setMessagesLoading(true);
+		setHasOlder(false);
+		newestSeenRef.current = null;
+		if (!selectedId) return;
 
-		const loadMessages = async () => {
-			const res = await api.get<ChatMessage[]>(
-				`/chats/${selectedId}/messages`,
-			);
-			if (cancelled) return;
-			if (res.success && res.data) {
-				setMessages(res.data);
-			} else {
-				// Chat no longer exists (e.g. just deleted) — drop the
-				// dead selection instead of polling a 403/404 forever.
-				closeChat();
+		let cancelled = false;
+		let inFlight = false;
+		let first = true;
+		setLoadingFirst(true);
+
+		const loadLatest = async () => {
+			if (inFlight) return; // slow server: don't stack requests
+			inFlight = true;
+			try {
+				const res = await api.get<ChatMessage[]>(
+					`/chats/${selectedId}/messages?limit=${PAGE_SIZE}`,
+				);
+				if (cancelled) return;
+				if (res.success && res.data) {
+					const latest = [...res.data].sort(byId);
+
+					// Chat sound: a new message from the other person.
+					const newest = latest[latest.length - 1]?.message_id ?? 0;
+					if (newestSeenRef.current !== null && !res.offline) {
+						const seen = newestSeenRef.current;
+						const incoming = latest.some(
+							(m) => m.message_id > seen && m.sender_role !== mySenderRole,
+						);
+						if (incoming) playNotificationSound("chat");
+					}
+					newestSeenRef.current = Math.max(newestSeenRef.current ?? 0, newest);
+
+					setMessages((prev) => mergeLatest(prev, latest));
+					if (first) {
+						first = false;
+						setHasOlder(latest.length >= PAGE_SIZE);
+						setLoadingFirst(false);
+						requestAnimationFrame(scrollToLatest);
+					}
+				} else if (!res.offline && !res.network_error) {
+					// Chat no longer exists (e.g. just deleted) — drop the
+					// dead selection instead of polling a 403/404 forever.
+					closeChat();
+				}
+			} finally {
+				inFlight = false;
+				if (!cancelled && first) setLoadingFirst(false);
 			}
-			setMessagesLoading(false);
 		};
 
-		loadMessages();
-		const interval = setInterval(loadMessages, MESSAGE_POLL_MS);
+		loadLatest();
+		const interval = setInterval(loadLatest, MESSAGE_POLL_MS);
 		return () => {
 			cancelled = true;
 			clearInterval(interval);
 		};
-	}, [selectedId, closeChat]);
+	}, [selectedId, closeChat, mySenderRole, scrollToLatest]);
 
-	useEffect(() => {
-		scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-	}, [messages, messagesLoading]);
+	// ── Older messages when scrolled to the top ─────────
+	const loadOlder = useCallback(async () => {
+		if (!selectedId || loadingOlderRef.current || !hasOlder) return;
+		const oldest = messages.find((m) => !m.client_status);
+		if (!oldest) return;
+		loadingOlderRef.current = true;
+		setLoadingOlder(true);
+		const chatAtStart = selectedId;
+		try {
+			const res = await api.get<ChatMessage[]>(
+				`/chats/${chatAtStart}/messages?limit=${PAGE_SIZE}&before=${oldest.message_id}`,
+			);
+			if (res.success && res.data && chatAtStart === selectedId) {
+				const older = [...res.data].sort(byId);
+				setMessages((prev) => {
+					const have = new Set(prev.map((m) => m.message_id));
+					return [...older.filter((m) => !have.has(m.message_id)), ...prev];
+				});
+				setHasOlder(older.length >= PAGE_SIZE);
+			}
+		} finally {
+			loadingOlderRef.current = false;
+			setLoadingOlder(false);
+		}
+	}, [selectedId, hasOlder, messages]);
+
+	const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		// In a reversed list scrollTop is 0 at the bottom and negative
+		// going up, so "distance from the top" is:
+		const fromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
+		if (fromTop < LOAD_OLDER_AT_PX) loadOlder();
+	};
 
 	// ── Keep MY live location(s) updated ────────────────
 	// A stable string key, so the 4s message poll (which replaces the
@@ -332,10 +471,7 @@ const ChatPage = () => {
 			if (!latest) return;
 			const { latitude, longitude } = latest.coords;
 			ids.forEach((id) => {
-				api.post(`/chats/messages/${id}/location`, {
-					latitude,
-					longitude,
-				});
+				api.post(`/chats/messages/${id}/location`, { latitude, longitude });
 			});
 		};
 
@@ -364,22 +500,70 @@ const ChatPage = () => {
 		setChatParam(String(user.chat_id));
 	};
 
-	const handleSend = async () => {
-		const content = draft.trim();
-		if (!content || !selectedId) return;
-		setDraft("");
-		const res = await api.post<ChatMessage>(
-			`/chats/${selectedId}/messages`,
-			{ content },
-		);
+	// Shows the message right away, then swaps in the saved one.
+	const sendText = async (content: string, tempId: number) => {
+		if (!selectedId) return;
+		const chatAtStart = selectedId;
+		const res = await api.post<ChatMessage>(`/chats/${chatAtStart}/messages`, { content });
+		if (chatAtStart !== selectedId) return;
 		if (res.success && res.data) {
-			setMessages((prev) => [...prev, res.data as ChatMessage]);
+			const saved = res.data as ChatMessage;
+			newestSeenRef.current = Math.max(newestSeenRef.current ?? 0, saved.message_id);
+			setMessages((prev) => {
+				const withoutTemp = prev.filter((m) => m.message_id !== tempId);
+				// A poll may already have brought it in.
+				if (withoutTemp.some((m) => m.message_id === saved.message_id)) return withoutTemp;
+				const savedOnes = withoutTemp.filter((m) => !m.client_status);
+				const local = withoutTemp.filter((m) => m.client_status);
+				return [...savedOnes, saved].sort(byId).concat(local);
+			});
+			loadChats();
+		} else {
+			setMessages((prev) =>
+				prev.map((m) =>
+					m.message_id === tempId ? { ...m, client_status: "failed" } : m,
+				),
+			);
 		}
 	};
 
-	const handleImageSelected = async (
-		e: React.ChangeEvent<HTMLInputElement>,
-	) => {
+	const handleSend = () => {
+		const content = draft.trim();
+		if (!content || !selectedId) return;
+		setDraft("");
+		const tempId = tempIdSeq.n--;
+		const temp: ChatMessage = {
+			message_id: tempId,
+			chat_id: selectedId,
+			sender_role: mySenderRole,
+			content,
+			is_read: false,
+			sent_at: new Date().toISOString(),
+			message_type: "text",
+			image_url: null,
+			latitude: null,
+			longitude: null,
+			live_share: false,
+			is_live: false,
+			live_seconds_left: 0,
+			location_age_seconds: null,
+			client_status: "sending",
+		};
+		setMessages((prev) => [...prev, temp]);
+		requestAnimationFrame(scrollToLatest);
+		sendText(content, tempId);
+	};
+
+	const handleRetry = (msg: ChatMessage) => {
+		setMessages((prev) =>
+			prev.map((m) =>
+				m.message_id === msg.message_id ? { ...m, client_status: "sending" } : m,
+			),
+		);
+		sendText(msg.content, msg.message_id);
+	};
+
+	const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		// Reset so choosing the same photo again still fires onChange.
 		e.target.value = "";
@@ -398,12 +582,18 @@ const ChatPage = () => {
 		setComposerError(null);
 		try {
 			const image = await fileToCompressedDataUrl(file);
-			const res = await api.post<ChatMessage>(
-				`/chats/${selectedId}/images`,
-				{ image },
-			);
+			const res = await api.post<ChatMessage>(`/chats/${selectedId}/images`, { image });
 			if (res.success && res.data) {
-				setMessages((prev) => [...prev, res.data as ChatMessage]);
+				const saved = res.data as ChatMessage;
+				newestSeenRef.current = Math.max(newestSeenRef.current ?? 0, saved.message_id);
+				setMessages((prev) =>
+					prev.some((m) => m.message_id === saved.message_id)
+						? prev
+						: [...prev.filter((m) => !m.client_status), saved]
+								.sort(byId)
+								.concat(prev.filter((m) => m.client_status)),
+				);
+				requestAnimationFrame(scrollToLatest);
 				loadChats();
 			} else {
 				setComposerError(res.message || "Couldn't send the photo.");
@@ -432,16 +622,15 @@ const ChatPage = () => {
 		setLocationError(null);
 		try {
 			const pos = await getCurrentPosition();
-			const res = await api.post<ChatMessage>(
-				`/chats/${selectedId}/location`,
-				{
-					latitude: pos.coords.latitude,
-					longitude: pos.coords.longitude,
-					live_minutes: liveMinutes,
-				},
-			);
+			const res = await api.post<ChatMessage>(`/chats/${selectedId}/location`, {
+				latitude: pos.coords.latitude,
+				longitude: pos.coords.longitude,
+				live_minutes: liveMinutes,
+			});
 			if (res.success && res.data) {
 				const sent = res.data as ChatMessage;
+				newestSeenRef.current = Math.max(newestSeenRef.current ?? 0, sent.message_id);
+				requestAnimationFrame(scrollToLatest);
 				setMessages((prev) => [
 					// Starting a new live share ends my previous one (server
 					// does the same) — reflect it now, not on the next poll.
@@ -457,9 +646,7 @@ const ChatPage = () => {
 				]);
 				setLocationModalOpen(false);
 			} else {
-				setLocationError(
-					res.message || "Couldn't share your location.",
-				);
+				setLocationError(res.message || "Couldn't share your location.");
 			}
 		} catch (err) {
 			setLocationError(geoErrorMessage(err));
@@ -484,24 +671,92 @@ const ChatPage = () => {
 
 	// Plain function returning JSX (not a component), so React keeps
 	// the same DOM nodes between renders.
-	// Shows the skeleton bubbles while the chat's first fetch is running.
 	const renderConversation = () =>
-		messagesLoading ? (
-			<ChatMessagesSkeleton />
-		) : (
-			activeConversation.map((entry) =>
-				entry.type === "date" ? (
-					<DateTimeMessage key={entry.key} />
-				) : (
-					<BubbleChat
-						key={entry.key}
-						sender={entry.sender}
-						messages={entry.messages}
-						onStopLive={handleStopLive}
-					/>
-				),
-			)
+		activeConversation.map((entry) =>
+			entry.type === "date" ? (
+				<DateTimeMessage key={entry.key} date={entry.date} />
+			) : (
+				<BubbleChat
+					key={entry.key}
+					sender={entry.sender}
+					messages={entry.messages}
+					onStopLive={handleStopLive}
+					onRetry={handleRetry}
+				/>
+			),
 		);
+
+	// The scrolling message area (same for desktop and phone).
+	// flex-col-reverse keeps it pinned to the newest message; the inner
+	// div keeps the messages in normal top-to-bottom order.
+	const renderMessageArea = () => (
+		<div
+			ref={setScrollEl}
+			onScroll={handleScroll}
+			className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col-reverse lg:scrollbar-auto scrollbar-none overscroll-contain">
+			<div className="flex flex-col gap-2 p-3">
+				{hasOlder && (
+					<div className="w-full flex justify-center py-1">
+						{loadingOlder ? (
+							<Icon
+								icon="svg-spinners:ring-resize"
+								className="w-5 h-5 text-[#ffa004]"
+							/>
+						) : (
+							<button
+								type="button"
+								onClick={loadOlder}
+								className="text-xs text-[#817b70] underline">
+								Load older messages
+							</button>
+						)}
+					</div>
+				)}
+				{loadingFirst && messages.length === 0 && (
+					<div className="w-full flex justify-center py-6">
+						<Icon
+							icon="svg-spinners:ring-resize"
+							className="w-6 h-6 text-[#ffa004]"
+						/>
+					</div>
+				)}
+				{renderConversation()}
+			</div>
+		</div>
+	);
+
+	// Message box (same for desktop and phone).
+	const renderComposer = () => (
+		<div className="w-full p-2 mb-3 flex flex-row items-center gap-1 shrink-0">
+			<ChatOptionMenu />
+			<textarea
+				placeholder="Message..."
+				value={draft}
+				rows={1}
+				enterKeyHint="send"
+				onChange={(e) => setDraft(e.target.value)}
+				onFocus={() => {
+					// Keyboard opening -> keep the latest message in view.
+					setTimeout(scrollToLatest, 300);
+				}}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" && !e.shiftKey) {
+						e.preventDefault();
+						handleSend();
+					}
+				}}
+				className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
+			/>
+			<button
+				type="button"
+				// Keep the keyboard open when tapping Send on a phone.
+				onMouseDown={(e) => e.preventDefault()}
+				onClick={handleSend}
+				className="w-10 h-10">
+				<Icon icon="basil:send-solid" className="w-10 h-10 text-[#ffdb4f]" />
+			</button>
+		</div>
+	);
 
 	// "Sending photo…" / error line shown just above the message box.
 	const composerStatus =
@@ -509,10 +764,7 @@ const ChatPage = () => {
 			<div className="px-3 -mb-1 text-xs shrink-0">
 				{sendingImage ? (
 					<span className="flex items-center gap-1.5 text-[#817b70]">
-						<Icon
-							icon="svg-spinners:ring-resize"
-							className="w-3.5 h-3.5"
-						/>
+						<Icon icon="svg-spinners:ring-resize" className="w-3.5 h-3.5" />
 						Sending photo…
 					</span>
 				) : (
@@ -543,39 +795,12 @@ const ChatPage = () => {
 			</div>
 
 			{/* CONVERSATION BODY */}
-			<div className="flex-1 min-h-0 flex flex-col justify-end">
-				<div
-					ref={scrollRef}
-					className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
-					{renderConversation()}
-				</div>
-			</div>
+			{renderMessageArea()}
 
 			{composerStatus}
 
 			{/* INPUT MESSAGE */}
-			<div className="w-full p-2 mb-3 flex flex-row items-center gap-1 shrink-0">
-				<ChatOptionMenu />
-
-				<textarea
-					placeholder="Message..."
-					value={draft}
-					onChange={(e) => setDraft(e.target.value)}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey) {
-							e.preventDefault();
-							handleSend();
-						}
-					}}
-					className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
-				/>
-				<button onClick={handleSend} className="w-10 h-10">
-					<Icon
-						icon="basil:send-solid"
-						className="w-10 h-10 text-[#ffdb4f]"
-					/>
-				</button>
-			</div>
+			{renderComposer()}
 		</>
 	);
 
@@ -594,48 +819,31 @@ const ChatPage = () => {
 
 				{/* SCROLLABLE MESSAGE LIST */}
 				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none px-1">
-					{chatsLoading &&
-						Array.from({ length: 6 }).map((_, i) => (
-							<UserMessageCardSkeleton key={i} />
-						))}
-
-					{!chatsLoading && users.length === 0 && (
+					{users.length === 0 && (
 						<div className="text-center text-sm text-[#a6a3a3] py-4">
 							No conversations yet.
 						</div>
 					)}
-
-					{!chatsLoading &&
-						users.map((u) => (
-							<div
-								key={u.chat_id}
-								onClick={() => handleSelectUser(u)}>
-								<UserMessageCard
-									chatId={u.chat_id}
-									active={u.active}
-									read={u.read}
-									name={u.name}
-									location={u.location}
-									message={u.message}
-									onMarkUnread={() =>
-										handleMarkUnread(u.chat_id)
-									}
-								/>
-							</div>
-						))}
+					{users.map((u) => (
+						<div key={u.chat_id} onClick={() => handleSelectUser(u)}>
+							<UserMessageCard
+								chatId={u.chat_id}
+								active={u.active}
+								read={u.read}
+								name={u.name}
+								location={u.location}
+								message={u.message}
+								onMarkUnread={() => handleMarkUnread(u.chat_id)}
+							/>
+						</div>
+					))}
 				</div>
 			</Container>
 
 			{/* RIGHT SIDE — desktop: always visible inline */}
 			<div className="hidden lg:flex flex-col flex-1 w-full min-h-0 h-full">
-				{selectedUser ? (
+				{selectedUser && isDesktop ? (
 					conversationView
-				) : selectedId && chatsLoading ? (
-					// ?chat=<id> was opened directly (refresh / push
-					// notification) and the chat list hasn't arrived yet.
-					<div className="flex-1 flex flex-col justify-end p-3">
-						<ChatMessagesSkeleton />
-					</div>
 				) : (
 					<div className="flex-1 flex items-center justify-center text-[#a6a3a3]">
 						Select a conversation to start chatting.
@@ -643,64 +851,38 @@ const ChatPage = () => {
 				)}
 			</div>
 
-			{/* RIGHT SIDE — mobile: slide-up overlay, only after a user is selected */}
-			{mobileSelected && selectedUser && (
-				<MobileOverlay>
-					<div className="flex flex-col h-full">
-						{/* BACK BUTTON */}
-						<div className="sticky top-0 z-10 bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
-							<button
-								onClick={closeChat}
-								className="flex items-center shrink-0">
-								<Icon
-									icon="bx:arrow-back"
-									className="text-2xl text-[#4a2f00]"
-								/>
-							</button>
-							<div className="relative">
-								<div className="relative w-10 h-10">
-									<ProfilePhoto />
-								</div>
-								<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white"></div>
+			{/* RIGHT SIDE — phone: full screen, sized to the part of the
+			    screen above the keyboard so typing never hides the chat. */}
+			{showMobileChat && selectedUser && (
+				<div
+					className="lg:hidden fixed inset-x-0 z-5000 bg-white flex flex-col"
+					style={
+						viewport
+							? { top: viewport.top, height: viewport.height }
+							: { top: 0, height: "100dvh" }
+					}>
+					{/* BACK BUTTON */}
+					<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
+						<button onClick={closeChat} className="flex items-center shrink-0">
+							<Icon icon="bx:arrow-back" className="text-2xl text-[#4a2f00]" />
+						</button>
+						<div className="relative">
+							<div className="relative w-10 h-10">
+								<ProfilePhoto />
 							</div>
-							<h3 className="text-base">{selectedUser.name}</h3>
+							<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white"></div>
 						</div>
-
-						{/* CONVERSATION BODY */}
-						<div className="flex-1 min-h-0 flex flex-col justify-end">
-							<div
-								ref={scrollRef}
-								className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
-								{renderConversation()}
-							</div>
-						</div>
-
-						{composerStatus}
-
-						{/* INPUT MESSAGE */}
-						<div className="w-full p-2 mb-3 flex flex-row items-center gap-1 shrink-0">
-							<ChatOptionMenu />
-							<textarea
-								placeholder="Message..."
-								value={draft}
-								onChange={(e) => setDraft(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" && !e.shiftKey) {
-										e.preventDefault();
-										handleSend();
-									}
-								}}
-								className="rounded-full bg-[#d9d9d9] resize-none h-8 w-full px-3 pt-1.5 text-sm outline-none"
-							/>
-							<button onClick={handleSend} className="w-10 h-10">
-								<Icon
-									icon="basil:send-solid"
-									className="w-10 h-10 text-[#ffdb4f]"
-								/>
-							</button>
-						</div>
+						<h3 className="text-base">{selectedUser.name}</h3>
 					</div>
-				</MobileOverlay>
+
+					{/* CONVERSATION BODY */}
+					{renderMessageArea()}
+
+					{composerStatus}
+
+					{/* INPUT MESSAGE */}
+					{renderComposer()}
+				</div>
 			)}
 
 			{/* HIDDEN FILE PICKER — opened by the + menu's "Image" item */}

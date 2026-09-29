@@ -13,6 +13,7 @@ import { useModal } from "@/context/ModalContext";
 import { ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import { pesticideService, type AdminAlertRecord } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
+import type { AlertPin } from "@/components/ui/google-maps/Map";
 
 type ModalType = "addAlert";
 type RiskStatus = "high" | "medium" | "low";
@@ -325,6 +326,23 @@ const AlertInner = () => {
 
 	const selected = alerts.find((a) => a.alert_id === selectedId) ?? null;
 
+	// MAP — every alert in the current tab (All = all live alerts, High /
+	// Medium / Low = only that risk, Pending / Rejected = those), each with
+	// its risk color and danger radius. Follows the search box too.
+	const mapPins = useMemo<AlertPin[]>(
+		() =>
+			filtered
+				.map((a) => ({
+					id: a.alert_id,
+					lat: Number(a.latitude),
+					lng: Number(a.longitude),
+					radiusKm: Number(a.danger_radius_km) || null,
+					color: ALERT_PIN_COLORS[toRisk(a)],
+				}))
+				.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)),
+		[filtered],
+	);
+
 	const searchBar = (
 		<SearchBar
 			placeholder="Search Alerts"
@@ -416,7 +434,9 @@ const AlertInner = () => {
 				</div>
 			</Container>
 
-			<div className="flex-1 w-full lg:h-full z-0">
+			{/* min-w-0 + overflow-hidden: the map can never push the page
+			    wider than the screen (no sideways scrolling). */}
+			<div className="flex-1 w-full min-w-0 overflow-hidden lg:h-full z-0">
 				<div className="flex flex-col h-full">
 					{/* LOCATION MAP */}
 					<div className="relative w-full py-2 px-2 lg:hidden flex items-center justify-end gap-3">
@@ -428,17 +448,17 @@ const AlertInner = () => {
 							{searchBar}
 						</div>
 					</div>
-					<div className="flex-1 min-h-60">
+					<div className="relative flex-1 min-h-60 min-w-0 overflow-hidden isolate">
 						<Map
-							markerPosition={
-								selected
-									? { lat: Number(selected.latitude), lng: Number(selected.longitude) }
+							// All alerts in this tab; red = High, orange =
+							// Medium, green = Low. Tap a pin to open it.
+							alertPins={mapPins}
+							selectedAlertId={
+								selected && mapPins.some((p) => p.id === selected.alert_id)
+									? selected.alert_id
 									: null
 							}
-							radiusKm={selected ? Number(selected.danger_radius_km) : null}
-							// Red = High, orange = Medium, green = Low
-							pinColor={selected ? ALERT_PIN_COLORS[toRisk(selected)] : undefined}
-							readOnly
+							onAlertClick={(id) => setSelectedId(id)}
 						/>
 					</div>
 

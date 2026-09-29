@@ -3,6 +3,13 @@
 # Admin side: dashboard numbers, the Users list / details, account
 # activation, and the full list of citizen bee reports. Verification
 # review itself is in services/verification_service.py.
+#
+# UPDATED — only REAL accounts are shown and counted: someone who signed
+# up but never entered the OTP from their email (email_verified = FALSE)
+# is not an account yet, so they don't appear in the Users list, the
+# user details, the dashboard/profile counts, or the "new this month"
+# numbers. (Every citizens/beekeepers query here uses
+# "deleted_at IS NULL AND email_verified = TRUE".)
 
 import datetime as dt
 from decimal import Decimal
@@ -173,10 +180,10 @@ class AdminService:
     def dashboard() -> dict:
         counts = {
             "citizens": _count(
-                "SELECT COUNT(*) AS c FROM citizens WHERE deleted_at IS NULL"
+                "SELECT COUNT(*) AS c FROM citizens WHERE deleted_at IS NULL AND email_verified = TRUE"
             ),
             "beekeepers": _count(
-                "SELECT COUNT(*) AS c FROM beekeepers WHERE deleted_at IS NULL"
+                "SELECT COUNT(*) AS c FROM beekeepers WHERE deleted_at IS NULL AND email_verified = TRUE"
             ),
             "reports": _count("SELECT COUNT(*) AS c FROM reports"),
             # Approved alerts scheduled for today or later.
@@ -190,7 +197,7 @@ class AdminService:
             ),
             "pending_verifications": _count(
                 "SELECT COUNT(*) AS c FROM beekeepers "
-                "WHERE deleted_at IS NULL AND verification_status = 'Pending'"
+                "WHERE deleted_at IS NULL AND email_verified = TRUE AND verification_status = 'Pending'"
             ),
         }
 
@@ -199,12 +206,12 @@ class AdminService:
         changes = {
             # New sign-ups: this month so far vs the same days of last month.
             "citizens": _change(
-                _count_between("citizens", "created_at", *mtd, "deleted_at IS NULL"),
-                _count_between("citizens", "created_at", *last_mtd, "deleted_at IS NULL"),
+                _count_between("citizens", "created_at", *mtd, "deleted_at IS NULL AND email_verified = TRUE"),
+                _count_between("citizens", "created_at", *last_mtd, "deleted_at IS NULL AND email_verified = TRUE"),
             ),
             "beekeepers": _change(
-                _count_between("beekeepers", "created_at", *mtd, "deleted_at IS NULL"),
-                _count_between("beekeepers", "created_at", *last_mtd, "deleted_at IS NULL"),
+                _count_between("beekeepers", "created_at", *mtd, "deleted_at IS NULL AND email_verified = TRUE"),
+                _count_between("beekeepers", "created_at", *last_mtd, "deleted_at IS NULL AND email_verified = TRUE"),
             ),
             # Reports sent: this month so far vs the same days of last month.
             "reports": _change(
@@ -299,7 +306,7 @@ class AdminService:
                        contact_no, address, status, NULL AS verification_status,
                        NULL AS farm_name, created_at, profile_photo
                 FROM citizens
-                WHERE deleted_at IS NULL{search_sql}
+                WHERE deleted_at IS NULL AND email_verified = TRUE{search_sql}
             """)
             params.extend(search_params)
         if role in (None, "", "all", "beekeeper", "verification"):
@@ -309,7 +316,7 @@ class AdminService:
                        contact_no, address, status, verification_status,
                        farm_name, created_at, profile_photo
                 FROM beekeepers
-                WHERE deleted_at IS NULL{extra}{search_sql}
+                WHERE deleted_at IS NULL AND email_verified = TRUE{extra}{search_sql}
             """)
             params.extend(search_params)
 
@@ -320,11 +327,11 @@ class AdminService:
             rows = Database.execute(sql, tuple(params), fetchall=True) or []
 
         counts = {
-            "citizens": _count("SELECT COUNT(*) AS c FROM citizens WHERE deleted_at IS NULL"),
-            "beekeepers": _count("SELECT COUNT(*) AS c FROM beekeepers WHERE deleted_at IS NULL"),
+            "citizens": _count("SELECT COUNT(*) AS c FROM citizens WHERE deleted_at IS NULL AND email_verified = TRUE"),
+            "beekeepers": _count("SELECT COUNT(*) AS c FROM beekeepers WHERE deleted_at IS NULL AND email_verified = TRUE"),
             "pending_verifications": _count(
                 "SELECT COUNT(*) AS c FROM beekeepers "
-                "WHERE deleted_at IS NULL AND verification_status = 'Pending'"
+                "WHERE deleted_at IS NULL AND email_verified = TRUE AND verification_status = 'Pending'"
             ),
         }
         counts["all"] = counts["citizens"] + counts["beekeepers"]
@@ -343,7 +350,7 @@ class AdminService:
             raise ValueError("Invalid role.")
 
         row = Database.execute(
-            f"SELECT * FROM {_TABLE[role]} WHERE {_ID_COL[role]} = %s AND deleted_at IS NULL LIMIT 1",
+            f"SELECT * FROM {_TABLE[role]} WHERE {_ID_COL[role]} = %s AND deleted_at IS NULL AND email_verified = TRUE LIMIT 1",
             (user_id,),
             fetchone=True,
         )
@@ -420,7 +427,7 @@ class AdminService:
         if status not in VALID_ACCOUNT_STATUSES:
             raise ValueError("Status must be Active or Inactive.")
         exists = Database.execute(
-            f"SELECT 1 FROM {_TABLE[role]} WHERE {_ID_COL[role]} = %s AND deleted_at IS NULL LIMIT 1",
+            f"SELECT 1 FROM {_TABLE[role]} WHERE {_ID_COL[role]} = %s AND deleted_at IS NULL AND email_verified = TRUE LIMIT 1",
             (user_id,),
             fetchone=True,
         )

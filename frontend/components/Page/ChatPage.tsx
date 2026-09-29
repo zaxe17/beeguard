@@ -15,6 +15,10 @@
 //  4. Phone keyboard: the chat screen shrinks to the space above the
 //     keyboard (visualViewport), so the message box and the latest
 //     messages stay visible while typing.
+//     FIXED — the phone chat covered the whole screen, so the bottom nav
+//     bar (Sidebar.tsx, z-9999) sat on top of the message box, "+" and
+//     Send. Now the chat ends ABOVE the bottom nav; only when the keyboard
+//     is open does the message box move up above the keyboard.
 //  5. Real dates between messages (was always "Sept 16 • 5:41 AM").
 //  6. Chat sound when a new message comes in (works even without push).
 
@@ -175,8 +179,26 @@ const useIsLargeScreen = () => {
 	return large;
 };
 
-// Chat screen size on phones while the keyboard is open.
+// Height of the phone's bottom nav bar (components/Sidebar.tsx renders a
+// <nav>; on phones it sits at the bottom of the screen). 0 on desktop or
+// if it isn't found.
+const bottomNavHeight = () => {
+	const nav = document.querySelector("nav");
+	if (!nav) return 0;
+	const r = nav.getBoundingClientRect();
+	// Only count it when it's really at the bottom (phone layout).
+	return r.top > window.innerHeight / 2 ? r.height : 0;
+};
+
+// When the visible screen is this much shorter than the page, the
+// on-screen keyboard is open.
+const KEYBOARD_MIN_PX = 120;
+
+// Chat screen size on phones.
 // visualViewport = the part of the screen NOT covered by the keyboard.
+//   keyboard closed -> the chat ends above the bottom nav bar
+//   keyboard open   -> the chat ends right above the keyboard (the nav bar
+//                      is behind the keyboard then)
 const useVisibleViewport = (active: boolean) => {
 	const [box, setBox] = useState<{ height: number; top: number } | null>(null);
 	useEffect(() => {
@@ -185,7 +207,11 @@ const useVisibleViewport = (active: boolean) => {
 			return;
 		}
 		const vv = window.visualViewport;
-		const update = () => setBox({ height: vv.height, top: vv.offsetTop });
+		const update = () => {
+			const keyboardOpen = window.innerHeight - vv.height > KEYBOARD_MIN_PX;
+			const navH = keyboardOpen ? 0 : bottomNavHeight();
+			setBox({ height: Math.max(0, vv.height - navH), top: vv.offsetTop });
+		};
 		update();
 		vv.addEventListener("resize", update);
 		vv.addEventListener("scroll", update);
@@ -859,7 +885,7 @@ const ChatPage = () => {
 					style={
 						viewport
 							? { top: viewport.top, height: viewport.height }
-							: { top: 0, height: "100dvh" }
+							: { top: 0, bottom: 0 }
 					}>
 					{/* BACK BUTTON */}
 					<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">

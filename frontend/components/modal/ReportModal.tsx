@@ -54,9 +54,6 @@ type BeeIdentifyModalType = "beeIdentify";
 type BeeIdentifyPayload = {
 	species: string | null;
 	confidencePercent: number | null;
-	// "unrecognized" = a bee was found but it isn't one of the species
-	// BeeGuard can identify (see server/services/cv_scan_service.py).
-	matchStatus?: "matched" | "unrecognized" | "no_bee";
 };
 
 // "Retake Photo" in the BeeIdentify popup (no bee detected). The camera
@@ -591,12 +588,7 @@ export const BeeIdentify = ({
 	const confidencePercent = payload?.confidencePercent ?? null;
 
 	const hasMatch = species !== null && confidencePercent !== null;
-	const unrecognized = !hasMatch && payload?.matchStatus === "unrecognized";
-	const displaySpecies = species
-		? speciesLabel(species)
-		: unrecognized
-			? "Unrecognized bee"
-			: "No bee detected";
+	const displaySpecies = species ? speciesLabel(species) : "No bee detected";
 	const pctLabel = confidencePercent !== null ? `${Math.round(confidencePercent)}%` : "—";
 
 	return (
@@ -637,19 +629,10 @@ export const BeeIdentify = ({
 				</div>
 
 				{/* No bee detected -> nothing to submit: offer a retake. */}
-				{!hasMatch && !unrecognized && (
+				{!hasMatch && (
 					<p className="text-xs text-[#817b70] text-center mt-3">
 						We couldn&apos;t find a bee in this photo. Try again with the
 						bees clearly in view.
-					</p>
-				)}
-				{/* A bee, but not one BeeGuard can identify (e.g. Apis dorsata). */}
-				{unrecognized && (
-					<p className="text-xs text-[#817b70] text-center mt-3">
-						This doesn&apos;t match the bee species BeeGuard can identify
-						(Asian Honey Bee, Western Honey Bee, Philippine Stingless Bee). It may be a
-						different species, like the giant honey bee (Apis dorsata). Try
-						another photo with the bees clearly in view.
 					</p>
 				)}
 

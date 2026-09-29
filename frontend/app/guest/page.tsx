@@ -161,6 +161,18 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 					/>
 				)}
 
+				{/* RETAKE — on the photo, before pressing Next (no popup) */}
+				{photo && !busy && (
+					<button
+						type="button"
+						onClick={onRetake}
+						aria-label="Retake photo"
+						className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
+						<Icon icon="mdi:camera-retake-outline" className="w-4 h-4" />
+						Retake
+					</button>
+				)}
+
 				{error && !photo && (
 					<div className="absolute inset-0 flex items-center justify-center text-center p-4 text-sm text-red-500 bg-white/70 rounded-2xl">
 						{error}
@@ -230,7 +242,6 @@ type ModalType = "beeIdentify" | "signup";
 type BeeIdentifyPayload = {
 	species: string | null;
 	confidencePercent: number | null;
-	matchStatus?: "matched" | "unrecognized" | "no_bee";
 };
 
 /**
@@ -286,7 +297,6 @@ const GuestIdentify = () => {
 		openModal("beeIdentify", {
 			species: res.data.identified_species,
 			confidencePercent: res.data.confidence_score,
-			matchStatus: res.data.match_status,
 		});
 	};
 

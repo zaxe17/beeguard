@@ -1,7 +1,7 @@
 // app/citizen/report/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import dynamic from "next/dynamic";
 
@@ -219,20 +219,22 @@ const Camera = () => {
 		setFacing((f) => (f === "environment" ? "user" : "environment"));
 	};
 
-	// "Retake Photo" (BeeIdentify popup, no bee detected): clear the photo
-	// and go back to the live camera.
-	useEffect(() => {
-		const retake = () => {
-			setPhoto(null);
-			setPhotoPreview(null);
-			setUploadedFile(null);
-			setScan(null);
-			setScanError(null);
-			setCanProceed(false);
-		};
-		window.addEventListener(RETAKE_PHOTO_EVENT, retake);
-		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, retake);
+	// RETAKE — clear the photo and go back to the live camera. Used by:
+	//   - the "Retake" button on the photo (before pressing Next), and
+	//   - "Retake Photo" in the BeeIdentify popup (no bee detected).
+	const retakePhoto = useCallback(() => {
+		setPhoto(null);
+		setPhotoPreview(null);
+		setUploadedFile(null);
+		setScan(null);
+		setScanError(null);
+		setCanProceed(false);
 	}, [setPhotoPreview, setScan, setCanProceed]);
+
+	useEffect(() => {
+		window.addEventListener(RETAKE_PHOTO_EVENT, retakePhoto);
+		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, retakePhoto);
+	}, [retakePhoto]);
 
 	// When the <video> comes back after a retake, reconnect the camera.
 	useEffect(() => {
@@ -332,8 +334,6 @@ const Camera = () => {
 			openModal("beeIdentify", {
 				species: res.data.identified_species,
 				confidencePercent: res.data.confidence_score,
-				// "unrecognized" -> popup says it's not a species BeeGuard knows
-				matchStatus: res.data.match_status,
 			});
 		});
 
@@ -378,7 +378,19 @@ const Camera = () => {
 					</button>
 				)}
 
-				{error && (
+				{/* RETAKE — on the photo, before pressing Next (no popup) */}
+				{photo && (
+					<button
+						type="button"
+						onClick={retakePhoto}
+						aria-label="Retake photo"
+						className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
+						<Icon icon="mdi:camera-retake-outline" className="w-4 h-4" />
+						Retake
+					</button>
+				)}
+
+				{error && !photo && (
 					<div className="absolute inset-0 flex items-center justify-center text-sm text-red-500 bg-white/70 rounded-2xl">
 						{error}
 					</div>
@@ -389,7 +401,8 @@ const Camera = () => {
 
 			<div className="w-full flex justify-center gap-20">
 				<div
-					onClick={handleTakePhoto}
+					// A photo is showing -> the camera button retakes it.
+					onClick={photo ? retakePhoto : handleTakePhoto}
 					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
 					<Icon
 						icon="entypo:camera"

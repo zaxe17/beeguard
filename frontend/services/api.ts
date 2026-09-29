@@ -2,7 +2,7 @@
 // Central fetch wrapper. Handles base URL, JSON headers, Authorization,
 // and normalizes the backend's { success, message, data|errors } envelope.
 //
-// OFFLINE MODE (NEW)
+// OFFLINE MODE
 //   GET  — every successful answer is saved on the phone (per user). If
 //          the server can't be reached (or takes longer than 8s and a saved
 //          copy exists), the saved copy is returned instead, marked
@@ -13,14 +13,20 @@
 //   Everything else (post / patch / delete / postForm) stays online-only.
 //
 // "YOU'RE OFFLINE" FIX
-//   A request that fails is no longer enough to say "offline". One failed
-//   request (a CORS problem, a Railway 502/timeout, a crashed route) used
-//   to turn the banner on even though the internet and the server were
-//   fine. Now a failure is double-checked with a tiny ping to the server
+//   A failed request is double-checked with a tiny ping to the server
 //   (checkServerReachable). Only if the ping ALSO fails is it "offline".
-//   If the server answers the ping, the failed request is logged in the
-//   browser console as "[BeeGuard] … failed but the server is reachable"
-//   so you can see which endpoint has the problem.
+//
+// SPEED / RELIABILITY FIXES (this version)
+//   1. Every request now has a hard timeout (REQUEST_TIMEOUT_MS). Before,
+//      a request to a slow/sleeping backend could stay "pending" forever,
+//      and pending requests pile up and block new ones (like Send/Publish).
+//   2. Identical GETs that are already in flight are shared (one network
+//      call, many callers). Polling of /chats and /messages can no longer
+//      stack up duplicate requests while the backend is slow.
+//   3. "Missing or invalid Authorization header" now also sends the person
+//      to login when NO token was found in this tab (before, the redirect
+//      only ran if a token had been sent, so a missing token just showed
+//      "Failed to create alert").
 
 import { outbox, responseCache } from "@/lib/offlineDb";
 import {
@@ -51,6 +57,12 @@ const TOKEN_KEY = "beeguard_token";
 // A GET slower than this shows the saved copy (when there is one).
 const GET_TIMEOUT_MS = 8000;
 
+// Hard limit for any single request. After this the request is cancelled
+// so it can't sit "pending" and block other requests.
+const REQUEST_TIMEOUT_MS = 20000;
+// File uploads (photos) may legitimately take longer.
+const UPLOAD_TIMEOUT_MS = 60000;
+
 export const OFFLINE_SAVED_MESSAGE =
 	"No internet — saved on this phone. It will be sent automatically when you're back online.";
 const OFFLINE_NO_COPY_MESSAGE =
@@ -69,7 +81,8 @@ const PING_REUSE_MS = 5000; // reuse a ping result for this long
 //   - "Remember me" ticked   -> localStorage: survives closing the browser
 //     (the backend also gives this token a longer expiry).
 //   - "Remember me" unticked -> sessionStorage: gone when the tab/browser
-//     is closed, so you have to sign in again next time.
+//     is closed, so you have to sign in again next time. NOTE: sessionStorage
+//     is NOT shared between tabs — a new tab has no token.
 // get() checks both, so the rest of the app doesn't need to know which.
 // Reads the login token's payload (no signature check — the backend
 // does that). null if it isn't a readable token.
@@ -152,7 +165,8 @@ let lastPing = { at: 0, ok: false };
 export const checkServerReachable = (): Promise<boolean> => {
 	if (typeof window === "undefined") return Promise.resolve(true);
 	if (isOfflineNow()) return Promise.resolve(false);
-	if (Date.now() - lastPing.at < PING_REUSE_MS) return Promise.resolve(lastPing.ok);
+	if (Date.now() - lastPing.at < PING_REUSE_MS)
+		return Promise.resolve(lastPing.ok);
 	if (pingInFlight) return pingInFlight;
 
 	pingInFlight = (async () => {
@@ -205,12 +219,12 @@ const confirmOffline = async (
 };
 
 // ── LOGIN EXPIRED / MISSING ──
-// The backend refused the saved login token (expired, invalid, or none was
-// found in this tab). Instead of every button failing with "Failed to
-// create alert" etc., the token is cleared and the person is sent to the
-// login page (app/page.tsx is "/") with ?expired=1.
-// Only for requests that SENT a token, and never for /auth/* (a wrong
-// password on the login page is also a 401 and must stay on the page).
+// The backend refused the login (expired, invalid, or NO token found in
+// this tab). Instead of every button failing with "Failed to create alert"
+// etc., the token is cleared and the person is sent to the login page
+// (app/page.tsx is "/") with ?expired=1.
+// Never for /auth/* (a wrong password on the login page is also a 401 and
+// must stay on the page) and never for guest requests (withAuth: false).
 const LOGIN_PROBLEM_MESSAGES = [
 	"Token has expired.",
 	"Invalid token.",
@@ -238,9 +252,13 @@ export type SendResult<T> =
 async function send<T>(
 	path: string,
 	init: RequestInit,
-	opts: { json?: boolean; withAuth?: boolean } = {},
+	opts: { json?: boolean; withAuth?: boolean; timeoutMs?: number } = {},
 ): Promise<SendResult<T>> {
-	const { json = true, withAuth = true } = opts;
+	const {
+		json = true,
+		withAuth = true,
+		timeoutMs = REQUEST_TIMEOUT_MS,
+	} = opts;
 	const headers: Record<string, string> = {
 		Accept: "application/json",
 		...((init.headers as Record<string, string>) || {}),
@@ -252,35 +270,50 @@ async function send<T>(
 	const token = withAuth ? tokenStore.get() : null;
 	if (token) headers["Authorization"] = `Bearer ${token}`;
 
-	let res: Response;
+	// Hard timeout: cancel the request instead of leaving it pending.
+	const ctrl = new AbortController();
+	const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
 	try {
-		res = await fetch(`${BASE_URL}/api${path}`, { ...init, headers });
+		const res = await fetch(`${BASE_URL}/api${path}`, {
+			...init,
+			headers,
+			signal: ctrl.signal,
+		});
+
+		let body: ApiEnvelope<T>;
+		try {
+			body = (await res.json()) as ApiEnvelope<T>;
+		} catch {
+			body = {
+				success: false,
+				message: `Unexpected server response (${res.status}).`,
+				errors: [],
+			};
+		}
+
+		// Login problem -> back to the login page. Runs whether or not a
+		// token was sent (a missing token in this tab is the same problem).
+		if (
+			withAuth &&
+			!path.startsWith("/auth") &&
+			(res.status === 401 || res.status === 403) &&
+			LOGIN_PROBLEM_MESSAGES.includes(body.message)
+		) {
+			handleLoginExpired();
+		}
+		return { reached: true, status: res.status, body };
 	} catch (error) {
 		return { reached: false, error };
+	} finally {
+		clearTimeout(timer);
 	}
-
-	let body: ApiEnvelope<T>;
-	try {
-		body = (await res.json()) as ApiEnvelope<T>;
-	} catch {
-		body = {
-			success: false,
-			message: `Unexpected server response (${res.status}).`,
-			errors: [],
-		};
-	}
-	if (
-		token &&
-		!path.startsWith("/auth") &&
-		(res.status === 401 || res.status === 403) &&
-		LOGIN_PROBLEM_MESSAGES.includes(body.message)
-	) {
-		handleLoginExpired();
-	}
-	return { reached: true, status: res.status, body };
 }
 
-const networkErrorEnvelope = <T>(error: unknown, offline = true): ApiEnvelope<T> => ({
+const networkErrorEnvelope = <T>(
+	error: unknown,
+	offline = true,
+): ApiEnvelope<T> => ({
 	success: false,
 	message: !offline
 		? SERVER_ERROR_MESSAGE
@@ -299,7 +332,11 @@ async function request<T>(
 ): Promise<ApiEnvelope<T>> {
 	const r = await send<T>(path, init);
 	if (!r.reached) {
-		const offline = await confirmOffline(init.method ?? "GET", path, r.error);
+		const offline = await confirmOffline(
+			init.method ?? "GET",
+			path,
+			r.error,
+		);
 		return networkErrorEnvelope<T>(r.error, offline);
 	}
 	reportReachedServer();
@@ -383,6 +420,24 @@ async function getWithCache<T>(path: string): Promise<ApiEnvelope<T>> {
 	}
 	return first.body;
 }
+
+// ── share identical GETs that are already running ──
+// If /chats is asked for again while the first /chats call hasn't finished
+// (slow backend + polling), reuse the running call instead of starting
+// another one. Keyed per user so nobody gets another user's answer.
+const inflightGets = new Map<string, Promise<ApiEnvelope<unknown>>>();
+
+const dedupedGet = <T>(path: string): Promise<ApiEnvelope<T>> => {
+	const key = `${currentUserKey()}|${path}`;
+	const running = inflightGets.get(key);
+	if (running) return running as Promise<ApiEnvelope<T>>;
+
+	const p = getWithCache<T>(path).finally(() => {
+		inflightGets.delete(key);
+	});
+	inflightGets.set(key, p as Promise<ApiEnvelope<unknown>>);
+	return p;
+};
 
 // ── change that can wait for the internet ──
 export interface QueueOptions {
@@ -478,8 +533,11 @@ async function writeOrQueue<T>(
 }
 
 // Used by lib/offlineSync.ts to send one saved change.
-export const sendQueued = <T>(method: "POST" | "PATCH", path: string, body: unknown) =>
-	send<T>(path, { method, body: JSON.stringify(body) });
+export const sendQueued = <T>(
+	method: "POST" | "PATCH",
+	path: string,
+	body: unknown,
+) => send<T>(path, { method, body: JSON.stringify(body) });
 
 // Multipart form upload (file uploads). Online-only.
 //
@@ -494,7 +552,7 @@ async function requestForm<T>(
 	const r = await send<T>(
 		path,
 		{ method: "POST", body: form },
-		{ json: false, withAuth },
+		{ json: false, withAuth, timeoutMs: UPLOAD_TIMEOUT_MS },
 	);
 	if (!r.reached) {
 		const offline = await confirmOffline("POST", path, r.error);
@@ -505,7 +563,7 @@ async function requestForm<T>(
 }
 
 export const api = {
-	get: <T>(path: string) => getWithCache<T>(path),
+	get: <T>(path: string) => dedupedGet<T>(path),
 	post: <T>(path: string, body: unknown) =>
 		request<T>(path, { method: "POST", body: JSON.stringify(body) }),
 	patch: <T>(path: string, body?: unknown) =>

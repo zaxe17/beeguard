@@ -8,8 +8,13 @@ import { PrivacyPolicyPage, TermsConditionPage } from "./TermsCondition";
 import { Input, Select } from "../ui/Input";
 import { PhoneInput } from "../ui/PhoneInput";
 import { formatPhMobile } from "@/lib/phone";
-import { isSoundOn, playNotificationSound, setSoundOn, unlockNotificationSound } from "@/lib/notifySound";
-import { Button } from "../ui/Button";
+import {
+	isSoundOn,
+	playNotificationSound,
+	setSoundOn,
+	unlockNotificationSound,
+} from "@/lib/notifySound";
+import { BackButton, Button } from "../ui/Button";
 import { SettingsTabs, SwitchTab } from "../Tab";
 import { Icon } from "@iconify/react";
 import MobileOverlay from "../MobileOverlay";
@@ -65,7 +70,9 @@ const FarmPhotoEditor = ({
 }) => {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [busy, setBusy] = useState(false);
-	const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(
+		null,
+	);
 	const src = mediaSrc(photo) ?? "/assets/farms/farm1.jpg";
 
 	const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +91,10 @@ const FarmPhotoEditor = ({
 			onChanged(res.data.url);
 			setMsg({ text: "Farm photo updated." });
 		} else {
-			setMsg({ text: res.message || "Couldn't upload the photo.", isError: true });
+			setMsg({
+				text: res.message || "Couldn't upload the photo.",
+				isError: true,
+			});
 		}
 	};
 
@@ -96,7 +106,10 @@ const FarmPhotoEditor = ({
 			onChanged(null);
 			setMsg({ text: "Farm photo removed." });
 		} else {
-			setMsg({ text: res.message || "Couldn't remove the photo.", isError: true });
+			setMsg({
+				text: res.message || "Couldn't remove the photo.",
+				isError: true,
+			});
 		}
 	};
 
@@ -105,7 +118,11 @@ const FarmPhotoEditor = ({
 			<span className="text-sm text-[#817b70]">Bee Farm Photo</span>
 			<div className="relative w-full h-40 rounded-xl overflow-hidden border border-[#e2e2e6] bg-[#f3eed8]">
 				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img src={src} alt="Bee farm" className="w-full h-full object-cover" />
+				<img
+					src={src}
+					alt="Bee farm"
+					className="w-full h-full object-cover"
+				/>
 				<div className="absolute bottom-2 right-2 flex gap-2">
 					{photo && (
 						<button
@@ -121,17 +138,34 @@ const FarmPhotoEditor = ({
 						onClick={() => inputRef.current?.click()}
 						disabled={busy}
 						className="Poppins-SemiBold text-xs bg-[#ffdb4f] text-[#4a2f00] rounded-full px-3 py-1.5 shadow flex items-center gap-1 disabled:opacity-60">
-						<Icon icon={busy ? "eos-icons:loading" : "mdi:camera"} className="w-4 h-4" />
-						{busy ? "Uploading…" : photo ? "Change photo" : "Add photo"}
+						<Icon
+							icon={busy ? "eos-icons:loading" : "mdi:camera"}
+							className="w-4 h-4"
+						/>
+						{busy
+							? "Uploading…"
+							: photo
+								? "Change photo"
+								: "Add photo"}
 					</button>
 				</div>
 			</div>
-			<input ref={inputRef} type="file" accept={PHOTO_ACCEPT} hidden onChange={onPick} />
+			<input
+				ref={inputRef}
+				type="file"
+				accept={PHOTO_ACCEPT}
+				hidden
+				onChange={onPick}
+			/>
 			<p className="text-[11px] text-[#a6a3a3]">
-				Citizens see this on the Bee Farm page. JPG, PNG or WEBP, up to 5 MB.
+				Citizens see this on the Bee Farm page. JPG, PNG or WEBP, up to
+				5 MB.
 			</p>
 			{msg && (
-				<p className={`text-xs ${msg.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>{msg.text}</p>
+				<p
+					className={`text-xs ${msg.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
+					{msg.text}
+				</p>
 			)}
 		</div>
 	);
@@ -170,7 +204,10 @@ const PushNotificationSwitch = () => {
 	const [on, setOn] = useState<boolean | null>(null);
 	const [device, setDevice] = useState<PushState | null>(null);
 	const [busy, setBusy] = useState(false);
-	const [note, setNote] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [note, setNote] = useState<{
+		text: string;
+		isError?: boolean;
+	} | null>(null);
 
 	useEffect(() => {
 		warmUpPush();
@@ -190,7 +227,10 @@ const PushNotificationSwitch = () => {
 		if (value) {
 			const res = await enablePush(); // asks the browser the first time
 			setDevice(res.state);
-			if (!res.ok) deviceNote = res.message ?? "Couldn't turn on notifications on this device.";
+			if (!res.ok)
+				deviceNote =
+					res.message ??
+					"Couldn't turn on notifications on this device.";
 		} else {
 			await disablePush();
 			setDevice(await getPushState());
@@ -202,7 +242,15 @@ const PushNotificationSwitch = () => {
 			setNote({ text: res.message || "Couldn't save.", isError: true });
 			return;
 		}
-		setNote(deviceNote ? { text: deviceNote, isError: true } : { text: value ? "Notifications are on." : "Notifications are off." });
+		setNote(
+			deviceNote
+				? { text: deviceNote, isError: true }
+				: {
+						text: value
+							? "Notifications are on."
+							: "Notifications are off.",
+					},
+		);
 	};
 
 	const turnOnDevice = async () => {
@@ -210,14 +258,28 @@ const PushNotificationSwitch = () => {
 		const res = await enablePush();
 		setBusy(false);
 		setDevice(res.state);
-		setNote(res.ok ? { text: "Notifications are on for this device." } : { text: res.message ?? "Couldn't turn on notifications.", isError: true });
+		setNote(
+			res.ok
+				? { text: "Notifications are on for this device." }
+				: {
+						text: res.message ?? "Couldn't turn on notifications.",
+						isError: true,
+					},
+		);
 	};
 
 	const test = async () => {
 		setBusy(true);
 		const res = await sendTestPush();
 		setBusy(false);
-		setNote(res.success ? { text: res.message || "Test sent." } : { text: res.message || "Couldn't send a test.", isError: true });
+		setNote(
+			res.success
+				? { text: res.message || "Test sent." }
+				: {
+						text: res.message || "Couldn't send a test.",
+						isError: true,
+					},
+		);
 	};
 
 	return (
@@ -250,12 +312,15 @@ const PushNotificationSwitch = () => {
 			)}
 			{on && device === "blocked" && (
 				<p className="text-xs text-red-600">
-					Notifications are blocked in this browser. Allow them in the site settings (icon left of
-					the address bar), then reload.
+					Notifications are blocked in this browser. Allow them in the
+					site settings (icon left of the address bar), then reload.
 				</p>
 			)}
 			{note && (
-				<p className={`text-xs ${note.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>{note.text}</p>
+				<p
+					className={`text-xs ${note.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
+					{note.text}
+				</p>
 			)}
 		</div>
 	);
@@ -297,9 +362,15 @@ const MainProfileSettings = ({
 			<ProfileDisplay
 				name={user?.name ?? ""}
 				email={user?.email ?? ""}
-				onClick={isBeekeeper ? () => onSelectDetail("verify") : undefined}
+				onClick={
+					isBeekeeper ? () => onSelectDetail("verify") : undefined
+				}
 				editablePhoto
-				verificationStatus={isBeekeeper ? user?.verification_status ?? "Unverified" : null}
+				verificationStatus={
+					isBeekeeper
+						? (user?.verification_status ?? "Unverified")
+						: null
+				}
 			/>
 			<div className="w-full h-full flex justify-center mt-5">
 				<div className="lg:w-2/3 w-full h-full flex flex-col gap-3">
@@ -314,7 +385,10 @@ const MainProfileSettings = ({
 						onClick={() => onSelect("about")}
 					/>
 					{/* Clears the saved login before leaving */}
-					<Link href="/" onClick={() => logout()} className="mt-auto mb-3">
+					<Link
+						href="/"
+						onClick={() => logout()}
+						className="mt-auto mb-3">
 						<SettingsTabs
 							label="Log Out"
 							icon="heroicons-outline:logout"
@@ -331,14 +405,24 @@ const Settings = ({
 }: {
 	onSelectDetail: (detail: DetailKey) => void;
 }) => {
+	const pathname = usePathname();
+	const profileRoute = pathname.startsWith("/beekeeper")
+		? "/beekeeper/profile"
+		: "/citizen/profile";
+
 	return (
 		<Container
 			height="100%"
 			borderNone
 			className="lg:w-[35%] w-full h-full shrink-0">
-			<span className="Poppins-Bold text-center text-[#4a2f00] text-3xl mt-5 mb-10">
-				Settings
-			</span>
+			<div className="sticky top-0 z-10 flex w-full items-center justify-center bg-[#fffbe6] px-4 pt-4 pb-6">
+				<div className="absolute left-2 top-1/2 -translate-y-1/2">
+					<BackButton route={profileRoute} />
+				</div>
+				<span className="Poppins-Bold text-3xl text-[#4a2f00]">
+					Settings
+				</span>
+			</div>
 
 			<div className="w-full flex flex-col items-center justify-center gap-5">
 				{/* ACCOUNT */}
@@ -430,7 +514,10 @@ const PersonalInfo = () => {
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [saving, setSaving] = useState(false);
 	const [locating, setLocating] = useState(false);
-	const [status, setStatus] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [status, setStatus] = useState<{
+		text: string;
+		isError?: boolean;
+	} | null>(null);
 
 	useEffect(() => {
 		profileService.get().then((res) => {
@@ -448,7 +535,8 @@ const PersonalInfo = () => {
 	if (!form || !profile) {
 		return (
 			<FormContainer width="lg:w-2/3 w-full">
-				<p className={`text-center text-sm ${loadError ? "text-red-600" : "text-[#a6a3a3]"}`}>
+				<p
+					className={`text-center text-sm ${loadError ? "text-red-600" : "text-[#a6a3a3]"}`}>
 					{loadError ?? "Loading your profile…"}
 				</p>
 			</FormContainer>
@@ -460,7 +548,9 @@ const PersonalInfo = () => {
 		setForm((f) => (f ? { ...f, [key]: value } : f));
 		setErrors((e) => {
 			const next = { ...e };
-			delete next[key === "latitude" || key === "longitude" ? "location" : key];
+			delete next[
+				key === "latitude" || key === "longitude" ? "location" : key
+			];
 			return next;
 		});
 		setStatus(null);
@@ -468,12 +558,20 @@ const PersonalInfo = () => {
 
 	// Only what changed is sent.
 	const changes: ProfileUpdate = {};
-	(["name", "username", "contact_no", "farm_name", "apiary_type"] as const).forEach((k) => {
+	(
+		["name", "username", "contact_no", "farm_name", "apiary_type"] as const
+	).forEach((k) => {
 		if (k in profile && (form[k] ?? "") !== (profile[k] ?? "")) {
-			(changes as Record<string, unknown>)[k] = typeof form[k] === "string" ? (form[k] as string).trim() : form[k];
+			(changes as Record<string, unknown>)[k] =
+				typeof form[k] === "string"
+					? (form[k] as string).trim()
+					: form[k];
 		}
 	});
-	if (form.latitude !== profile.latitude || form.longitude !== profile.longitude) {
+	if (
+		form.latitude !== profile.latitude ||
+		form.longitude !== profile.longitude
+	) {
 		changes.latitude = form.latitude;
 		changes.longitude = form.longitude;
 	}
@@ -484,7 +582,11 @@ const PersonalInfo = () => {
 		const pos = await getCoordinatesOrFallback();
 		setLocating(false);
 		if (pos.latitude == null) {
-			setErrors((e) => ({ ...e, location: "Couldn't get your location. Allow location access or tap the map." }));
+			setErrors((e) => ({
+				...e,
+				location:
+					"Couldn't get your location. Allow location access or tap the map.",
+			}));
 			return;
 		}
 		set("latitude", pos.latitude);
@@ -505,7 +607,10 @@ const PersonalInfo = () => {
 			refresh(); // name / location used elsewhere in the app
 		} else {
 			setErrors(res.field_errors ?? {});
-			setStatus({ text: res.message || "Couldn't save your profile.", isError: true });
+			setStatus({
+				text: res.message || "Couldn't save your profile.",
+				isError: true,
+			});
 		}
 	};
 
@@ -553,8 +658,12 @@ const PersonalInfo = () => {
 						<FarmPhotoEditor
 							photo={profile.farm_photo}
 							onChanged={(url) => {
-								setProfile((p) => (p ? { ...p, farm_photo: url } : p));
-								setForm((f) => (f ? { ...f, farm_photo: url } : f));
+								setProfile((p) =>
+									p ? { ...p, farm_photo: url } : p,
+								);
+								setForm((f) =>
+									f ? { ...f, farm_photo: url } : f,
+								);
 							}}
 						/>
 
@@ -568,9 +677,14 @@ const PersonalInfo = () => {
 
 						<Select
 							label="Apiary Type"
-							options={APIARY_TYPES.map((t) => ({ label: t, value: t }))}
+							options={APIARY_TYPES.map((t) => ({
+								label: t,
+								value: t,
+							}))}
 							value={form.apiary_type ?? ""}
-							onSelectChange={(e) => set("apiary_type", e.target.value)}
+							onSelectChange={(e) =>
+								set("apiary_type", e.target.value)
+							}
 							error={!!errors.apiary_type}
 						/>
 						<FieldError text={errors.apiary_type} />
@@ -588,12 +702,17 @@ const PersonalInfo = () => {
 							onClick={useMyLocation}
 							disabled={locating}
 							className="Poppins-SemiBold text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1 disabled:opacity-60 flex items-center gap-1">
-							<Icon icon="mdi:crosshairs-gps" className="w-3.5 h-3.5" />
+							<Icon
+								icon="mdi:crosshairs-gps"
+								className="w-3.5 h-3.5"
+							/>
 							{locating ? "Locating…" : "Use my current location"}
 						</button>
 					</div>
 					<p className="Poppins-SemiBold text-sm text-[#4a2f00]">
-						{pin ? placeName : "No location pinned yet — tap the map."}
+						{pin
+							? placeName
+							: "No location pinned yet — tap the map."}
 					</p>
 					<div className="w-full h-56 rounded-xl relative overflow-hidden border border-[#e2e2e6]">
 						<Map
@@ -617,7 +736,8 @@ const PersonalInfo = () => {
 			</div>
 
 			{status && (
-				<p className={`text-sm text-center mb-3 ${status.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
+				<p
+					className={`text-sm text-center mb-3 ${status.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
 					{status.text}
 				</p>
 			)}
@@ -639,7 +759,10 @@ const ChangePassword = () => {
 	const [show, setShow] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [saving, setSaving] = useState(false);
-	const [status, setStatus] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [status, setStatus] = useState<{
+		text: string;
+		isError?: boolean;
+	} | null>(null);
 
 	const clear = (key: string) => {
 		setErrors((e) => {
@@ -654,8 +777,10 @@ const ChangePassword = () => {
 		const local: Record<string, string> = {};
 		if (!current) local.current_password = "Enter your current password.";
 		if (next.length < 8 || !/[A-Za-z]/.test(next) || !/\d/.test(next))
-			local.new_password = "Use at least 8 characters with letters and numbers.";
-		if (next !== confirm) local.confirm_password = "Passwords do not match.";
+			local.new_password =
+				"Use at least 8 characters with letters and numbers.";
+		if (next !== confirm)
+			local.confirm_password = "Passwords do not match.";
 		if (Object.keys(local).length) {
 			setErrors(local);
 			return;
@@ -671,7 +796,10 @@ const ChangePassword = () => {
 			setStatus({ text: "Your password was changed." });
 		} else {
 			setErrors(res.field_errors ?? {});
-			setStatus({ text: res.message || "Couldn't change your password.", isError: true });
+			setStatus({
+				text: res.message || "Couldn't change your password.",
+				isError: true,
+			});
 		}
 	};
 
@@ -723,13 +851,18 @@ const ChangePassword = () => {
 				<FieldError text={errors.confirm_password} />
 
 				<label className="flex items-center gap-2 text-xs text-[#817b70] cursor-pointer select-none">
-					<input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
+					<input
+						type="checkbox"
+						checked={show}
+						onChange={(e) => setShow(e.target.checked)}
+					/>
 					Show passwords
 				</label>
 			</div>
 
 			{status && (
-				<p className={`text-sm text-center mb-3 ${status.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
+				<p
+					className={`text-sm text-center mb-3 ${status.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
 					{status.text}
 				</p>
 			)}
@@ -764,17 +897,19 @@ const VerifyBeekeeperForm = () => {
 			return;
 		}
 		let cancelled = false;
-		Promise.all([verificationService.mine(), verificationService.documentTypes()]).then(
-			([mine, types]) => {
-				if (cancelled) return;
-				if (mine.success && mine.data) {
-					setInfo(mine.data);
-					if (mine.data.document_type) setDocumentType(mine.data.document_type);
-				}
-				if (types.success && types.data) setDocumentTypes(types.data);
-				setLoading(false);
-			},
-		);
+		Promise.all([
+			verificationService.mine(),
+			verificationService.documentTypes(),
+		]).then(([mine, types]) => {
+			if (cancelled) return;
+			if (mine.success && mine.data) {
+				setInfo(mine.data);
+				if (mine.data.document_type)
+					setDocumentType(mine.data.document_type);
+			}
+			if (types.success && types.data) setDocumentTypes(types.data);
+			setLoading(false);
+		});
 		return () => {
 			cancelled = true;
 		};
@@ -856,33 +991,57 @@ const VerifyBeekeeperForm = () => {
 				{loading && <p className="text-xs text-[#817b70]">Loading…</p>}
 				{isPending && (
 					<p className="text-xs text-center text-[#817b70]">
-						Your {info?.document_type ?? "document"} is being reviewed
-						{info?.submitted_at ? ` (submitted ${formatWhen(info.submitted_at)})` : ""}.
-						You can upload a different file below if needed.
+						Your {info?.document_type ?? "document"} is being
+						reviewed
+						{info?.submitted_at
+							? ` (submitted ${formatWhen(info.submitted_at)})`
+							: ""}
+						. You can upload a different file below if needed.
 					</p>
 				)}
 				{isRejected && (
 					<p className="text-xs text-center text-red-600">
-						Rejected{info?.rejection_reason ? `: ${info.rejection_reason}` : ""}. Please
-						upload a new document.
+						Rejected
+						{info?.rejection_reason
+							? `: ${info.rejection_reason}`
+							: ""}
+						. Please upload a new document.
 					</p>
 				)}
 				{isVerified && (
 					<p className="text-xs text-center text-[#817b70]">
 						Your account is verified
-						{info?.reviewed_at ? ` since ${formatWhen(info.reviewed_at)}` : ""}.
-						You can view bee reports and send rescue offers.
+						{info?.reviewed_at
+							? ` since ${formatWhen(info.reviewed_at)}`
+							: ""}
+						. You can view bee reports and send rescue offers.
 					</p>
 				)}
 			</div>
 
 			<div className="flex flex-col gap-3 my-10">
 				<div className="flex flex-row gap-3">
-					<Input label="Full Name" value={info?.name ?? user?.name ?? ""} disabled />
-					<Input label="Username" value={user?.username ?? ""} disabled />
+					<Input
+						label="Full Name"
+						value={info?.name ?? user?.name ?? ""}
+						disabled
+					/>
+					<Input
+						label="Username"
+						value={user?.username ?? ""}
+						disabled
+					/>
 				</div>
-				<Input label="Email" value={info?.email ?? user?.email ?? ""} disabled />
-				<Input label="Phone Number" value={formatPhMobile(info?.contact_no)} disabled />
+				<Input
+					label="Email"
+					value={info?.email ?? user?.email ?? ""}
+					disabled
+				/>
+				<Input
+					label="Phone Number"
+					value={formatPhMobile(info?.contact_no)}
+					disabled
+				/>
 				<Input label="Location" value={info?.address ?? ""} disabled />
 
 				{/* VERIFIED — the approved document, read-only */}
@@ -895,40 +1054,46 @@ const VerifyBeekeeperForm = () => {
 				)}
 
 				{!isVerified && (
-				<div className="flex flex-row gap-3 items-end">
-					<Select
-						label="Type of Document"
-						placeholder="Select Document"
-						options={documentTypes.map((t) => ({ label: t, value: t }))}
-						value={documentType}
-						onSelectChange={(e) => {
-							setDocumentType(e.target.value);
-							setErrorMsg(null);
-						}}
-						disabled={isVerified || submitting}
-					/>
-
-					<span
-						onClick={() => {
-							if (!isVerified && !submitting) fileInputRef.current?.click();
-						}}
-						className={`Poppins-SemiBold text-nowrap py-1 text-sm text-[#737373] flex items-center gap-1 ${
-							isVerified ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-						}`}>
-						Upload File{" "}
-						<Icon
-							icon="basil:upload-solid"
-							className="w-6 h-6 mb-1"
+					<div className="flex flex-row gap-3 items-end">
+						<Select
+							label="Type of Document"
+							placeholder="Select Document"
+							options={documentTypes.map((t) => ({
+								label: t,
+								value: t,
+							}))}
+							value={documentType}
+							onSelectChange={(e) => {
+								setDocumentType(e.target.value);
+								setErrorMsg(null);
+							}}
+							disabled={isVerified || submitting}
 						/>
-					</span>
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept="image/jpeg,image/png,image/webp,application/pdf"
-						className="hidden"
-						onChange={handleFileChange}
-					/>
-				</div>
+
+						<span
+							onClick={() => {
+								if (!isVerified && !submitting)
+									fileInputRef.current?.click();
+							}}
+							className={`Poppins-SemiBold text-nowrap py-1 text-sm text-[#737373] flex items-center gap-1 ${
+								isVerified
+									? "opacity-50 cursor-not-allowed"
+									: "cursor-pointer"
+							}`}>
+							Upload File{" "}
+							<Icon
+								icon="basil:upload-solid"
+								className="w-6 h-6 mb-1"
+							/>
+						</span>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/jpeg,image/png,image/webp,application/pdf"
+							className="hidden"
+							onChange={handleFileChange}
+						/>
+					</div>
 				)}
 
 				{/* CHOSEN FILE */}
@@ -940,19 +1105,24 @@ const VerifyBeekeeperForm = () => {
 				)}
 				{!isVerified && (
 					<p className="text-[11px] text-[#817b70]">
-						Accepted: JPG, PNG, WEBP or PDF, up to 10 MB. Only admins can
-						see your document.
+						Accepted: JPG, PNG, WEBP or PDF, up to 10 MB. Only
+						admins can see your document.
 					</p>
 				)}
 
 				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
-				{successMsg && <p className="text-xs text-[#1f6f5f]">{successMsg}</p>}
+				{successMsg && (
+					<p className="text-xs text-[#1f6f5f]">{successMsg}</p>
+				)}
 			</div>
 
 			{/* VERIFIED — the Submit button becomes a "Verified Beekeeper" badge */}
 			{isVerified ? (
 				<div className="Poppins-Bold w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-[#8ac44f]/20 text-[#00a000] border border-[#8ac44f]/50">
-					<Icon icon="material-symbols:verified-rounded" className="w-5 h-5" />
+					<Icon
+						icon="material-symbols:verified-rounded"
+						className="w-5 h-5"
+					/>
 					Verified Beekeeper
 				</div>
 			) : (
@@ -1053,7 +1223,8 @@ const ProfileSettingsContent = () => {
 							/>
 						</button>
 						<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
-							{detail === "verify" && user?.verification_status === "Verified"
+							{detail === "verify" &&
+							user?.verification_status === "Verified"
 								? "Verified Beekeeper"
 								: DETAIL_TITLES[detail]}
 						</span>

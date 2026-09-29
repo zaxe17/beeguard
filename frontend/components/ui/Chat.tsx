@@ -134,7 +134,7 @@ export const UserMessageCard = ({
 					{name}
 				</h3>
 				<span
-					className={`${read ? "text-[#a6a3a3]" : "Poppins-SemiBold text-[#646361]"} text-[11px] text-[#a6a3a3]`}>
+					className={`${read ? "text-[#a6a3a3]" : "Poppins-SemiBold text-[#646361]"} text-[11px] text-[#a6a3a3] line-clamp-1`}>
 					{location}
 				</span>
 				<span

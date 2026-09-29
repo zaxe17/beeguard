@@ -138,7 +138,9 @@ export const UserMessageCard = ({
 				</span>
 			</div>
 
-			<div className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100" ref={buttonRef}>
+			<div
+				className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100"
+				ref={buttonRef}>
 				<div
 					onClick={toggleMenu}
 					className="relative w-7 h-7 p-1.5 bg-amber-200 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
@@ -231,7 +233,8 @@ const LocationBubble = ({
 			: "Shared a location";
 
 	let status = "Pinned location";
-	if (live) status = `Live · ${formatTimeLeft(message.live_seconds_left)} left`;
+	if (live)
+		status = `Live · ${formatTimeLeft(message.live_seconds_left)} left`;
 	else if (ended) status = "Live location ended";
 
 	// Sender's device stopped sending updates (tab closed, no signal…).
@@ -244,7 +247,8 @@ const LocationBubble = ({
 		<div
 			className={`w-64 overflow-hidden rounded-2xl shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"}`}>
 			{/* MAP — `isolate` keeps Leaflet's z-indexes inside the bubble */}
-			<div className={`relative w-full h-36 isolate ${ended ? "grayscale opacity-70" : ""}`}>
+			<div
+				className={`relative w-full h-36 isolate ${ended ? "grayscale opacity-70" : ""}`}>
 				<LocationMap latitude={lat} longitude={lng} live={live} />
 				{live && (
 					<span className="absolute top-2 left-2 z-500 flex items-center gap-1 bg-[#ffa004] text-white text-[10px] Poppins-SemiBold px-2 py-0.5 rounded-full">
@@ -260,11 +264,14 @@ const LocationBubble = ({
 						icon={live ? "mdi:crosshairs-gps" : "mdi:map-marker"}
 						className="w-4 h-4 text-[#4a2f00] shrink-0"
 					/>
-					<span className="text-sm Poppins-SemiBold text-[#4a2f00]">{title}</span>
+					<span className="text-sm Poppins-SemiBold text-[#4a2f00]">
+						{title}
+					</span>
 				</div>
 				<span className="text-[11px] text-[#6b5a2e]">
 					{status}
-					{stale && ` · updated ${formatAgo(message.location_age_seconds as number)}`}
+					{stale &&
+						` · updated ${formatAgo(message.location_age_seconds as number)}`}
 				</span>
 
 				<div className="flex gap-2 mt-1">
@@ -305,7 +312,11 @@ const ImageBubble = ({ message }: { message: ChatMessage }) => (
 	</a>
 );
 
-export const BubbleChat = ({ sender, messages, onStopLive }: BubbleChatProps) => {
+export const BubbleChat = ({
+	sender,
+	messages,
+	onStopLive,
+}: BubbleChatProps) => {
 	const isUser = sender === "user";
 
 	return (
@@ -320,8 +331,8 @@ export const BubbleChat = ({ sender, messages, onStopLive }: BubbleChatProps) =>
 					msg.message_type === "image" && msg.image_url ? (
 						<ImageBubble key={msg.message_id} message={msg} />
 					) : msg.message_type === "location" &&
-					msg.latitude !== null &&
-					msg.longitude !== null ? (
+					  msg.latitude !== null &&
+					  msg.longitude !== null ? (
 						<LocationBubble
 							key={msg.message_id}
 							message={msg}
@@ -331,7 +342,7 @@ export const BubbleChat = ({ sender, messages, onStopLive }: BubbleChatProps) =>
 					) : (
 						<div
 							key={msg.message_id}
-							className={`max-w-100 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
+							className={`lg:max-w-100 max-w-65 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl`}>
 							<p className="text-sm">{msg.content}</p>
 						</div>
 					),

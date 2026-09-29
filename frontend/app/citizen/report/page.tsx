@@ -334,8 +334,6 @@ const Camera = () => {
 			openModal("beeIdentify", {
 				species: res.data.identified_species,
 				confidencePercent: res.data.confidence_score,
-				// "unrecognized" -> popup says it's not a species BeeGuard knows
-				matchStatus: res.data.match_status,
 			});
 		});
 

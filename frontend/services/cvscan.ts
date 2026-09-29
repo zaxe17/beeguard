@@ -17,15 +17,8 @@ export interface CVScanSpeciesBreakdown {
 	avg_confidence: number; // 0-100
 }
 
-// "matched"      a known species was identified
-// "unrecognized" something bee-like was found, but not confidently one of
-//                the species BeeGuard knows (e.g. Apis dorsata) — no species
-// "no_bee"       nothing was detected
-export type CVMatchStatus = "matched" | "unrecognized" | "no_bee";
-
 export interface CVScanResult {
 	cvscan_id: string;
-	match_status?: CVMatchStatus; // older backends don't send it
 	image_url: string;
 	identified_species: string | null; // majority/dominant class
 	confidence_score: number | null; // 0-100, % of boxes agreeing with the dominant class

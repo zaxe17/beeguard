@@ -152,7 +152,9 @@ export const BeefarmOperation = ({
 						<span className="Poppins-SemiBold text-sm text-[#817b70] font-bold text-end">
 							Offer:{" "}
 							<span className="text-[#ff9a00]">
-								{offeredFee > 0 ? `₱${offeredFee.toLocaleString()}` : "Free rescue"}
+								{offeredFee > 0
+									? `₱${offeredFee.toLocaleString()}`
+									: "Free rescue"}
 							</span>
 						</span>
 					)}

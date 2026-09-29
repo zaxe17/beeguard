@@ -10,6 +10,7 @@ import {
 import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useModal } from "@/context/ModalContext";
+import { NotifCardSkeleton } from "../loading/SkeletonLoading";
 
 // Opens the same Report Details modal the Report tab uses
 // (<BeeReport /> in app/beekeeper/layout.tsx reads this payload).
@@ -170,7 +171,9 @@ const useNotifications = (onNotificationRead?: () => void) => {
 		// Admin notifications -> the page where the admin acts on it.
 		if (pathname.startsWith("/admin")) {
 			if (notif.notification_type === "new_report" && notif.reportID) {
-				router.push(`/admin/report?report=${encodeURIComponent(notif.reportID)}`);
+				router.push(
+					`/admin/report?report=${encodeURIComponent(notif.reportID)}`,
+				);
 			} else if (notif.notification_type === "alert_review") {
 				router.push("/admin/alert?tab=pending");
 			} else if (notif.notification_type === "verify_request") {
@@ -195,7 +198,9 @@ const useNotifications = (onNotificationRead?: () => void) => {
 		// Citizen: offers / resolved rescue -> Documents on that report
 		// (where they accept offers and rate the beekeeper).
 		if (isCitizen) {
-			router.push(`/citizen/document?report=${encodeURIComponent(notif.reportID)}`);
+			router.push(
+				`/citizen/document?report=${encodeURIComponent(notif.reportID)}`,
+			);
 			return;
 		}
 
@@ -232,7 +237,11 @@ const NotificationList = ({
 }) => {
 	if (loading) {
 		return (
-			<p className="text-center text-xs text-[#817b70] p-4">Loading…</p>
+			<>
+				{Array.from({ length: 5 }).map((_, i) => (
+					<NotifCardSkeleton key={i} />
+				))}
+			</>
 		);
 	}
 	if (notifs.length === 0) {

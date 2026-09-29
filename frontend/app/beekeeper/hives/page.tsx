@@ -19,6 +19,10 @@ import {
 import { analyticsService } from "@/services/analytics";
 import MobileOverlay from "@/components/MobileOverlay";
 import { useQueryParamState } from "@/hooks/useQueryParamState";
+import {
+	HiveDetailsSkeleton,
+	HiveTabSkeleton,
+} from "@/components/loading/SkeletonLoading";
 
 type ModalType =
 	| "addHive"
@@ -55,6 +59,9 @@ const HivesInner = () => {
 	// ang desktop selection tuwing sasara ang mobile overlay.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [thisMonthKg, setThisMonthKg] = useState<Record<string, number>>({});
+	// True LANG hanggang matapos ang UNANG load. Hindi na ito ginagawang
+	// true ulit kapag may HIVES_CHANGED event, kaya hindi kikislap ang
+	// skeleton at hindi mawawala ang listahan tuwing may update.
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 
@@ -74,7 +81,7 @@ const HivesInner = () => {
 	const mobileSelected = hiveParam !== null;
 
 	const loadAll = useCallback(async () => {
-		setLoading(true);
+		// NOTE: walang setLoading(true) dito (tingnan ang komento sa taas).
 		const [hivesRes, monthlyRes] = await Promise.all([
 			hiveService.list(),
 			analyticsService.hiveMonthlyYield?.() ??
@@ -184,9 +191,9 @@ const HivesInner = () => {
 				{/* SCROLLABLE HIVE LIST */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading ? (
-						<p className="text-center text-sm text-[#817b70] p-4">
-							Loading hives...
-						</p>
+						Array.from({ length: 4 }).map((_, i) => (
+							<HiveTabSkeleton key={i} />
+						))
 					) : filteredHives.length === 0 ? (
 						<div className="w-full h-full flex flex-col items-center justify-center text-center opacity-40 p-8">
 							<Icon
@@ -244,15 +251,20 @@ const HivesInner = () => {
 							yieldThisMonth={formatKg(
 								thisMonthKg[selectedHive.hive_id],
 							)}
-							replaceRecommended={needsQueenReplacement(selectedHive)}
-							replaceReason={selectedHive.queen_recommendation?.reason ?? null}
+							replaceRecommended={needsQueenReplacement(
+								selectedHive,
+							)}
+							replaceReason={
+								selectedHive.queen_recommendation?.reason ??
+								null
+							}
 							queenAgeDays={selectedHive.queen_age_days ?? null}
 						/>
+					) : loading ? (
+						<HiveDetailsSkeleton />
 					) : (
 						<p className="text-[#a6a3a3]">
-							{loading
-								? "Loading..."
-								: "Select a hive to see its details."}
+							Select a hive to see its details.
 						</p>
 					)}
 				</div>
@@ -277,7 +289,7 @@ const HivesInner = () => {
 					</div>
 
 					<div className="flex flex-col gap-6 items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
-						{selectedHive && (
+						{selectedHive ? (
 							<div className="w-full max-w-full">
 								<HiveDetailsContainer
 									hiveHealthButton={() =>
@@ -299,11 +311,24 @@ const HivesInner = () => {
 									yieldThisMonth={formatKg(
 										thisMonthKg[selectedHive.hive_id],
 									)}
-									replaceRecommended={needsQueenReplacement(selectedHive)}
-									replaceReason={selectedHive.queen_recommendation?.reason ?? null}
-									queenAgeDays={selectedHive.queen_age_days ?? null}
+									replaceRecommended={needsQueenReplacement(
+										selectedHive,
+									)}
+									replaceReason={
+										selectedHive.queen_recommendation
+											?.reason ?? null
+									}
+									queenAgeDays={
+										selectedHive.queen_age_days ?? null
+									}
 								/>
 							</div>
+						) : (
+							loading && (
+								<div className="w-full max-w-full">
+									<HiveDetailsSkeleton />
+								</div>
+							)
 						)}
 					</div>
 				</MobileOverlay>
@@ -320,8 +345,10 @@ const HivesInner = () => {
 								hiveName: queenAlertHive.hive_name,
 								healthStatus: queenAlertHive.health_status,
 								reasonCode:
-									queenAlertHive.queen_recommendation?.reason_code,
-								reason: queenAlertHive.queen_recommendation?.reason,
+									queenAlertHive.queen_recommendation
+										?.reason_code,
+								reason: queenAlertHive.queen_recommendation
+									?.reason,
 							}
 						: null
 				}
@@ -340,7 +367,14 @@ const HivesInner = () => {
 
 const Hives = () => {
 	return (
-		<Suspense fallback={<div>Loading...</div>}>
+		<Suspense
+			fallback={
+				<div className="w-full p-2 flex flex-col gap-2">
+					{Array.from({ length: 4 }).map((_, i) => (
+						<HiveTabSkeleton key={i} />
+					))}
+				</div>
+			}>
 			<HivesInner />
 		</Suspense>
 	);

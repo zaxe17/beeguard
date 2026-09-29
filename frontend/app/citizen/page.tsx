@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { BeefarmContainer, Container } from "@/components/ui/Container";
+import {
+	BeefarmContainer,
+	Container,
+} from "@/components/ui/Container";
 import { UserNav } from "@/components/UserNav";
 import { api } from "@/services/api";
 import { mediaSrc } from "@/services/profile";
 
 import bee_report from "@/public/assets/bee_report.png";
+import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
 
 // Shape returned by GET /api/farms — see services/farm_service.py
 // (same type as app/citizen/beefarm/page.tsx).
@@ -131,11 +135,6 @@ const Home = () => {
 						</span>
 					</span>
 
-					{loading && (
-						<p className="w-full text-center text-sm text-[#a6a3a3] py-4">
-							Loading nearby farms…
-						</p>
-					)}
 					{!loading && errorMsg && (
 						<p className="w-full text-center text-sm text-red-600 py-4">
 							{errorMsg}
@@ -148,28 +147,29 @@ const Home = () => {
 					)}
 
 					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
-						{shownFarms.map((farm) => (
-							<div
-								key={farm.beekeeperID}
-								onClick={() =>
-									router.push(
-										`/citizen/beefarm?farm=${farm.beekeeperID}`,
-									)
-								}>
-								<BeefarmContainer
-									// No per-farm photo upload exists yet, so every
-									// farm uses the same default (same as the Bee
-									// Farm page).
-									image={
-										mediaSrc(farm.image) ??
-										"/assets/farms/farm1.jpg"
-									}
-									farmName={farm.farmName}
-									location={farm.location}
-									miles={farm.miles ?? undefined}
-								/>
-							</div>
-						))}
+						{loading
+							? Array.from({ length: 3 }).map((_, i) => (
+									<BeefarmSkeleton key={i} />
+								))
+							: shownFarms.map((farm) => (
+									<div
+										key={farm.beekeeperID}
+										onClick={() =>
+											router.push(
+												`/citizen/beefarm?farm=${farm.beekeeperID}`,
+											)
+										}>
+										<BeefarmContainer
+											image={
+												mediaSrc(farm.image) ??
+												"/assets/farms/farm1.jpg"
+											}
+											farmName={farm.farmName}
+											location={farm.location}
+											miles={farm.miles ?? undefined}
+										/>
+									</div>
+								))}
 					</div>
 				</div>
 			</Container>

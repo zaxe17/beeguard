@@ -21,7 +21,11 @@ type BeeFarmProps = {
 };
 
 // FORM CONTAINER
-export const FormContainer = ({ children, width, onSubmit }: ContainerProps) => {
+export const FormContainer = ({
+	children,
+	width,
+	onSubmit,
+}: ContainerProps) => {
 	return (
 		<form
 			action=""

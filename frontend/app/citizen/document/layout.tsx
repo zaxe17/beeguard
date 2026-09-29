@@ -19,6 +19,7 @@ import {
 	reportWhen,
 	toUiStatus,
 } from "@/services/citizenReport";
+import { ReportCardSkeleton } from "@/components/loading/SkeletonLoading";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -71,7 +72,9 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 		};
 	}, [loadReports]);
 
-	const filteredReports = reports.filter((r) => matchesTab(r.status, activeStatus));
+	const filteredReports = reports.filter((r) =>
+		matchesTab(r.status, activeStatus),
+	);
 
 	// With no ?report=, the details page shows the newest report —
 	// highlight that one so the two sides agree.
@@ -98,12 +101,16 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 				{/* SCROLLABLE REPORT CARDS */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading && (
-						<p className="text-center text-sm text-[#a6a3a3] py-4">
-							Loading your reports…
-						</p>
+						<div className="flex flex-col gap-1">
+							{Array.from({ length: 5 }).map((_, i) => (
+								<ReportCardSkeleton key={i} />
+							))}
+						</div>
 					)}
 					{!loading && errorMsg && (
-						<p className="text-center text-sm text-red-600 py-4">{errorMsg}</p>
+						<p className="text-center text-sm text-red-600 py-4">
+							{errorMsg}
+						</p>
 					)}
 					{!loading && !errorMsg && filteredReports.length === 0 && (
 						<p className="text-center text-sm text-[#a6a3a3] py-4">
@@ -128,8 +135,12 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 										longitude={report.longitude}
 										date={formatDate(when)}
 										time={formatTime(when)}
-										imageUrl={reportImageSrc(report.image_url)}
-										selected={report.reportID === highlightedId}
+										imageUrl={reportImageSrc(
+											report.image_url,
+										)}
+										selected={
+											report.reportID === highlightedId
+										}
 									/>
 								</div>
 							);

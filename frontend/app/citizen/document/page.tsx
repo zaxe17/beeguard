@@ -17,6 +17,7 @@ import {
 	toUiStatus,
 } from "@/services/citizenReport";
 import { speciesLabel } from "@/data/species";
+import { OfferSkeleton, ReportDetailsSkeleton } from "@/components/loading/SkeletonLoading";
 
 // New offers from beekeepers show up without a page refresh.
 const OFFER_POLL_MS = 10000;
@@ -60,7 +61,13 @@ const CancelPendingReport = ({
 				BGcolor={armed ? "bg-red-600" : "bg-[#e2e2e6]"}
 				textColor={armed ? "white" : "#ff3131"}
 				width="150px"
-				label={busy ? "Cancelling…" : armed ? "Tap to confirm" : "Cancel Report"}
+				label={
+					busy
+						? "Cancelling…"
+						: armed
+							? "Tap to confirm"
+							: "Cancel Report"
+				}
 				onClick={handleClick}
 			/>
 			{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
@@ -86,8 +93,8 @@ const Offer = ({
 			<div className="w-full max-h-70 overflow-y-scroll flex flex-col pr-1">
 				{offers.length === 0 ? (
 					<p className="text-sm text-[#a6a3a3] py-4 text-center">
-						No offers yet. Nearby beekeepers have been notified. Offers
-						will appear here automatically.
+						No offers yet. Nearby beekeepers have been notified.
+						Offers will appear here automatically.
 					</p>
 				) : (
 					offers.map((offer) => (
@@ -177,7 +184,9 @@ const DocumentContent = () => {
 
 	const loadOffers = useCallback(async () => {
 		if (!reportId) return;
-		const res = await api.get<RescueOffer[]>(`/rescue-offers/report/${reportId}`);
+		const res = await api.get<RescueOffer[]>(
+			`/rescue-offers/report/${reportId}`,
+		);
 		if (res.success && res.data) setOffers(res.data);
 	}, [reportId]);
 
@@ -210,7 +219,10 @@ const DocumentContent = () => {
 	// Returns an error message, or null on success.
 	const cancelReport = async (): Promise<string | null> => {
 		if (!reportId) return "No report selected.";
-		const res = await api.post<ApiReport>(`/reports/${reportId}/cancel`, {});
+		const res = await api.post<ApiReport>(
+			`/reports/${reportId}/cancel`,
+			{},
+		);
 		if (res.success) {
 			handleUpdated();
 			return null;
@@ -220,8 +232,9 @@ const DocumentContent = () => {
 
 	if (loading) {
 		return (
-			<div className="w-full py-10 text-center text-sm text-[#a6a3a3]">
-				Loading report…
+			<div className="w-full flex flex-col gap-4">
+				<ReportDetailsSkeleton />
+				<OfferSkeleton />
 			</div>
 		);
 	}
@@ -237,7 +250,8 @@ const DocumentContent = () => {
 	// Accepting one offer rejects the rest, so at most one of these.
 	const assignedOffer =
 		offers.find(
-			(o) => o.offer_status === "Accepted" || o.offer_status === "Resolved",
+			(o) =>
+				o.offer_status === "Accepted" || o.offer_status === "Resolved",
 		) ?? null;
 	const pendingOffers = offers.filter((o) => o.offer_status === "Pending");
 	const isClosed =

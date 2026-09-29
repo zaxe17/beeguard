@@ -5,8 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Container, FormContainer } from "../ui/Container";
 import { ProfileDisplay } from "../Users";
 import { PrivacyPolicyPage, TermsConditionPage } from "./TermsCondition";
-import { Input, Select } from "../ui/Input";
-import { PhoneInput } from "../ui/PhoneInput";
+import { Input, PhoneInput, Select } from "../ui/Input";
 import { formatPhMobile } from "@/lib/phone";
 import {
 	isSoundOn,

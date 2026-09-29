@@ -33,6 +33,10 @@ import {
 	type BeekeeperReport,
 } from "@/services/beekeeperReport";
 import { reportImageSrc } from "@/services/citizenReport";
+import {
+	OperationSkeleton,
+	PesticideAlertSkeleton,
+} from "@/components/loading/SkeletonLoading";
 
 type ModalType = "BeeReport";
 
@@ -145,6 +149,7 @@ const Beekeeper = () => {
 	const [operations, setOperations] = useState<BeekeeperReport[]>([]);
 	const [operationsError, setOperationsError] = useState<string | null>(null);
 	const { openModal } = useModal<ModalType, BeeReportPayload>();
+	const [operationsLoading, setOperationsLoading] = useState(true);
 
 	const isVerified =
 		user?.role === "beekeeper" && user.verification_status === "Verified";
@@ -159,11 +164,13 @@ const Beekeeper = () => {
 		if (!isVerified) {
 			setOperations([]);
 			setOperationsError(null);
+			setOperationsLoading(false);
 			return;
 		}
 		const res = await beekeeperReportService.list();
 		if (!res.success || !res.data) {
 			setOperationsError(res.message || "Couldn't load reports.");
+			setOperationsLoading(false);
 			return;
 		}
 		setOperationsError(null);
@@ -184,6 +191,7 @@ const Beekeeper = () => {
 			);
 		});
 		setOperations(active);
+		setOperationsLoading(false);
 	}, [isVerified]);
 
 	useEffect(() => {
@@ -386,7 +394,13 @@ const Beekeeper = () => {
 							</span>
 						</span>
 
-						{operations.length > 0 ? (
+						{operationsLoading ? (
+							<div className="w-full flex-1 flex flex-col gap-3 overflow-hidden p-2">
+								{Array.from({ length: 3 }).map((_, i) => (
+									<OperationSkeleton key={i} />
+								))}
+							</div>
+						) : operations.length > 0 ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
 								{operations.map((r) => (
 									<OperationItem
@@ -439,7 +453,13 @@ const Beekeeper = () => {
 							</span>
 						</span>
 
-						{recentAlerts && recentAlerts.length > 0 ? (
+						{loading && recentAlerts.length === 0 ? (
+							<div className="w-full flex-1 flex flex-col gap-3 overflow-hidden p-2">
+								{Array.from({ length: 3 }).map((_, i) => (
+									<PesticideAlertSkeleton key={i} />
+								))}
+							</div>
+						) : recentAlerts && recentAlerts.length > 0 ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
 								{recentAlerts.map((a) => (
 									<PesticideAlert

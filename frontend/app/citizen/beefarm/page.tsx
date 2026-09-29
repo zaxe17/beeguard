@@ -13,6 +13,7 @@ import { useQueryParamState } from "@/hooks/useQueryParamState";
 import { api } from "@/services/api";
 import { mediaSrc } from "@/services/profile";
 import type { FarmMarker } from "@/components/ui/google-maps/Map";
+import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -124,46 +125,40 @@ const BeefarmPage = () => {
 
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
-					{loading && (
-						<div className="text-center text-sm text-[#a6a3a3] py-4">
-							Loading farms…
-						</div>
-					)}
+					{loading &&
+						Array.from({ length: 6 }).map((_, i) => (
+							<BeefarmSkeleton key={i} />
+						))}
+
 					{!loading && farms.length === 0 && (
 						<div className="text-center text-sm text-[#a6a3a3] py-4">
 							No farms found.
 						</div>
 					)}
-					{farms.map((farm) => (
-						<div
-							key={farm.beekeeperID}
-							onClick={() => handleFarmClick(farm.beekeeperID)}
-							className={
-								farm.beekeeperID === selectedFarmParam
-									? "cursor-pointer bg-[#fff1ad]/40 rounded-xl"
-									: "cursor-pointer"
-							}>
-							<BeefarmContainer
-								// NEW — default photo when a farm has no
-								// custom image set. There's currently no
-								// per-farm photo upload feature at all
-								// (beekeepers has no photo column in the
-								// schema you've sent so far), so `image`
-								// from GET /api/farms is always null today
-								// — every card falls back to this same
-								// default until an upload feature exists.
-								// Using farm1.jpg since it's the one asset
-								// confirmed to actually exist in your
-								// public/assets/farms/ folder (it's a
-								// static import elsewhere in this codebase,
-								// which would fail the build if missing).
-								image={mediaSrc(farm.image) ?? "/assets/farms/farm1.jpg"}
-								farmName={farm.farmName}
-								location={farm.location}
-								miles={farm.miles ?? 0}
-							/>
-						</div>
-					))}
+
+					{!loading &&
+						farms.map((farm) => (
+							<div
+								key={farm.beekeeperID}
+								onClick={() =>
+									handleFarmClick(farm.beekeeperID)
+								}
+								className={
+									farm.beekeeperID === selectedFarmParam
+										? "cursor-pointer bg-[#fff1ad]/40 rounded-xl"
+										: "cursor-pointer"
+								}>
+								<BeefarmContainer
+									image={
+										mediaSrc(farm.image) ??
+										"/assets/farms/farm1.jpg"
+									}
+									farmName={farm.farmName}
+									location={farm.location}
+									miles={farm.miles ?? 0}
+								/>
+							</div>
+						))}
 				</div>
 			</Container>
 
@@ -191,7 +186,10 @@ const BeefarmPage = () => {
 							<button
 								onClick={closeFarmParam}
 								className="absolute top-3 right-3 z-1000 flex items-center gap-1.5 bg-white/95 hover:bg-white text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] transition-all duration-130 ease-in">
-								<Icon icon="mdi:arrow-expand" className="w-4 h-4" />
+								<Icon
+									icon="mdi:arrow-expand"
+									className="w-4 h-4"
+								/>
 								Show full map
 							</button>
 						) : (
@@ -210,7 +208,9 @@ const BeefarmPage = () => {
 						className={`shrink-0 bg-white overflow-y-auto lg:scrollbar-auto scrollbar-none transition-[max-height] duration-300 ease-in-out ${
 							selectedFarmParam ? "max-h-[65%]" : "max-h-0"
 						}`}>
-						{selectedFarmParam && <BeefarmView farmId={selectedFarmParam} />}
+						{selectedFarmParam && (
+							<BeefarmView farmId={selectedFarmParam} />
+						)}
 					</div>
 				</div>
 			</div>
@@ -241,12 +241,16 @@ const BeefarmPage = () => {
 									<Map
 										markers={farmMarkers}
 										selectedMarkerId={selectedFarmParam}
-										onMarkerClick={(id) => openFarmParam(id)}
+										onMarkerClick={(id) =>
+											openFarmParam(id)
+										}
 									/>
 								</div>
 								<div className="flex-3 min-h-0 overflow-y-auto lg:scrollbar-auto scrollbar-none">
 									{selectedFarmParam && (
-										<BeefarmView farmId={selectedFarmParam} />
+										<BeefarmView
+											farmId={selectedFarmParam}
+										/>
 									)}
 								</div>
 							</div>

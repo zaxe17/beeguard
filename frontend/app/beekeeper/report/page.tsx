@@ -1,3 +1,4 @@
+// app/beekeeper/report/page.tsx
 "use client";
 
 import { ReportCard } from "@/components/ui/ReportCard";
@@ -17,6 +18,7 @@ import {
 	formatTime,
 	reportImageSrc,
 } from "@/services/citizenReport";
+import { ReportCardSkeleton } from "@/components/loading/SkeletonLoading";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -39,13 +41,16 @@ const LIST_POLL_MS = 15000;
 // showing an empty/broken report list.
 const NotVerifiedNotice = () => (
 	<div className="h-full flex flex-col items-center justify-center gap-3 text-center px-5">
-		<Icon icon="mdi:shield-alert-outline" className="w-16 h-16 text-[#a6a3a3]" />
+		<Icon
+			icon="mdi:shield-alert-outline"
+			className="w-16 h-16 text-[#a6a3a3]"
+		/>
 		<h3 className="Poppins-SemiBold text-lg text-[#4a2f00]">
 			Verify your account to view reports
 		</h3>
 		<p className="text-sm text-[#817b70] max-w-sm">
-			Bee rescue reports are only available to verified beekeepers.
-			Head to your profile to submit your verification documents.
+			Bee rescue reports are only available to verified beekeepers. Head
+			to your profile to submit your verification documents.
 		</p>
 	</div>
 );
@@ -53,6 +58,7 @@ const NotVerifiedNotice = () => (
 const BeekeeperReportsInner = () => {
 	const searchParams = useSearchParams();
 	const activeStatus = searchParams.get("tab") || "all";
+	// `loading` = auth pa lang ang naglo-load (galing sa useAuth).
 	const { user, loading } = useAuth();
 	const { openModal } = useModal<ModalType, BeeReportPayload>();
 
@@ -60,6 +66,8 @@ const BeekeeperReportsInner = () => {
 		user?.role === "beekeeper" && user.verification_status === "Verified";
 
 	const [reports, setReports] = useState<BeekeeperReport[]>([]);
+	// True LANG hanggang matapos ang UNANG fetch ng listahan. Hindi na
+	// ito nagiging true ulit sa 15s polling, kaya hindi kikislap ang skeleton.
 	const [listLoading, setListLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -81,21 +89,21 @@ const BeekeeperReportsInner = () => {
 		window.addEventListener(BEEKEEPER_REPORTS_CHANGED_EVENT, loadReports);
 		return () => {
 			clearInterval(interval);
-			window.removeEventListener(BEEKEEPER_REPORTS_CHANGED_EVENT, loadReports);
+			window.removeEventListener(
+				BEEKEEPER_REPORTS_CHANGED_EVENT,
+				loadReports,
+			);
 		};
 	}, [isVerified, loadReports]);
 
-	if (loading) {
-		return (
-			<div className="h-full flex items-center justify-center text-[#817b70]">
-				Loading...
-			</div>
-		);
-	}
-
-	if (!isVerified) {
+	// Auth tapos na at hindi verified -> notice lang. Habang naglo-load pa
+	// ang auth, ipapakita ang layout na may skeleton (para hindi lumabas
+	// saglit ang "Verify your account" at hindi magbago ang layout).
+	if (!loading && !isVerified) {
 		return <NotVerifiedNotice />;
 	}
+
+	const showSkeleton = loading || listLoading;
 
 	const filtered = reports.filter(
 		(r) => activeStatus === "all" || activeStatus === r.beekeeper_status,
@@ -116,42 +124,51 @@ const BeekeeperReportsInner = () => {
 
 				<div className="flex-1 min-h-0 flex flex-col scroll-container overflow-y-auto px-3 my-5 lg:scrollbar-auto scrollbar-none">
 					<div className="mt-5 flex flex-col gap-3 lg:pb-3 pb-0">
-						{listLoading && (
-							<p className="text-center text-sm text-[#a6a3a3] py-4">
-								Loading reports…
-							</p>
-						)}
-						{!listLoading && errorMsg && (
-							<p className="text-center text-sm text-red-600 py-4">{errorMsg}</p>
-						)}
-						{!listLoading && !errorMsg && filtered.length === 0 && (
-							<p className="text-center text-sm text-[#a6a3a3] py-4">
-								{reports.length === 0
-									? "No bee reports near your farm right now."
-									: "No reports in this tab."}
-							</p>
-						)}
+						{showSkeleton &&
+							Array.from({ length: 5 }).map((_, i) => (
+								<ReportCardSkeleton key={i} />
+							))}
 
-						{filtered.map((r) => {
-							const when = r.sighted_at ?? r.reported_at;
-							return (
-								<ReportCard
-									key={r.reportID}
-									onClick={() => openModal("BeeReport", { reportId: r.reportID })}
-									status={r.beekeeper_status}
-									reportId={r.reportID}
-									latitude={r.latitude}
-									longitude={r.longitude}
-									date={formatDate(when)}
-									time={
-										r.distance_km != null
-											? `${formatTime(when)} • ${r.distance_km} km away`
-											: formatTime(when)
-									}
-									imageUrl={reportImageSrc(r.image_url)}
-								/>
-							);
-						})}
+						{!showSkeleton && errorMsg && (
+							<p className="text-center text-sm text-red-600 py-4">
+								{errorMsg}
+							</p>
+						)}
+						{!showSkeleton &&
+							!errorMsg &&
+							filtered.length === 0 && (
+								<p className="text-center text-sm text-[#a6a3a3] py-4">
+									{reports.length === 0
+										? "No bee reports near your farm right now."
+										: "No reports in this tab."}
+								</p>
+							)}
+
+						{!showSkeleton &&
+							filtered.map((r) => {
+								const when = r.sighted_at ?? r.reported_at;
+								return (
+									<ReportCard
+										key={r.reportID}
+										onClick={() =>
+											openModal("BeeReport", {
+												reportId: r.reportID,
+											})
+										}
+										status={r.beekeeper_status}
+										reportId={r.reportID}
+										latitude={r.latitude}
+										longitude={r.longitude}
+										date={formatDate(when)}
+										time={
+											r.distance_km != null
+												? `${formatTime(when)} • ${r.distance_km} km away`
+												: formatTime(when)
+										}
+										imageUrl={reportImageSrc(r.image_url)}
+									/>
+								);
+							})}
 					</div>
 				</div>
 			</div>
@@ -161,7 +178,16 @@ const BeekeeperReportsInner = () => {
 
 const BeekeeperReports = () => {
 	return (
-		<Suspense fallback={<div>Loading...</div>}>
+		<Suspense
+			fallback={
+				<div className="h-full flex justify-center">
+					<div className="lg:w-1/2 w-full flex flex-col gap-3 px-3 pt-10">
+						{Array.from({ length: 5 }).map((_, i) => (
+							<ReportCardSkeleton key={i} />
+						))}
+					</div>
+				</div>
+			}>
 			<BeekeeperReportsInner />
 		</Suspense>
 	);

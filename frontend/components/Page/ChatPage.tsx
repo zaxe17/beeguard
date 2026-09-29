@@ -17,6 +17,10 @@ import { useQueryParamState } from "@/hooks/useQueryParamState";
 import { ChatOptionMenu } from "../popup/MessagePopup";
 import { LocationShareModal } from "../ui/LocationShareModal";
 import { api } from "@/services/api";
+import {
+	ChatMessagesSkeleton,
+	UserMessageCardSkeleton,
+} from "@/components/loading/SkeletonLoading";
 
 // Shape returned by GET /api/chats (see services/chat_service.py).
 type ChatUser = {
@@ -32,7 +36,12 @@ type ChatUser = {
 // derived client-side from ChatMessage.sender_role, since the backend
 // just returns a flat, chronological list.
 type ChatEntry =
-	| { type: "bubble"; sender: "user" | "client"; messages: ChatMessage[]; key: string }
+	| {
+			type: "bubble";
+			sender: "user" | "client";
+			messages: ChatMessage[];
+			key: string;
+	  }
 	| { type: "date"; key: string };
 
 const MESSAGE_POLL_MS = 4000;
@@ -57,7 +66,10 @@ const fileToCompressedDataUrl = (file: File) =>
 		const url = URL.createObjectURL(file);
 		const img = new window.Image();
 		img.onload = () => {
-			const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(img.width, img.height));
+			const scale = Math.min(
+				1,
+				IMAGE_MAX_SIDE / Math.max(img.width, img.height),
+			);
 			const canvas = document.createElement("canvas");
 			canvas.width = Math.round(img.width * scale);
 			canvas.height = Math.round(img.height * scale);
@@ -86,7 +98,10 @@ const sameDay = (a: string, b: string) =>
 
 // `myRole` decides which sender_role maps to "user" (right-aligned,
 // this device) vs "client" (left-aligned, the other party).
-const buildEntries = (messages: ChatMessage[], myRole: "citizen" | "beekeeper"): ChatEntry[] => {
+const buildEntries = (
+	messages: ChatMessage[],
+	myRole: "citizen" | "beekeeper",
+): ChatEntry[] => {
 	const mySenderRole = myRole === "citizen" ? "Citizen" : "Beekeeper";
 	const entries: ChatEntry[] = [];
 	let lastDate: string | null = null;
@@ -95,7 +110,12 @@ const buildEntries = (messages: ChatMessage[], myRole: "citizen" | "beekeeper"):
 
 	const flushRun = (key: string) => {
 		if (runSender && runMessages.length) {
-			entries.push({ type: "bubble", sender: runSender, messages: runMessages, key });
+			entries.push({
+				type: "bubble",
+				sender: runSender,
+				messages: runMessages,
+				key,
+			});
 		}
 		runMessages = [];
 	};
@@ -108,7 +128,8 @@ const buildEntries = (messages: ChatMessage[], myRole: "citizen" | "beekeeper"):
 		}
 		lastDate = m.sent_at;
 
-		const sender: "user" | "client" = m.sender_role === mySenderRole ? "user" : "client";
+		const sender: "user" | "client" =
+			m.sender_role === mySenderRole ? "user" : "client";
 		if (sender !== runSender) {
 			flushRun(`flush-${i}`);
 			runSender = sender;
@@ -155,13 +176,22 @@ const ChatPage = () => {
 
 	// get segment after "/" — "citizen", "admin", o "beekeeper"
 	const role = pathname.split("/")[1] as "citizen" | "beekeeper";
-	const apiRole: "citizen" | "beekeeper" = role === "beekeeper" ? "beekeeper" : "citizen";
+	const apiRole: "citizen" | "beekeeper" =
+		role === "beekeeper" ? "beekeeper" : "citizen";
 	const mySenderRole = apiRole === "citizen" ? "Citizen" : "Beekeeper";
 
 	const [users, setUsers] = useState<ChatUser[]>([]);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [draft, setDraft] = useState("");
 	const scrollRef = useRef<HTMLDivElement>(null);
+
+	// Loading states for the skeletons.
+	// chatsLoading: true only until the FIRST chat-list fetch finishes
+	// (the 8s polling never sets it back to true, so no flicker).
+	// messagesLoading: true whenever a different chat is opened, until
+	// its first fetch finishes.
+	const [chatsLoading, setChatsLoading] = useState(true);
+	const [messagesLoading, setMessagesLoading] = useState(false);
 
 	// Photo sending
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,6 +216,7 @@ const ChatPage = () => {
 	const loadChats = useCallback(async () => {
 		const res = await api.get<ChatUser[]>("/chats");
 		if (res.success && res.data) setUsers(res.data);
+		setChatsLoading(false); // <- FIX: wala ito dati, kaya nakaipit ang skeleton
 	}, []);
 
 	// ── Load chat list, then keep it fresh ──────────────
@@ -199,13 +230,15 @@ const ChatPage = () => {
 	useEffect(() => {
 		const handleChanged = (e: Event) => {
 			loadChats();
-			const detail = (e as CustomEvent<{ deletedChatId?: number }>).detail;
+			const detail = (e as CustomEvent<{ deletedChatId?: number }>)
+				.detail;
 			if (detail?.deletedChatId && detail.deletedChatId === selectedId) {
 				closeChat();
 			}
 		};
 		window.addEventListener(CHATS_CHANGED_EVENT, handleChanged);
-		return () => window.removeEventListener(CHATS_CHANGED_EVENT, handleChanged);
+		return () =>
+			window.removeEventListener(CHATS_CHANGED_EVENT, handleChanged);
 	}, [loadChats, selectedId, closeChat]);
 
 	// ── "Location" clicked in the + menu ────────────────
@@ -215,7 +248,8 @@ const ChatPage = () => {
 			setLocationModalOpen(true);
 		};
 		window.addEventListener(SHARE_LOCATION_EVENT, openLocationModal);
-		return () => window.removeEventListener(SHARE_LOCATION_EVENT, openLocationModal);
+		return () =>
+			window.removeEventListener(SHARE_LOCATION_EVENT, openLocationModal);
 	}, []);
 
 	// ── "Image" clicked in the + menu ───────────────────
@@ -238,12 +272,19 @@ const ChatPage = () => {
 	useEffect(() => {
 		if (!selectedId) {
 			setMessages([]);
+			setMessagesLoading(false);
 			return;
 		}
 		let cancelled = false;
 
+		// Huwag ipakita ang messages ng dating chat habang naglo-load ang bago.
+		setMessages([]);
+		setMessagesLoading(true);
+
 		const loadMessages = async () => {
-			const res = await api.get<ChatMessage[]>(`/chats/${selectedId}/messages`);
+			const res = await api.get<ChatMessage[]>(
+				`/chats/${selectedId}/messages`,
+			);
 			if (cancelled) return;
 			if (res.success && res.data) {
 				setMessages(res.data);
@@ -252,6 +293,7 @@ const ChatPage = () => {
 				// dead selection instead of polling a 403/404 forever.
 				closeChat();
 			}
+			setMessagesLoading(false);
 		};
 
 		loadMessages();
@@ -264,7 +306,7 @@ const ChatPage = () => {
 
 	useEffect(() => {
 		scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-	}, [messages]);
+	}, [messages, messagesLoading]);
 
 	// ── Keep MY live location(s) updated ────────────────
 	// A stable string key, so the 4s message poll (which replaces the
@@ -290,7 +332,10 @@ const ChatPage = () => {
 			if (!latest) return;
 			const { latitude, longitude } = latest.coords;
 			ids.forEach((id) => {
-				api.post(`/chats/messages/${id}/location`, { latitude, longitude });
+				api.post(`/chats/messages/${id}/location`, {
+					latitude,
+					longitude,
+				});
 			});
 		};
 
@@ -323,13 +368,18 @@ const ChatPage = () => {
 		const content = draft.trim();
 		if (!content || !selectedId) return;
 		setDraft("");
-		const res = await api.post<ChatMessage>(`/chats/${selectedId}/messages`, { content });
+		const res = await api.post<ChatMessage>(
+			`/chats/${selectedId}/messages`,
+			{ content },
+		);
 		if (res.success && res.data) {
 			setMessages((prev) => [...prev, res.data as ChatMessage]);
 		}
 	};
 
-	const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleImageSelected = async (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
 		const file = e.target.files?.[0];
 		// Reset so choosing the same photo again still fires onChange.
 		e.target.value = "";
@@ -348,7 +398,10 @@ const ChatPage = () => {
 		setComposerError(null);
 		try {
 			const image = await fileToCompressedDataUrl(file);
-			const res = await api.post<ChatMessage>(`/chats/${selectedId}/images`, { image });
+			const res = await api.post<ChatMessage>(
+				`/chats/${selectedId}/images`,
+				{ image },
+			);
 			if (res.success && res.data) {
 				setMessages((prev) => [...prev, res.data as ChatMessage]);
 				loadChats();
@@ -379,11 +432,14 @@ const ChatPage = () => {
 		setLocationError(null);
 		try {
 			const pos = await getCurrentPosition();
-			const res = await api.post<ChatMessage>(`/chats/${selectedId}/location`, {
-				latitude: pos.coords.latitude,
-				longitude: pos.coords.longitude,
-				live_minutes: liveMinutes,
-			});
+			const res = await api.post<ChatMessage>(
+				`/chats/${selectedId}/location`,
+				{
+					latitude: pos.coords.latitude,
+					longitude: pos.coords.longitude,
+					live_minutes: liveMinutes,
+				},
+			);
 			if (res.success && res.data) {
 				const sent = res.data as ChatMessage;
 				setMessages((prev) => [
@@ -401,7 +457,9 @@ const ChatPage = () => {
 				]);
 				setLocationModalOpen(false);
 			} else {
-				setLocationError(res.message || "Couldn't share your location.");
+				setLocationError(
+					res.message || "Couldn't share your location.",
+				);
 			}
 		} catch (err) {
 			setLocationError(geoErrorMessage(err));
@@ -426,18 +484,23 @@ const ChatPage = () => {
 
 	// Plain function returning JSX (not a component), so React keeps
 	// the same DOM nodes between renders.
+	// Shows the skeleton bubbles while the chat's first fetch is running.
 	const renderConversation = () =>
-		activeConversation.map((entry) =>
-			entry.type === "date" ? (
-				<DateTimeMessage key={entry.key} />
-			) : (
-				<BubbleChat
-					key={entry.key}
-					sender={entry.sender}
-					messages={entry.messages}
-					onStopLive={handleStopLive}
-				/>
-			),
+		messagesLoading ? (
+			<ChatMessagesSkeleton />
+		) : (
+			activeConversation.map((entry) =>
+				entry.type === "date" ? (
+					<DateTimeMessage key={entry.key} />
+				) : (
+					<BubbleChat
+						key={entry.key}
+						sender={entry.sender}
+						messages={entry.messages}
+						onStopLive={handleStopLive}
+					/>
+				),
+			)
 		);
 
 	// "Sending photo…" / error line shown just above the message box.
@@ -446,7 +509,10 @@ const ChatPage = () => {
 			<div className="px-3 -mb-1 text-xs shrink-0">
 				{sendingImage ? (
 					<span className="flex items-center gap-1.5 text-[#817b70]">
-						<Icon icon="svg-spinners:ring-resize" className="w-3.5 h-3.5" />
+						<Icon
+							icon="svg-spinners:ring-resize"
+							className="w-3.5 h-3.5"
+						/>
 						Sending photo…
 					</span>
 				) : (
@@ -528,24 +594,35 @@ const ChatPage = () => {
 
 				{/* SCROLLABLE MESSAGE LIST */}
 				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none px-1">
-					{users.length === 0 && (
+					{chatsLoading &&
+						Array.from({ length: 6 }).map((_, i) => (
+							<UserMessageCardSkeleton key={i} />
+						))}
+
+					{!chatsLoading && users.length === 0 && (
 						<div className="text-center text-sm text-[#a6a3a3] py-4">
 							No conversations yet.
 						</div>
 					)}
-					{users.map((u) => (
-						<div key={u.chat_id} onClick={() => handleSelectUser(u)}>
-							<UserMessageCard
-								chatId={u.chat_id}
-								active={u.active}
-								read={u.read}
-								name={u.name}
-								location={u.location}
-								message={u.message}
-								onMarkUnread={() => handleMarkUnread(u.chat_id)}
-							/>
-						</div>
-					))}
+
+					{!chatsLoading &&
+						users.map((u) => (
+							<div
+								key={u.chat_id}
+								onClick={() => handleSelectUser(u)}>
+								<UserMessageCard
+									chatId={u.chat_id}
+									active={u.active}
+									read={u.read}
+									name={u.name}
+									location={u.location}
+									message={u.message}
+									onMarkUnread={() =>
+										handleMarkUnread(u.chat_id)
+									}
+								/>
+							</div>
+						))}
 				</div>
 			</Container>
 
@@ -553,6 +630,12 @@ const ChatPage = () => {
 			<div className="hidden lg:flex flex-col flex-1 w-full min-h-0 h-full">
 				{selectedUser ? (
 					conversationView
+				) : selectedId && chatsLoading ? (
+					// ?chat=<id> was opened directly (refresh / push
+					// notification) and the chat list hasn't arrived yet.
+					<div className="flex-1 flex flex-col justify-end p-3">
+						<ChatMessagesSkeleton />
+					</div>
 				) : (
 					<div className="flex-1 flex items-center justify-center text-[#a6a3a3]">
 						Select a conversation to start chatting.
@@ -585,7 +668,9 @@ const ChatPage = () => {
 
 						{/* CONVERSATION BODY */}
 						<div className="flex-1 min-h-0 flex flex-col justify-end">
-							<div className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
+							<div
+								ref={scrollRef}
+								className="overflow-y-auto overflow-x-hidden min-h-0 flex flex-col gap-2 p-3 lg:scrollbar-auto scrollbar-none">
 								{renderConversation()}
 							</div>
 						</div>

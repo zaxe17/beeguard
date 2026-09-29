@@ -11,6 +11,10 @@ import {
 import { queenService, QueenHistoryRow } from "@/services/queen";
 import { HIVES_CHANGED_EVENT } from "@/components/modal/HivesModal";
 import { formatPeriod, periodYear } from "@/lib/harvestSeason";
+import {
+	BQHistoryCardSkeleton,
+	YearFilterSkeleton,
+} from "@/components/loading/SkeletonLoading";
 
 function formatKg(v: number | undefined | null) {
 	return `${(v ?? 0).toFixed(1)}kg`;
@@ -265,14 +269,21 @@ const History = () => {
 							active={selectedYear === "All"}
 							onClick={() => setSelectedYear("All")}
 						/>
-						{availableYears.map((y) => (
-							<YearFilter
-								key={y}
-								year={y}
-								active={selectedYear === y}
-								onClick={() => setSelectedYear(y)}
-							/>
-						))}
+						{loading ? (
+							<>
+								<YearFilterSkeleton />
+								<YearFilterSkeleton />
+							</>
+						) : (
+							availableYears.map((y) => (
+								<YearFilter
+									key={y}
+									year={y}
+									active={selectedYear === y}
+									onClick={() => setSelectedYear(y)}
+								/>
+							))
+						)}
 					</div>
 
 					<div className="w-full h-screen relative">
@@ -321,9 +332,11 @@ const History = () => {
 					</h2>
 
 					{loading ? (
-						<p className="text-sm text-[#817b70]">
-							Loading queen history...
-						</p>
+						<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
+							{Array.from({ length: 3 }).map((_, i) => (
+								<BQHistoryCardSkeleton key={i} />
+							))}
+						</div>
 					) : queenHistory.length === 0 ? (
 						<div className="w-full flex flex-col items-center justify-center py-10 opacity-60">
 							<Icon

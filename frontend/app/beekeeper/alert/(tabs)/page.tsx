@@ -14,6 +14,7 @@ import {
 	filterAlerts,
 	useAlertFilter,
 } from "@/context/AlertFilterContext";
+import { PesticideAlertSkeleton } from "@/components/loading/SkeletonLoading";
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -32,6 +33,9 @@ const Alert = () => {
 	// Search bar + filter icon in app/beekeeper/alert/layout.tsx
 	const { filter, search } = useAlertFilter();
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+	// True LANG hanggang matapos ang UNANG load. Hindi na ito ginagawang
+	// true ulit kapag may ALERTS_CHANGED event, kaya hindi mawawala ang
+	// listahan at hindi kikislap ang skeleton tuwing may bagong alert.
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -40,12 +44,11 @@ const Alert = () => {
 	const resolvedLocations = useAlertLocations(alerts);
 
 	const loadAlerts = useCallback(async () => {
-		setLoading(true);
-		setErrorMsg(null);
 		// All tab = every alert, including past ones.
 		const res = await pesticideService.listActiveAlerts(true);
 		if (res.success && res.data) {
 			setAlerts(res.data);
+			setErrorMsg(null);
 		} else if (!res.success) {
 			setErrorMsg(res.message);
 		}
@@ -82,9 +85,9 @@ const Alert = () => {
 	return (
 		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
-				<p className="text-center text-sm text-[#817b70] p-4">
-					Loading alerts...
-				</p>
+				Array.from({ length: 5 }).map((_, i) => (
+					<PesticideAlertSkeleton key={i} />
+				))
 			) : errorMsg ? (
 				<p className="text-center text-sm text-red-600 p-4">
 					{errorMsg}

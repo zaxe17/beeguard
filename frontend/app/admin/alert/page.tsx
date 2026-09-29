@@ -160,6 +160,13 @@ const ReviewPanel = ({
 					value={`${formatDate(alert.scheduled_date)} • ${formatTime(alert.scheduled_date)}`}
 				/>
 				<InfoRow label="Danger radius" value={`${Number(alert.danger_radius_km)} km`} />
+				{/* 14-day validity: after this date the alert moves to History. */}
+				{alert.expiration_date && (
+					<InfoRow
+						label={isActive(alert) ? "Active until" : "Ended"}
+						value={`${formatDate(alert.expiration_date)} • ${formatTime(alert.expiration_date)}`}
+					/>
+				)}
 				{/* Highest risk any beekeeper faces (each beekeeper sees
 				    their own level based on their farm's distance). */}
 				<InfoRow
@@ -296,6 +303,8 @@ const AlertInner = () => {
 	const rejected = alerts.filter((a) => a.approval_status === "Rejected");
 	// All / High / Medium / Low = approved alerts that haven't expired.
 	const live = alerts.filter((a) => a.approval_status === "Approved" && isActive(a));
+	// History = approved alerts whose 14-day validity already ended.
+	const history = alerts.filter((a) => a.approval_status === "Approved" && !isActive(a));
 
 	const tabs = [
 		{ label: "All", value: "all" },
@@ -304,12 +313,14 @@ const AlertInner = () => {
 		{ label: "Low", value: "low" },
 		{ label: `Pending (${pending.length})`, value: "pending" },
 		{ label: "Rejected", value: "rejected" },
+		{ label: "History", value: "history" },
 	];
 
 	const filtered = useMemo(() => {
 		let list: AdminAlertRecord[];
 		if (activeTab === "pending") list = pending;
 		else if (activeTab === "rejected") list = rejected;
+		else if (activeTab === "history") list = history;
 		else if (activeTab === "all") list = live;
 		else list = live.filter((a) => toRisk(a) === activeTab);
 
@@ -322,7 +333,7 @@ const AlertInner = () => {
 			);
 		}
 		return list;
-	}, [activeTab, pending, rejected, live, search, locationOf]);
+	}, [activeTab, pending, rejected, live, history, search, locationOf]);
 
 	const selected = alerts.find((a) => a.alert_id === selectedId) ?? null;
 
@@ -427,7 +438,9 @@ const AlertInner = () => {
 							<h2 className="w-1/2 Poppins-SemiBold text-x text-[#817b70]">
 								{activeTab === "pending"
 									? "No alerts waiting for approval"
-									: "No alerts"}
+									: activeTab === "history"
+										? "No ended alerts yet"
+										: "No alerts"}
 							</h2>
 						</div>
 					)}

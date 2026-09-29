@@ -32,7 +32,6 @@ const ReportDetails = ({
 	date,
 	time,
 	details,
-	activity,
 	danger,
 	imageUrl,
 	latitude,
@@ -130,25 +129,15 @@ const ReportDetails = ({
 						{details}
 					</p>
 
-					{/* ACTIVITY AND DANGER */}
-					<div className="flex gap-15 items-center mt-3">
-						<div>
-							<h2 className="Poppins-SemiBold leading-3.5 text-sm text-[#817b70]">
-								Activity
-							</h2>
-							<p className="leading-4 text-[#4A2F00] font-medium">
-								{activity}
-							</p>
-						</div>
-						<div>
-							<h2 className="Poppins-SemiBold leading-3.5 text-sm text-[#817b70]">
-								Danger
-							</h2>
-							<p className="leading-4 text-[#4A2F00] font-medium">
-								{danger}
-							</p>
-						</div>
-					</div>
+					{/* DANGER — the "Activity" field was removed (it was
+					    always "—"); the prop is still accepted so the
+					    citizen / beekeeper / admin popups don't need changes. */}
+					<h2 className="Poppins-SemiBold leading-3.5 mt-3 text-sm text-[#817b70]">
+						Danger
+					</h2>
+					<p className="leading-4 text-[#4A2F00] font-medium">
+						{danger}
+					</p>
 
 					{/* PAYMENT METHOD */}
 					<h2 className="Poppins-SemiBold leading-2 mt-3 text-sm text-[#817b70]">

@@ -23,6 +23,11 @@ const tabs = [
 		label: "Today",
 		route: "/beekeeper/alert/today",
 	},
+	// NEW — alerts whose 14-day validity already ended.
+	{
+		label: "History",
+		route: "/beekeeper/alert/history",
+	},
 ];
 
 type ModalType = "addAlert";

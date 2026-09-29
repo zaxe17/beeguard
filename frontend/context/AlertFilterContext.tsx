@@ -2,9 +2,14 @@
 //
 // The beekeeper Alerts search bar + filter live in
 // app/beekeeper/alert/layout.tsx, but the lists are in the All and Today
-// pages. This shares what was typed / picked with both pages. The layout
-// stays mounted when switching between All and Today, so the filter is
-// kept when changing tabs.
+// pages. This shares what was typed / picked with the All, Today and
+// History pages. The layout stays mounted when switching tabs, so the
+// filter is kept when changing tabs.
+//
+// UPDATED — alerts now move to History once their 14-day validity ends, so
+// "All" never has ended alerts anymore. The old "Past" filter (= ended)
+// became "Ongoing" (spraying already started, still within 14 days), and
+// "Upcoming" now means the spraying date hasn't come yet.
 
 "use client";
 
@@ -17,7 +22,7 @@ export type AlertFilter =
 	| "medium"
 	| "low"
 	| "upcoming"
-	| "past"
+	| "ongoing"
 	| "mine";
 
 // Shown in the filter dropdown (components/popup/Filter.tsx), in this order.
@@ -27,7 +32,7 @@ export const ALERT_FILTER_OPTIONS: { label: string; value: AlertFilter }[] = [
 	{ label: "Medium", value: "medium" },
 	{ label: "Low", value: "low" },
 	{ label: "Upcoming", value: "upcoming" },
-	{ label: "Past", value: "past" },
+	{ label: "Ongoing", value: "ongoing" },
 	{ label: "My Alerts", value: "mine" },
 ];
 
@@ -61,18 +66,9 @@ export const useAlertFilter = (): AlertFilterValue =>
 		setSearch: () => {},
 	};
 
-// An alert is "past" once its spraying ended (expiration_date), or — when
-// it has no end date — once its scheduled day is over.
-const isPast = (a: AlertRecord) => {
-	const end = a.expiration_date
-		? new Date(a.expiration_date)
-		: (() => {
-				const d = new Date(a.scheduled_date);
-				d.setHours(23, 59, 59, 999);
-				return d;
-			})();
-	return end.getTime() < Date.now();
-};
+// Spraying date still ahead.
+const isUpcoming = (a: AlertRecord) =>
+	new Date(a.scheduled_date).getTime() > Date.now();
 
 /**
  * Applies the picked filter and the search text.
@@ -95,10 +91,11 @@ export function filterAlerts(
 			list = list.filter((a) => (a.risk_level || "").toLowerCase() === filter);
 			break;
 		case "upcoming":
-			list = list.filter((a) => !isPast(a));
+			list = list.filter(isUpcoming);
 			break;
-		case "past":
-			list = list.filter(isPast);
+		case "ongoing":
+			// Started already (ended ones are in History, not in this list).
+			list = list.filter((a) => !isUpcoming(a));
 			break;
 		case "mine":
 			list = list.filter((a) => !!myId && a.reported_by_beekeeper_id === myId);

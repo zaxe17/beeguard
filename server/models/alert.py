@@ -99,10 +99,17 @@ class AlertModel:
 
     @staticmethod
     def list_active(limit: int = 100, beekeeper_id: str | None = None,
-                    include_past: bool = False):
+                    include_past: bool = False, only_expired: bool = False):
         """
+        Default: only alerts that are still valid (expiration_date not
+        passed yet — every alert gets scheduled_date + 14 days, see
+        PesticideService.ALERT_VALIDITY_DAYS).
         include_past=True also returns alerts whose expiration_date has
-        passed (the beekeeper "All" tab shows every alert, past included).
+        passed.
+        only_expired=True returns ONLY the ended ones (History).
+
+        Dates are stored in UTC, so they're compared with UTC_TIMESTAMP()
+        (NOW() is Philippine time on our connection — 8 hours off).
 
         Only APPROVED alerts are shown. A beekeeper also sees their own
         alerts that are still waiting for admin approval (so they know
@@ -114,10 +121,14 @@ class AlertModel:
         being outside the danger radius means it isn't a real personal
         threat regardless of what severity the creator picked overall.
         """
-        expiry_sql = (
-            "1 = 1" if include_past
-            else "a.expiration_date IS NULL OR a.expiration_date >= NOW()"
-        )
+        if only_expired:
+            expiry_sql = (
+                "a.expiration_date IS NOT NULL AND a.expiration_date < UTC_TIMESTAMP()"
+            )
+        elif include_past:
+            expiry_sql = "1 = 1"
+        else:
+            expiry_sql = "a.expiration_date IS NULL OR a.expiration_date >= UTC_TIMESTAMP()"
         if beekeeper_id:
             sql = f"""
                 SELECT a.*, ar.distance_km, ar.notified_at, ar.recipient_id,

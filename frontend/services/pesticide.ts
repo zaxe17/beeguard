@@ -126,10 +126,15 @@ export const pesticideService = {
 
 	// Any authenticated role — all currently active (non-expired) alerts.
 	// includePast = true also returns alerts that already ended (All tab).
+	// Alerts still within their 14-day validity ("All" / "Today" tabs).
 	listActiveAlerts: (includePast = false) =>
 		api.get<AlertRecord[]>(
 			`/pesticide/alerts/active${includePast ? "?include_past=1" : ""}`,
 		),
+
+	// NEW — alerts whose 14-day validity already ended (History).
+	listExpiredAlerts: () =>
+		api.get<AlertRecord[]>("/pesticide/alerts/active?expired=1"),
 
 	// Beekeeper — alerts they were actually matched/notified for
 	listMyAlerts: () => api.get<AlertRecord[]>("/pesticide/alerts/mine"),

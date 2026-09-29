@@ -10,7 +10,6 @@ import { AlertContainer } from "@/components/ui/Alert";
 import { pesticideService, AlertDetail } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 import Link from "next/link";
-import { BackButton } from "@/components/ui/Button";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx. This
@@ -42,7 +41,6 @@ type DetailsProps = {
 
 type InformationProps = {
 	pesTyp?: string;
-	method?: string;
 	date?: string;
 	time?: string;
 	radius?: string;
@@ -117,7 +115,6 @@ const Details = ({ location, date, time, desc, status }: DetailsProps) => {
 // ALERT INFORMATION
 const Information = ({
 	pesTyp,
-	method,
 	date,
 	time,
 	radius,
@@ -130,10 +127,6 @@ const Information = ({
 				<div className="flex justify-between items-center">
 					<span className="">Pesticide Type</span>
 					<span className="Poppins-SemiBold">{pesTyp}</span>
-				</div>
-				<div className="flex justify-between items-center">
-					<span className="">Application Method</span>
-					<span className="Poppins-SemiBold">{method}</span>
 				</div>
 				<div className="flex justify-between items-center">
 					<span className="">Scheduled Date</span>
@@ -153,6 +146,96 @@ const Information = ({
 					<span className="">Contact</span>
 					<span className="Poppins-SemiBold">{contact}</span>
 				</div>
+			</div>
+		</AlertContainer>
+	);
+};
+
+// ── ALERT VALIDITY (14 days) ─────────────────────
+// Every pesticide alert stays active for 14 days after the scheduled
+// spraying (backend: ALERT_VALIDITY_DAYS), then moves to History.
+const ALERT_VALIDITY_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const ValidityProgress = ({
+	scheduledIso,
+	expirationIso,
+	color,
+}: {
+	scheduledIso: string;
+	expirationIso: string | null;
+	color: string;
+}) => {
+	const start = new Date(scheduledIso).getTime();
+	const end = expirationIso
+		? new Date(expirationIso).getTime()
+		: start + ALERT_VALIDITY_DAYS * DAY_MS;
+	const now = Date.now();
+	const totalDays = Math.max(1, Math.round((end - start) / DAY_MS));
+
+	let percent: number;
+	let headline: string;
+	let sub: string;
+	if (now < start) {
+		percent = 0;
+		const days = Math.ceil((start - now) / DAY_MS);
+		headline = "Spraying hasn't started yet";
+		sub =
+			days <= 1
+				? "Scheduled within the next day"
+				: `Scheduled in ${days} days`;
+	} else if (now >= end) {
+		percent = 100;
+		headline = "Alert period ended";
+		sub = "This alert is now in History.";
+	} else {
+		percent = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+		const day = Math.min(totalDays, Math.floor((now - start) / DAY_MS) + 1);
+		const left = Math.ceil((end - now) / DAY_MS);
+		headline = `Day ${day} of ${totalDays}`;
+		sub = left <= 1 ? "Ends within a day" : `${left} days left`;
+	}
+
+	const ended = now >= end;
+	const endLabel = new Date(end).toLocaleDateString(undefined, {
+		month: "long",
+		day: "numeric",
+		year: "numeric",
+	});
+
+	return (
+		<AlertContainer title="Alert Validity">
+			<div className="w-full flex flex-col gap-2 text-sm normal-case">
+				<div className="flex justify-between items-end">
+					<span className="Poppins-SemiBold text-[#020101]">{headline}</span>
+					<span className="text-xs text-[#817b70]">{sub}</span>
+				</div>
+
+				{/* progress bar */}
+				<div className="w-full h-2.5 rounded-full bg-[#e2e2e6] overflow-hidden">
+					<div
+						className="h-full rounded-full transition-all duration-500"
+						style={{
+							width: `${percent}%`,
+							backgroundColor: ended ? "#a6a3a3" : color,
+						}}
+					/>
+				</div>
+
+				<div className="flex justify-between text-[11px] text-[#817b70]">
+					<span>Spraying</span>
+					<span>
+						{ended ? "Ended" : "Active until"} {endLabel}
+					</span>
+				</div>
+
+				<p className="text-[11px] leading-4 text-[#817b70] mt-1">
+					BeeGuard keeps pesticide alerts active for {ALERT_VALIDITY_DAYS} days
+					as a precaution, so nearby beekeepers can still see the hazard. This
+					is not the actual residual toxicity of every pesticide — that
+					depends on the active ingredient, formulation, application rate,
+					crop and weather.
+				</p>
 			</div>
 		</AlertContainer>
 	);
@@ -381,7 +464,7 @@ const AlertDetailsInner = () => {
 
 	if (alert.expiration_date) {
 		timelineItems.push({
-			title: "Expected Completion",
+			title: `Alert Ends (${ALERT_VALIDITY_DAYS}-day validity)`,
 			date: completion.date,
 			time: completion.time,
 			status: stageStatus(alert.expiration_date, "upcoming"),
@@ -405,40 +488,26 @@ const AlertDetailsInner = () => {
 				</span>
 			</div>
 
-			{/* BACK BUTTON */}
-			<div className="fixed top-4 left-50">
-				<BackButton label="Go Back" />
-			</div>
-
 			{/* LEFT */}
 			<div className="lg:w-1/2 w-full capitalize flex flex-col gap-8 px-4 lg:px-0">
 				{/* Your own alert that the admin hasn't approved (yet). */}
 				{alert.approval_status === "Pending" && (
 					<div className="normal-case w-full bg-[#FAEEDA] border-2 border-[#FAC775] rounded-lg p-3 flex items-center gap-2">
-						<Icon
-							icon="mdi:clock-outline"
-							className="w-5 h-5 shrink-0 text-[#854F0B]"
-						/>
+						<Icon icon="mdi:clock-outline" className="w-5 h-5 shrink-0 text-[#854F0B]" />
 						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
-							Waiting for admin approval — other beekeepers
-							can&apos;t see this alert yet. You&apos;ll be
-							notified once it&apos;s reviewed.
+							Waiting for admin approval — other beekeepers can&apos;t see
+							this alert yet. You&apos;ll be notified once it&apos;s reviewed.
 						</p>
 					</div>
 				)}
 				{alert.approval_status === "Rejected" && (
 					<div className="normal-case w-full bg-red-50 border-2 border-red-200 rounded-lg p-3 flex items-start gap-2">
-						<Icon
-							icon="mdi:close-circle-outline"
-							className="w-5 h-5 shrink-0 text-red-600"
-						/>
+						<Icon icon="mdi:close-circle-outline" className="w-5 h-5 shrink-0 text-red-600" />
 						<p className="text-red-600 text-xs">
 							<span className="Poppins-SemiBold">
 								This alert was not approved by the admin.
 							</span>
-							{alert.rejection_reason && (
-								<> Reason: {alert.rejection_reason}</>
-							)}
+							{alert.rejection_reason && <> Reason: {alert.rejection_reason}</>}
 						</p>
 					</div>
 				)}
@@ -453,12 +522,17 @@ const AlertDetailsInner = () => {
 
 				<Information
 					pesTyp={alert.pesticide_type ?? "—"}
-					method={alert.application_method ?? "—"}
 					date={scheduled.date}
 					time={scheduled.time}
 					radius={`${alert.danger_radius_km} km`}
 					issued={alert.issued_by ?? "—"}
 					contact={alert.contact ?? "—"}
+				/>
+
+				<ValidityProgress
+					scheduledIso={alert.scheduled_date}
+					expirationIso={alert.expiration_date}
+					color={alertLevels[alert.status]?.bg ?? "#ff9a00"}
 				/>
 
 				<Recommendation />

@@ -1,4 +1,11 @@
-// app/beekeeper/alert/(tabs)/page.tsx
+// app/beekeeper/alert/history/page.tsx
+//
+// NEW — Alert HISTORY (beekeeper). Pesticide alerts stay in "All" for
+// 14 days after the scheduled spraying (BeeGuard's precautionary validity
+// period, see server/services/pesticide_service.py ALERT_VALIDITY_DAYS).
+// After that they show up here. The search bar and filter in
+// app/beekeeper/alert/layout.tsx work here too. Tapping an alert opens its
+// details page (its validity bar shows "Alert period ended").
 
 "use client";
 
@@ -15,36 +22,25 @@ import {
 	useAlertFilter,
 } from "@/context/AlertFilterContext";
 
-function toDisplayDate(a: AlertRecord): string {
-	return new Date(a.scheduled_date).toLocaleDateString();
-}
+const toDisplayDate = (iso: string) => new Date(iso).toLocaleDateString();
 
-function toDisplayTime(a: AlertRecord): string {
-	return new Date(a.scheduled_date).toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
+const toDisplayTime = (iso: string) =>
+	new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-const Alert = () => {
+const AlertHistory = () => {
 	const router = useRouter();
 	const { user } = useAuth();
-	// Search bar + filter icon in app/beekeeper/alert/layout.tsx
 	const { filter, search } = useAlertFilter();
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-	// Exact-location cache for alerts that have no affected_area —
-	// see hooks/useAlertLocation.ts.
 	const resolvedLocations = useAlertLocations(alerts);
 
 	const loadAlerts = useCallback(async () => {
 		setLoading(true);
 		setErrorMsg(null);
-		// All tab = alerts still within their 14-day validity. Once an
-		// alert's validity ends it moves to History (listExpiredAlerts).
-		const res = await pesticideService.listActiveAlerts();
+		const res = await pesticideService.listExpiredAlerts();
 		if (res.success && res.data) {
 			setAlerts(res.data);
 		} else if (!res.success) {
@@ -57,24 +53,20 @@ const Alert = () => {
 		loadAlerts();
 	}, [loadAlerts]);
 
-	// Refetch immediately whenever a new alert is published anywhere
-	// (AddAlert modal dispatches this on success) — no manual reload
-	// needed.
 	useEffect(() => {
 		const handler = () => loadAlerts();
 		window.addEventListener(ALERTS_CHANGED_EVENT, handler);
 		return () => window.removeEventListener(ALERTS_CHANGED_EVENT, handler);
 	}, [loadAlerts]);
 
-	// Filter + search, then newest first so past alerts end up at the bottom.
+	// Newest first — same order as the All tab.
 	const shown = filterAlerts(
 		alerts,
 		filter,
 		search,
 		(a) => getAlertLocation(a, resolvedLocations),
 		user?.id,
-	);
-	const sorted = [...shown].sort(
+	).sort(
 		(a, b) =>
 			new Date(b.scheduled_date).getTime() -
 			new Date(a.scheduled_date).getTime(),
@@ -84,35 +76,26 @@ const Alert = () => {
 		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
-					Loading alerts...
+					Loading alert history...
 				</p>
 			) : errorMsg ? (
-				<p className="text-center text-sm text-red-600 p-4">
-					{errorMsg}
-				</p>
-			) : sorted.length === 0 ? (
+				<p className="text-center text-sm text-red-600 p-4">{errorMsg}</p>
+			) : shown.length === 0 ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
-					{emptyMessage(filter, search, "No alerts yet.")}
+					{emptyMessage(filter, search, "No ended alerts yet.")}
 				</p>
 			) : (
-				sorted.map((a) => (
+				// Same cards as the All tab.
+				shown.map((a) => (
 					<PesticideAlert
 						key={a.alert_id}
 						location={getAlertLocation(a, resolvedLocations)}
-						date={toDisplayDate(a)}
-						time={toDisplayTime(a)}
-						status={
-							a.risk_level.toLowerCase() as
-								| "high"
-								| "medium"
-								| "low"
-						}
+						date={toDisplayDate(a.scheduled_date)}
+						time={toDisplayTime(a.scheduled_date)}
+						status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
 						onClick={() =>
-							router.push(
-								`/beekeeper/alert/details?id=${a.alert_id}`,
-							)
+							router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
 						}
-						// Your own alert that the admin hasn't approved yet.
 						approvalStatus={a.approval_status}
 					/>
 				))
@@ -121,4 +104,4 @@ const Alert = () => {
 	);
 };
 
-export default Alert;
+export default AlertHistory;

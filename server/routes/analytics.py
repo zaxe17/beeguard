@@ -1,3 +1,5 @@
+# routes/analytics.py
+
 from flask import Blueprint, request, g
 
 from middleware.auth_middleware import token_required, role_required
@@ -25,6 +27,17 @@ def dashboard_summary():
 def yield_trend():
     months = request.args.get("months", default=12, type=int)
     data = AnalyticsService.monthly_yield_trend(g.user_id, months=months)
+    return success("OK", data=data, status=200)
+
+
+# ── MONTHLY YIELD TOTALS (Dashboard "yield summary" chart) ──
+# NEW — one point per calendar month, empty months = 0.
+@analytics_bp.route("/monthly-yield", methods=["GET"])
+@token_required
+@role_required("beekeeper")
+def monthly_yield():
+    months = request.args.get("months", default=6, type=int)
+    data = AnalyticsService.monthly_yield_totals(g.user_id, months=months)
     return success("OK", data=data, status=200)
 
 

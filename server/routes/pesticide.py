@@ -128,10 +128,15 @@ def list_active_alerts():
     # risk_level, since there's no single beekeeper's farm to compute
     # a distance against.
     beekeeper_id = g.user_id if g.role == "beekeeper" else None
-    # ?include_past=1 -> also alerts that already ended (beekeeper "All" tab)
-    include_past = (request.args.get("include_past") or "").lower() in ("1", "true", "yes")
+    # (no param)     -> alerts still within their 14-day validity ("All")
+    # ?include_past=1 -> also alerts that already ended
+    # ?expired=1      -> ONLY alerts that already ended (History)
+    truthy = ("1", "true", "yes")
+    include_past = (request.args.get("include_past") or "").lower() in truthy
+    only_expired = (request.args.get("expired") or "").lower() in truthy
     alerts = PesticideService.list_active(
-        beekeeper_id=beekeeper_id, include_past=include_past
+        beekeeper_id=beekeeper_id, include_past=include_past,
+        only_expired=only_expired,
     )
     return success("OK", data=alerts, status=200)
 

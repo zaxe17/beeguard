@@ -261,7 +261,7 @@ const RegistrationForm = () => {
 		) : null;
 
 	return (
-		<FormContainer width="lg:w-1/2" onSubmit={handleNext}>
+		<FormContainer width="lg:w-1/2 w-full" onSubmit={handleNext}>
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}

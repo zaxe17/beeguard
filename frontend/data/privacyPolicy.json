@@ -1,0 +1,65 @@
+[
+	{
+		"title": "Information We Collect",
+		"content": [
+			"We collect information you provide directly to us such as your name, email address, hive details, and app usage information to improve your experience."
+		],
+		"listStyle": false
+	},
+	{
+		"title": "How We Use Your Information",
+		"content": [
+			"To provide and maintain our services",
+			"To improve app functionality and user experience",
+			"To send updates, alerts, and support notifications",
+			"To monitor hive health and activity"
+		],
+		"listStyle": true
+	},
+	{
+		"title": "Information Sharing",
+		"content": [
+			"We do not sell your personal information",
+			"We may share data with trusted service providers for app operations",
+			"Information may be disclosed if required by law"
+		],
+		"listStyle": true
+	},
+	{
+		"title": "Data Security",
+		"content": [
+			"We apply appropriate security measures to protect your personal information from unauthorized access, loss, or misuse."
+		],
+		"listStyle": false
+	},
+	{
+		"title": "Your Rights",
+		"content": [
+			"You may update or delete your account information anytime",
+			"You can manage notification preferences within the app",
+			"You may request account deletion through support"
+		],
+		"listStyle": false
+	},
+	{
+		"title": "Children's Privacy",
+		"content": [
+			"This app is not intended for children under 13 years old, and we do not knowingly collect personal information from children."
+		],
+		"listStyle": false
+	},
+	{
+		"title": "Changes to This Policy",
+		"content": [
+			"We may update this Privacy Policy from time to time. Continued use of the app means you accept the updated policy."
+		],
+		"listStyle": false
+	},
+	{
+		"title": "Contact Us",
+		"content": [
+			"If you have questions about this Privacy Policy, you may contact our support team through the app."
+		],
+		"listStyle": false
+	}
+]

@@ -4,6 +4,7 @@ import { FormContainer } from "../ui/Container";
 import { CheckBox } from "../ui/Input";
 
 import termCondContent from "@/data/termsCondition.json";
+import privacyPolicyContent from "@/data/privacyPolicy.json"
 import { useRouter } from "next/navigation";
 
 type TermsConditionPageProps = {
@@ -101,11 +102,32 @@ export const TermsConditionPage = ({
 
 export const PrivacyPolicyPage = () => {
 	return (
-		<FormContainer>
-			<div className="text-center lg:mb-7 mb-15">
+		<FormContainer width="lg:w-2/3 w-full">
+			<div className="text-center mb-7">
 				<h1 className="Poppins-Bold text-[28px] text-[#ff9a00]">
 					Privacy Policy
 				</h1>
+			</div>
+
+			<div className="flex h-100">
+				<ul className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pr-1">
+					{privacyPolicyContent.map((tc, i) => (
+						<div className="mb-3" key={i}>
+							<li className="Poppins-Bold text-[#ffce1c] text-sm">
+								{tc.title}
+							</li>
+							{tc.content.map((cont, ind) => (
+								<li
+									key={ind}
+									className={`${
+										tc.listStyle ? "list-disc ml-4" : ""
+									} text-xs whitespace-pre-line`}>
+									{cont}
+								</li>
+							))}
+						</div>
+					))}
+				</ul>
 			</div>
 		</FormContainer>
 	);

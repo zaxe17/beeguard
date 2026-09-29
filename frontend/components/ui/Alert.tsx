@@ -71,7 +71,9 @@ export const PesticideAlert = ({
 	approvalStatus,
 	selected = false,
 }: AlertProps) => {
-	const approvalBadge = approvalStatus ? APPROVAL_BADGE[approvalStatus] : undefined;
+	const approvalBadge = approvalStatus
+		? APPROVAL_BADGE[approvalStatus]
+		: undefined;
 	return (
 		<div
 			role={onClick ? "button" : undefined}
@@ -96,7 +98,9 @@ export const PesticideAlert = ({
 				style={
 					{
 						borderColor: alertLevels[status].bg,
-						"--idle-bg": selected ? alertLevels[status].hoverBg : "#fffdf5",
+						"--idle-bg": selected
+							? alertLevels[status].hoverBg
+							: "#fffdf5",
 						"--hover-bg": alertLevels[status].hoverBg,
 					} as React.CSSProperties
 				}>

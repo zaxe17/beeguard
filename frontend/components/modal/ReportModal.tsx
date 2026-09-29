@@ -1,3 +1,4 @@
+// components/modal/ReportModal.tsx
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -54,6 +55,11 @@ type BeeIdentifyPayload = {
 	species: string | null;
 	confidencePercent: number | null;
 };
+
+// "Retake Photo" in the BeeIdentify popup (no bee detected). The camera
+// step (app/citizen/report/page.tsx) listens for this, clears the photo
+// and turns the live camera back on.
+export const RETAKE_PHOTO_EVENT = "beeguard:retake-photo";
 
 // Two-tap confirm window for "Mark as Resolved".
 const CONFIRM_MS = 4000;
@@ -344,6 +350,10 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 				details={report.description || "No details provided."}
 				activity="—"
 				danger={report.bee_danger}
+				// Beekeeper side: the map only shows once the citizen has
+				// accepted THIS beekeeper's offer (in progress) — and stays
+				// after it's resolved. Before that, no exact pin.
+				showMap={status === "in-progress" || status === "resolved"}
 			/>
 			<div className="flex flex-col gap-1">
 				<div className="flex flex-row items-center justify-between gap-1">
@@ -614,13 +624,31 @@ export const BeeIdentify = ({
 					</div>
 				</div>
 
+				{/* No bee detected -> nothing to submit: offer a retake. */}
+				{!hasMatch && (
+					<p className="text-xs text-[#817b70] text-center mt-3">
+						We couldn&apos;t find a bee in this photo. Try again with the
+						bees clearly in view.
+					</p>
+				)}
+
 				<div className="w-full flex gap-3 mt-5">
 					<CancelButton onClick={onClose} />
-					<Button
-						label={submitting ? "Submitting..." : "Submit Photo"}
-						onClick={onSubmit}
-						disabled={submitting || !hasMatch}
-					/>
+					{hasMatch ? (
+						<Button
+							label={submitting ? "Submitting..." : "Submit Photo"}
+							onClick={onSubmit}
+							disabled={submitting}
+						/>
+					) : (
+						<Button
+							label="Retake Photo"
+							onClick={() => {
+								onClose();
+								window.dispatchEvent(new Event(RETAKE_PHOTO_EVENT));
+							}}
+						/>
+					)}
 				</div>
 			</div>
 		</ModalContainer>

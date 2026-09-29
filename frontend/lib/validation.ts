@@ -1,3 +1,6 @@
+// lib/validation.ts
+import { isPhMobile, PH_MOBILE_ERROR } from "./phone";
+
 export const isNonEmpty = (v: unknown): boolean =>
 	typeof v === "string" && v.trim().length > 0;
 
@@ -11,8 +14,9 @@ export const isPassword = (v: string): boolean =>
 	/[A-Za-z]/.test(v) &&
 	/\d/.test(v);
 
-export const isContact = (v: string): boolean =>
-	/^[0-9+\-\s()]{7,15}$/.test(v.trim());
+// PH mobile number — the 10 digits after +63, starting with 9 (see
+// lib/phone.ts). Was: anything 7–15 characters, so extra digits got in.
+export const isContact = (v: string): boolean => isPhMobile(v);
 
 export interface RegistrationDraft {
 	role: "citizen" | "beekeeper";
@@ -57,8 +61,7 @@ export function validateRegistrationDraftFields(
 	if (!isNonEmpty(d.contact_no)) {
 		e.contact_no = "Contact number is required.";
 	} else if (!isContact(d.contact_no)) {
-		e.contact_no =
-			"Phone must be 7–15 characters (digits, +, -, spaces, or parentheses).";
+		e.contact_no = PH_MOBILE_ERROR;
 	}
 
 	if (!isNonEmpty(d.email)) {

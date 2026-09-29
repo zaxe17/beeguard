@@ -1,6 +1,23 @@
+# config/database.py
+import os
+
 import pymysql
 from dbutils.pooled_db import PooledDB
 from config.config import Config
+
+# Every connection works in Philippine time (UTC+8) and the same text
+# collation as the tables:
+#   - time_zone: MySQL's NOW() / CURRENT_TIMESTAMP (e.g. reports.reported_at,
+#     created_at) follow the SERVER's clock. On Railway that's UTC, so
+#     times would be 8 hours behind. Locally (XAMPP on a PH computer) this
+#     changes nothing. Override with DB_TIME_ZONE in .env if ever needed.
+#   - collation: avoids "Illegal mix of collations" errors when comparing
+#     text (all tables use utf8mb4_unicode_ci).
+DB_TIME_ZONE = os.getenv("DB_TIME_ZONE", "+08:00")
+_INIT_COMMAND = (
+    f"SET time_zone = '{DB_TIME_ZONE}', "
+    "collation_connection = 'utf8mb4_unicode_ci'"
+)
 
 
 class Database:
@@ -25,6 +42,9 @@ class Database:
                 charset="utf8mb4",
                 cursorclass=pymysql.cursors.DictCursor,
                 autocommit=False,
+                init_command=_INIT_COMMAND,
+                # Don't hang forever if the database is unreachable.
+                connect_timeout=10,
             )
         return cls._pool
 

@@ -6,6 +6,8 @@
 
 import datetime as dt
 
+from utils.dates import ph_now
+
 VALID_DANGER = {"Yes", "No"}
 
 # reports.description is VARCHAR(50) in the schema — quite short for
@@ -72,7 +74,12 @@ def validate_create_report(payload: dict) -> tuple[dict, dict]:
         st = _parse_time(st_raw) if st_raw else None
         if not sd or not st:
             errors["sighted_at"] = "Provide BOTH sighted_date and sighted_time, or neither."
-        elif dt.datetime.combine(sd, st) > dt.datetime.now():
+        # Compared with the PHILIPPINE time now (not the server clock,
+        # which may be UTC on Railway), with a few minutes' leeway in
+        # case the phone's clock runs slightly ahead of the server's.
+        elif dt.datetime.combine(sd, st) > (
+            ph_now().replace(tzinfo=None) + dt.timedelta(minutes=5)
+        ):
             errors["sighted_at"] = "sighted_at cannot be in the future."
         else:
             cleaned["sighted_at"] = dt.datetime.combine(sd, st)

@@ -9,9 +9,18 @@ import datetime as dt
 from utils.dates import ph_today
 
 VALID_HEALTH  = {"Healthy", "Needs Attention", "Weak", "Diseased"}
-# NEW — the only species a hive can be (Add Hive dropdown). Keep in sync
-# with HIVE_SPECIES in frontend/data/species.ts.
-HIVE_SPECIES  = ("Apis cerana", "Apis mellifera", "Tetragonula biroi")
+# Suggested species in the Add Hive dropdown. The beekeeper can also
+# type another species. Keep in sync with HIVE_SPECIES in
+# frontend/data/species.ts.
+HIVE_SPECIES  = (
+    # Honey bees
+    "Apis mellifera", "Apis cerana", "Apis dorsata", "Apis breviligula",
+    "Apis nigrocincta", "Apis florea", "Apis andreniformis",
+    "Apis laboriosa", "Apis koschevnikovi", "Apis nuluensis",
+    # Stingless bees (Philippines)
+    "Tetragonula biroi", "Tetragonula iridipennis", "Tetragonula laeviceps",
+    "Tetragonula sapiens",
+)
 VALID_STATE   = {"Active", "Inactive"}
 NORMAL_LABEL  = "Normal / Healthy"
 VALID_INSPECT = {
@@ -55,17 +64,15 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
     else:
         cleaned["hive_name"] = hn
 
-    # bee_species — must be one of the supported species (dropdown).
-    # Matched without caring about upper/lower case, saved in the
-    # standard spelling (e.g. "Apis cerana").
-    bs = (payload.get("bee_species") or "").strip()
-    match = next((sp for sp in HIVE_SPECIES if sp.lower() == bs.lower()), None)
-    if not bs:
-        errors["bee_species"] = "Bee species is required."
-    elif match is None:
-        errors["bee_species"] = f"Bee species must be one of: {', '.join(HIVE_SPECIES)}."
+    # bee_species (VARCHAR 50) — pick from the dropdown OR type one.
+    # A typed name that matches a listed species (any upper/lower case)
+    # is saved in the standard spelling, e.g. "apis CERANA" -> "Apis cerana".
+    bs = " ".join((payload.get("bee_species") or "").split())
+    if not _nonempty(bs, 50):
+        errors["bee_species"] = "Bee species is required (max 50 characters)."
     else:
-        cleaned["bee_species"] = match
+        match = next((sp for sp in HIVE_SPECIES if sp.lower() == bs.lower()), None)
+        cleaned["bee_species"] = match or bs
 
     # date_established
     de = _parse_date(payload.get("date_established"))

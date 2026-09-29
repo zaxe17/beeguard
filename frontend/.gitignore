@@ -49,3 +49,5 @@ __pycache__/
 /public/sw.js.map
 /public/workbox-*.js
 /public/worker-*.js
+
+certificates

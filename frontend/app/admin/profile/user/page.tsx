@@ -2,6 +2,7 @@
 
 "use client";
 
+import { formatPhMobile } from "@/lib/phone";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { HiveTabs, mapHealthStatusToUi } from "@/components/HiveContainer";
@@ -71,7 +72,7 @@ const Information = ({
 				<Input label="Full Name" value={user.name ?? ""} disabled />
 				<Input label="Username" value={user.username ?? ""} disabled />
 				<Input label="Email" value={user.email ?? ""} disabled />
-				<Input label="Contact No." value={user.contact_no ?? ""} disabled />
+				<Input label="Contact No." value={formatPhMobile(user.contact_no)} disabled />
 				<Input label="Address" value={user.address ?? ""} disabled />
 				<Input label="Joined" value={formatDay(user.created_at)} disabled />
 

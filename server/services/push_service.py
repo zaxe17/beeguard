@@ -166,6 +166,36 @@ class PushService:
             print(f"[PUSH] Couldn't queue push for {notification_id}: {e}")
 
     @staticmethod
+    def queue_direct(role: str, user_id: str, title: str, body: str,
+                     url: str, tag: str, push_type: str = "chat_message") -> None:
+        """
+        NEW — push that isn't tied to a saved bell notification (e.g. a new
+        chat message; chats have their own unread badges, so they don't
+        go in the bell list). Still respects the person's "Push
+        Notifications" switch in Settings. Returns right away; never raises.
+        """
+        if not push_enabled() or role not in ("citizen", "beekeeper", "admin"):
+            return
+        try:
+            _ensure_worker()
+            _jobs.put({
+                "direct": True,
+                "notification_id": tag,
+                "role": role,
+                "user_id": user_id,
+                "type": push_type,
+                "payload": {
+                    "title": title,
+                    "body": body,
+                    "url": url,
+                    "tag": tag,
+                    "type": push_type,
+                },
+            })
+        except Exception as e:
+            print(f"[PUSH] Couldn't queue direct push: {e}")
+
+    @staticmethod
     def send_test(role: str, user_id: str) -> int:
         """'Send a test notification' — skips settings and the commit check."""
         return _send_to_user(role, user_id, {
@@ -208,7 +238,10 @@ def _worker() -> None:
     while True:
         job = _jobs.get()
         try:
-            if not _notification_saved(job["notification_id"]):
+            # Bell notifications: only push once their transaction is
+            # committed. Direct pushes (chat) are sent after the message
+            # is already saved, so there's nothing to wait for.
+            if not job.get("direct") and not _notification_saved(job["notification_id"]):
                 continue
             if not SettingsService.wants_notification(job["role"], job["user_id"], job["type"]):
                 continue

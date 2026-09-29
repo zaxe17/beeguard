@@ -40,8 +40,17 @@ def list_chats():
 @token_required
 @role_required("citizen", "beekeeper")
 def get_messages(chat_id):
+    # NEW — batches ("load older" like Messenger):
+    #   ?limit=30              newest 30 messages (default 200, max 200)
+    #   ?limit=30&before=<id>  the 30 messages before message <id>
+    # Fewer than `limit` returned = no older messages left.
+    limit = request.args.get("limit", default=200, type=int) or 200
+    limit = max(1, min(limit, 200))
+    before = request.args.get("before", type=int)
     try:
-        messages = ChatService.get_messages(g.role, g.user_id, chat_id)
+        messages = ChatService.get_messages(
+            g.role, g.user_id, chat_id, limit=limit, before_id=before
+        )
     except PermissionError as e:
         return error(str(e), status=403)
     return success("Messages retrieved.", data=messages)

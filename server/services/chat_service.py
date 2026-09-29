@@ -22,6 +22,47 @@ def _sender_role(role: str) -> str:
     return "Citizen" if role == "citizen" else "Beekeeper"
 
 
+def _push_new_message(role: str, user_id: str, chat_id: int, preview: str) -> None:
+    """
+    NEW — phone/computer pop-up for the OTHER person in the chat when a
+    message is sent (before, chat messages never sent a push at all —
+    only bell notifications did). Tapping it opens that chat. Uses the
+    same tag per chat, so several messages replace each other instead of
+    stacking. Never raises: a failed push must not fail the message.
+    """
+    try:
+        from services.push_service import PushService  # lazy: avoids import cycle
+
+        chat = ChatModel.find_by_id(chat_id)
+        if not chat:
+            return
+        if role == "citizen":
+            to_role, to_id = "beekeeper", chat.get("beekeeperID")
+            from models.citizen import CitizenModel
+            sender = CitizenModel.find_by_id(user_id) or {}
+        else:
+            to_role, to_id = "citizen", chat.get("citizenID")
+            from models.beekeeper import BeekeeperModel
+            sender = BeekeeperModel.find_by_id(user_id) or {}
+        if not to_id:
+            return
+
+        name = sender.get("name") or ("A citizen" if role == "citizen" else "A beekeeper")
+        text = (preview or "").strip()
+        if len(text) > 120:
+            text = text[:117] + "…"
+        PushService.queue_direct(
+            role=to_role,
+            user_id=to_id,
+            title=name,
+            body=text or "Sent you a message",
+            url=f"/{to_role}/messages?chat={chat_id}",
+            tag=f"chat-{chat_id}",
+        )
+    except Exception as e:
+        print(f"[PUSH] Chat push failed for chat {chat_id}: {e}")
+
+
 def _to_float(value):
     # DECIMAL columns come back from PyMySQL as decimal.Decimal,
     # which Flask's JSON encoder can't serialize.
@@ -127,15 +168,23 @@ class ChatService:
 
     # ── MESSAGES ──────────────────────────────
     @staticmethod
-    def get_messages(role: str, user_id: str, chat_id: int) -> list[dict]:
+    def get_messages(role: str, user_id: str, chat_id: int,
+                     limit: int = 200, before_id: int | None = None) -> list[dict]:
+        """
+        Newest `limit` messages, oldest -> newest (Messenger-style: the
+        latest ones first, older ones loaded when you scroll up).
+          before_id -> the page of messages just before that message.
+        Loading an older page doesn't mark anything as read.
+        """
         if not ChatModel.is_participant(chat_id, role, user_id):
             raise PermissionError("You are not a participant of this chat.")
-        MessageModel.mark_read_for_role(chat_id, role)
-        # Opening the conversation clears "Mark as unread".
-        chat = ChatModel.find_by_id(chat_id)
-        if chat and ChatModel.is_marked_unread(chat, role):
-            ChatModel.set_marked_unread(chat_id, role, False)
-        rows = MessageModel.list_by_chat(chat_id)
+        if before_id is None:
+            MessageModel.mark_read_for_role(chat_id, role)
+            # Opening the conversation clears "Mark as unread".
+            chat = ChatModel.find_by_id(chat_id)
+            if chat and ChatModel.is_marked_unread(chat, role):
+                ChatModel.set_marked_unread(chat_id, role, False)
+        rows = MessageModel.list_by_chat(chat_id, limit=limit, before_id=before_id)
         return [_serialize_message(m) for m in rows]
 
     @staticmethod
@@ -143,6 +192,7 @@ class ChatService:
         if not ChatModel.is_participant(chat_id, role, user_id):
             raise PermissionError("You are not a participant of this chat.")
         message_id = MessageModel.insert(chat_id, _sender_role(role), content)
+        _push_new_message(role, user_id, chat_id, content)
         return _serialize_message(MessageModel.find_by_id(message_id))
 
     @staticmethod
@@ -159,6 +209,7 @@ class ChatService:
             except OSError:
                 pass
             raise
+        _push_new_message(role, user_id, chat_id, "📷 Sent a photo")
         return _serialize_message(MessageModel.find_by_id(message_id))
 
     @staticmethod
@@ -202,6 +253,11 @@ class ChatService:
             payload["latitude"],
             payload["longitude"],
             payload["live_minutes"],
+        )
+        _push_new_message(
+            role, user_id, chat_id,
+            "📍 Is sharing their live location" if payload.get("live_minutes")
+            else "📍 Shared a location",
         )
         return _serialize_message(MessageModel.find_by_id(message_id))
 

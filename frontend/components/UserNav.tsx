@@ -1,5 +1,6 @@
 "use client";
 
+import { playNotificationSound } from "@/lib/notifySound";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import user_profile from "@/public/assets/user_profile.png";
@@ -55,9 +56,20 @@ export const UserNav = () => {
 	const isMobileNotifOpen = notifParam === NOTIF_OPEN_VALUE;
 	const isNotificationVisible = isDesktop ? isOpen : isMobileNotifOpen;
 
+	// Last count seen (null = first load) — a higher count means a new
+	// notification arrived, so play the sound (lib/notifySound.ts).
+	const lastUnreadRef = useRef<number | null>(null);
+
 	const refreshUnreadCount = useCallback(async () => {
 		const res = await notificationService.unreadCount();
-		if (res.success && res.data) setUnreadCount(res.data.count);
+		if (res.success && res.data) {
+			const count = res.data.count;
+			if (lastUnreadRef.current !== null && count > lastUnreadRef.current) {
+				playNotificationSound("notification");
+			}
+			lastUnreadRef.current = count;
+			setUnreadCount(count);
+		}
 	}, []);
 
 	useEffect(() => {
@@ -153,17 +165,17 @@ export const UserNav = () => {
 	};
 
 	return (
-		<div className="sticky top-0 w-full flex items-start justify-between lg:p-0 px-5 pt-5 z-9999">
+		<div className="sticky top-0 w-full flex lg:items-start items-center justify-between lg:p-0 px-5 pt-5 z-9999">
 			<div className="flex items-center lg:gap-3.5 gap-1">
-				<div className="border border-amber-100 lg:w-16 w-10 lg:h-16 h-10 rounded-full">
+				<div className="border border-amber-100 lg:w-16 w-12 lg:h-16 h-12 rounded-full">
 					<ProfilePhoto me />
 				</div>
 
 				<div className="">
-					<h3 className="Poppins-Bold lg:text-3xl text-base">
+					<h3 className="Poppins-Bold lg:text-3xl text-xl">
 						Hi, {displayName}! 👋
 					</h3>
-					<p className="text-[#817b70] lg:text-sm text-[10px] leading-3">
+					<p className="text-[#817b70] lg:text-sm text-xs leading-2">
 						Let’s protect the bees together.
 					</p>
 				</div>

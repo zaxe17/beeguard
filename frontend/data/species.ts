@@ -9,10 +9,21 @@
 // Keep in sync with SPECIES_ENGLISH_NAMES in server/services/notification_service.py.
 
 export const SPECIES_ENGLISH_NAMES: Record<string, string> = {
-	"Apis cerana": "Asian Honey Bee",
+	// Honey bees (genus Apis)
 	"Apis mellifera": "Western Honey Bee",
+	"Apis cerana": "Asian Honey Bee",
 	"Apis dorsata": "Giant Honey Bee",
+	"Apis breviligula": "Philippine Giant Honey Bee",
+	"Apis florea": "Red Dwarf Honey Bee",
+	"Apis andreniformis": "Black Dwarf Honey Bee",
+	"Apis laboriosa": "Himalayan Giant Honey Bee",
+	"Apis koschevnikovi": "Koschevnikov's Honey Bee",
+	"Apis nuluensis": "Mount Kinabalu Honey Bee",
+	// Stingless bees (genus Tetragonula) found in the Philippines
 	"Tetragonula biroi": "Philippine Stingless Bee",
+	"Tetragonula iridipennis": "Stingless Bee",
+	"Tetragonula laeviceps": "Stingless Bee",
+	"Tetragonula sapiens": "Stingless Bee",
 };
 
 // "apis CERANA" -> "Apis cerana" (binomial naming style).
@@ -27,11 +38,36 @@ const formatScientific = (name: string) => {
 // NEW — the species a beekeeper can choose for a hive (Add Hive
 // dropdown). Saved as the scientific name in hives.bee_species.
 // Keep in sync with HIVE_SPECIES in server/validators/hive_validator.py.
-export const HIVE_SPECIES = [
-	"Apis cerana",
-	"Apis mellifera",
-	"Tetragonula biroi",
-] as const;
+// Honey bees first, then stingless bees; the ones most kept in the
+// Philippines first in each group.
+export const HIVE_SPECIES_GROUPS: { group: string; species: string[] }[] = [
+	{
+		group: "Honey Bees",
+		species: [
+			"Apis mellifera",
+			"Apis cerana",
+			"Apis dorsata",
+			"Apis breviligula",
+			"Apis nigrocincta",
+			"Apis florea",
+			"Apis andreniformis",
+			"Apis laboriosa",
+			"Apis koschevnikovi",
+			"Apis nuluensis",
+		],
+	},
+	{
+		group: "Stingless Bees",
+		species: [
+			"Tetragonula biroi",
+			"Tetragonula iridipennis",
+			"Tetragonula laeviceps",
+			"Tetragonula sapiens",
+		],
+	},
+];
+
+export const HIVE_SPECIES = HIVE_SPECIES_GROUPS.flatMap((g) => g.species);
 
 /** "Apis cerana" -> "Apis cerana / Asian Honey Bee". */
 export const speciesLabel = (species: string | null | undefined): string => {
@@ -45,7 +81,10 @@ export const speciesLabel = (species: string | null | undefined): string => {
 
 // Dropdown options for HIVE_SPECIES: value = scientific name (what's
 // saved), label = "Apis cerana / Asian Honey Bee".
-export const HIVE_SPECIES_OPTIONS = HIVE_SPECIES.map((sp) => ({
-	label: speciesLabel(sp),
-	value: sp,
-}));
+export const HIVE_SPECIES_OPTIONS = HIVE_SPECIES_GROUPS.flatMap((g) =>
+	g.species.map((sp) => ({
+		label: speciesLabel(sp),
+		value: sp,
+		group: g.group,
+	})),
+);

@@ -1,4 +1,5 @@
 "use client";
+import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 
@@ -69,6 +70,40 @@ export const CancelButton = ({
 				width: width || "100%",
 				color: textColor,
 			}}>
+			{label}
+		</button>
+	);
+};
+
+// BACK BUTTON
+export const BackButton = ({
+	label,
+	route,
+	fallbackRoute = "/",
+}: {
+	label?: string;
+	route?: string;
+	fallbackRoute?: string;
+}) => {
+	const router = useRouter();
+
+	const handleClick = () => {
+		if (route) {
+			router.push(route);
+		} else if (window.history.length > 1) {
+			router.back();
+		} else {
+			router.replace(fallbackRoute);
+		}
+	};
+
+	return (
+		<button
+			type="button"
+			onClick={handleClick}
+			aria-label={label ?? "Go back"}
+			className="flex items-center gap-1 cursor-pointer text-base text-[#ffa004]">
+			<Icon icon="bx:arrow-back" className="text-xl text-[#ffa004]" />
 			{label}
 		</button>
 	);

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/Button";
+import { BackButton, Button } from "@/components/ui/Button";
 import { FormContainer } from "@/components/ui/Container";
 import { Input, Select } from "@/components/ui/Input";
 import { PhoneInput } from "@/components/ui/PhoneInput";
@@ -561,7 +561,7 @@ const RegistrationForm = () => {
 				<p className="mb-3 text-xs text-red-600">{errors.form}</p>
 			)}
 
-			<div className="flex justify-center">
+			<div className="flex flex-col items-center justify-center gap-4">
 				{/* type="submit" -> clicking it OR pressing Enter goes Next */}
 				<Button
 					buttonType="submit"
@@ -569,6 +569,8 @@ const RegistrationForm = () => {
 					label={submitting ? "Checking..." : "Next"}
 					disabled={submitting}
 				/>
+
+				<BackButton label="Go back" />
 			</div>
 		</FormContainer>
 	);

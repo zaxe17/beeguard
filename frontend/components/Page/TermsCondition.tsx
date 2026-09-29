@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react";
-import { Button } from "../ui/Button";
+import { BackButton, Button } from "../ui/Button";
 import { FormContainer } from "../ui/Container";
 import { CheckBox } from "../ui/Input";
 
@@ -84,15 +84,7 @@ export const TermsConditionPage = ({
 							disabled={submitting || !accepted}
 						/>
 
-						<button
-							onClick={() => router.back()}
-							className="flex items-center gap-2 cursor-pointer">
-							<Icon
-								icon="bx:arrow-back"
-								className="text-2xl text-[#ffa004]"
-							/>
-							Go back
-						</button>
+						<BackButton label="Go back" />
 					</div>
 				</div>
 			)}

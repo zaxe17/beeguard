@@ -9,7 +9,11 @@ import { Button } from "./ui/Button";
 import { VerifyStatus } from "./ui/VerifyStatus";
 import { formatPhMobile } from "@/lib/phone";
 import { useAuth } from "@/context/AuthContext";
-import { checkPhotoFile, PHOTO_ACCEPT, profileService } from "@/services/profile";
+import {
+	checkPhotoFile,
+	PHOTO_ACCEPT,
+	profileService,
+} from "@/services/profile";
 
 type UserProp = {
 	name?: string;
@@ -33,7 +37,14 @@ type ProfileDisplayProps = {
 	verificationStatus?: string | null;
 };
 
-export const Users = ({ name, role, email, phoneNo, status, photo }: UserProp) => {
+export const Users = ({
+	name,
+	role,
+	email,
+	phoneNo,
+	status,
+	photo,
+}: UserProp) => {
 	const location = usePathname();
 	const pathname = location === "/admin/profile/user";
 
@@ -46,20 +57,22 @@ export const Users = ({ name, role, email, phoneNo, status, photo }: UserProp) =
 			</div>
 
 			{/* NAME AND OFFER */}
-			<div className="">
+			<div className="min-w-0 flex-1">
 				<h3 className="Poppins-SemiBold lg:text-lg text-sm capitalize">
 					{name}
 				</h3>
 				<p className="Poppins-SemiBold text-xs text-[#817b70] capitalize">
 					{role}
 				</p>
-				<p className="text-xs text-[#a6a3a3]">{email}</p>
-				<p className="text-xs text-[#a6a3a3]">{formatPhMobile(phoneNo)}</p>
+				<p className="text-xs text-[#a6a3a3] truncate">{email}</p>
+				<p className="text-xs text-[#a6a3a3]">
+					{formatPhMobile(phoneNo)}
+				</p>
 			</div>
 
-			<div className="ml-auto pr-3">
+			<div className="shrink-0 pr-1">
 				<span
-					className={`rounded-full flex items-center justify-center capitalize py-1 px-3 lg:text-base text-[10px] ${status === "active" ? "bg-[#00cc00] text-white" : "bg-[#e2e2e6] text-[#817b70]"}`}>
+					className={`rounded-full flex items-center justify-center capitalize py-1 lg:text-base text-[10px] lg:w-24 w-16 ${status === "active" ? "bg-[#00cc00] text-white" : "bg-[#e2e2e6] text-[#817b70]"}`}>
 					{status}
 				</span>
 			</div>
@@ -75,13 +88,16 @@ const ChangePhotoButton = () => {
 	const menuRef = useRef<HTMLDivElement>(null);
 	const [open, setOpen] = useState(false);
 	const [busy, setBusy] = useState(false);
-	const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+	const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(
+		null,
+	);
 
 	// Close the little menu when clicking elsewhere.
 	useEffect(() => {
 		if (!open) return;
 		const close = (e: MouseEvent) => {
-			if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+			if (menuRef.current && !menuRef.current.contains(e.target as Node))
+				setOpen(false);
 		};
 		document.addEventListener("mousedown", close);
 		return () => document.removeEventListener("mousedown", close);
@@ -109,7 +125,10 @@ const ChangePhotoButton = () => {
 			await refresh(); // top bar, sidebar, etc. show the new photo
 			setMsg({ text: "Profile photo updated." });
 		} else {
-			setMsg({ text: res.message || "Couldn't upload the photo.", isError: true });
+			setMsg({
+				text: res.message || "Couldn't upload the photo.",
+				isError: true,
+			});
 		}
 	};
 
@@ -122,7 +141,10 @@ const ChangePhotoButton = () => {
 			await refresh();
 			setMsg({ text: "Profile photo removed." });
 		} else {
-			setMsg({ text: res.message || "Couldn't remove the photo.", isError: true });
+			setMsg({
+				text: res.message || "Couldn't remove the photo.",
+				isError: true,
+			});
 		}
 	};
 
@@ -133,9 +155,16 @@ const ChangePhotoButton = () => {
 					type="button"
 					title="Change profile photo"
 					disabled={busy}
-					onClick={() => (user?.profile_photo ? setOpen((o) => !o) : inputRef.current?.click())}
+					onClick={() =>
+						user?.profile_photo
+							? setOpen((o) => !o)
+							: inputRef.current?.click()
+					}
 					className="w-8 h-8 rounded-full bg-[#ffdb4f] border-2 border-white shadow flex items-center justify-center text-[#4a2f00] hover:bg-[#ffce1c] disabled:opacity-60">
-					<Icon icon={busy ? "eos-icons:loading" : "mdi:camera"} className="w-4 h-4" />
+					<Icon
+						icon={busy ? "eos-icons:loading" : "mdi:camera"}
+						className="w-4 h-4"
+					/>
 				</button>
 				{open && (
 					<div className="absolute z-50 top-9 left-0 w-40 bg-[#fffdf5] rounded-lg shadow-lg py-1 text-sm">
@@ -146,18 +175,29 @@ const ChangePhotoButton = () => {
 								inputRef.current?.click();
 							}}
 							className="w-full text-left px-3 py-1.5 hover:bg-[#fff4c7] flex items-center gap-2">
-							<Icon icon="mdi:image-edit" className="w-4 h-4" /> Change photo
+							<Icon icon="mdi:image-edit" className="w-4 h-4" />{" "}
+							Change photo
 						</button>
 						<button
 							type="button"
 							onClick={onRemove}
 							className="w-full text-left px-3 py-1.5 hover:bg-[#fff4c7] text-red-600 flex items-center gap-2">
-							<Icon icon="mdi:delete-outline" className="w-4 h-4" /> Remove photo
+							<Icon
+								icon="mdi:delete-outline"
+								className="w-4 h-4"
+							/>{" "}
+							Remove photo
 						</button>
 					</div>
 				)}
 			</div>
-			<input ref={inputRef} type="file" accept={PHOTO_ACCEPT} hidden onChange={onPick} />
+			<input
+				ref={inputRef}
+				type="file"
+				accept={PHOTO_ACCEPT}
+				hidden
+				onChange={onPick}
+			/>
 			{msg && (
 				<p
 					className={`absolute top-full left-0 mt-1 w-56 text-[11px] z-40 ${
@@ -203,7 +243,9 @@ export const ProfileDisplay = ({
 							type="button"
 							onClick={onClick}
 							className="cursor-pointer">
-							<VerifyStatus status={verificationStatus ?? "Unverified"} />
+							<VerifyStatus
+								status={verificationStatus ?? "Unverified"}
+							/>
 						</button>
 
 						{/* Not verified yet -> the Verify Account button.

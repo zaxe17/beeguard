@@ -33,7 +33,8 @@ export const NavTab = ({ tabs, hasBg }: TabProps) => {
 	};
 
 	return (
-		<ul className="flex justify-around lg:gap-3 gap-2 overflow-x-auto whitespace-nowrap">
+		<ul className="flex justify-around lg:gap-3 gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-width:thin [scrollbar-color:#e5a93a_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#e5a93a]">
+			{" "}
 			{tabs.map((tab) => {
 				const isActive = activeStatus === tab.value;
 				return (

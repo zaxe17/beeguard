@@ -7,7 +7,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { HiveTabs, mapHealthStatusToUi } from "@/components/HiveContainer";
 import { NavTab } from "@/components/Tab";
-import { Button, CancelButton } from "@/components/ui/Button";
+import { BackButton, Button, CancelButton } from "@/components/ui/Button";
 import { Container, FormContainer } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
 import { ReportCard } from "@/components/ui/ReportCard";
@@ -404,6 +404,7 @@ const UserInner = () => {
 	return (
 		<div className="p-4 flex flex-col w-full h-screen min-h-0 overflow-hidden">
 			<div className="lg:w-1/3 w-full shrink-0">
+			<BackButton label="Go Back" />
 				<Users
 					name={user.name}
 					role={user.role}

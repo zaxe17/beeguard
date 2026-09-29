@@ -438,37 +438,47 @@ const RegistrationForm = () => {
 
 				{/* CONTACTS */}
 				<div className="flex flex-row gap-2.5">
-					<div className="flex-1 flex flex-col">
-						{/* "+63" is fixed; only the 10 digits after it are saved */}
-						<PhoneInput
-							label={
-								<>
-									Contact Number{" "}
-									<span className="text-[#ff0000]">*</span>
-								</>
-							}
-							height={30}
-							value={form.contact_no}
-							onChange={(digits) => update("contact_no", digits)}
-							error={!!errors.contact_no}
-						/>
-						<FieldError name="contact_no" />
-					</div>
-					<div className="flex-1 flex flex-col">
-						<Input
-							label={
-								<>
-									Email Address{" "}
-									<span className="text-[#ff0000]">*</span>
-								</>
-							}
-							type="email"
-							height={30}
-							value={form.email}
-							onChange={(e) => update("email", e.target.value)}
-							error={!!errors.email}
-						/>
-						<FieldError name="email" />
+					<div className="grid grid-cols-2 items-start gap-3 w-full">
+						<div className="min-w-0 flex flex-col">
+							<PhoneInput
+								label={
+									<>
+										Contact Number{" "}
+										<span className="text-[#ff0000]">
+											*
+										</span>
+									</>
+								}
+								height={30}
+								value={form.contact_no}
+								onChange={(digits) =>
+									update("contact_no", digits)
+								}
+								error={!!errors.contact_no}
+							/>
+							<FieldError name="contact_no" />
+						</div>
+
+						<div className="min-w-0 flex flex-col">
+							<Input
+								label={
+									<>
+										Email Address{" "}
+										<span className="text-[#ff0000]">
+											*
+										</span>
+									</>
+								}
+								type="email"
+								height={30}
+								value={form.email}
+								onChange={(e) =>
+									update("email", e.target.value)
+								}
+								error={!!errors.email}
+							/>
+							<FieldError name="email" />
+						</div>
 					</div>
 				</div>
 

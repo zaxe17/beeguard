@@ -1,15 +1,15 @@
 // components/modal/AdminReportModal.tsx
 //
 // Admin → Reports: tapping a report card opens this popup with the full
-// report (photo, bee, place, date, details, danger, status), the map
-// pin, who reported it, and every beekeeper offer on it.
+// report (photo, bee, place, date, details, danger, status), who
+// reported it, and every beekeeper offer on it. The location map is part
+// of ReportDetails (same as the citizen and beekeeper popups).
 // Controlled by the page (reportId / onClose) — not the global
 // ModalContext — so it works on any admin page without registering it.
 
 "use client";
 
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { Icon } from "@iconify/react";
 import { ModalContainer } from "./Modal";
 import MobileOverlay from "@/components/MobileOverlay";
@@ -17,6 +17,7 @@ import ReportDetails from "../ReportDetails";
 import { ProfilePhoto } from "../ProfilePhoto";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { speciesLabel } from "@/data/species";
+import { formatPhMobile } from "@/lib/phone";
 import { adminService, type AdminReportDetail, type AdminReportOffer } from "@/services/admin";
 import {
 	formatDate,
@@ -24,15 +25,6 @@ import {
 	reportImageSrc,
 	toAdminUiStatus,
 } from "@/services/citizenReport";
-
-const Map = dynamic(() => import("../ui/google-maps/Map"), {
-	ssr: false,
-	loading: () => (
-		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
-			Loading map…
-		</div>
-	),
-});
 
 type Props = {
 	reportId: string | null;
@@ -146,16 +138,6 @@ const Content = ({ reportId }: { reportId: string }) => {
 				)}
 			</div>
 
-			{/* MAP */}
-			{!Number.isNaN(lat) && !Number.isNaN(lng) && (
-				<div className="flex flex-col gap-2">
-					<SectionTitle>Location</SectionTitle>
-					<div className="w-full h-60 rounded-xl relative overflow-hidden">
-						<Map markerPosition={{ lat, lng }} readOnly />
-					</div>
-				</div>
-			)}
-
 			{/* REPORTED BY */}
 			<div className="flex flex-col gap-2">
 				<SectionTitle>Reported By</SectionTitle>
@@ -166,7 +148,7 @@ const Content = ({ reportId }: { reportId: string }) => {
 					<div className="min-w-0">
 						<p className="Poppins-SemiBold text-[#4A2F00]">{report.citizen_name ?? "Citizen"}</p>
 						<p className="text-xs text-[#a6a3a3] break-all">
-							{[report.citizen_email, report.citizen_contact].filter(Boolean).join(" • ") ||
+							{[report.citizen_email, formatPhMobile(report.citizen_contact)].filter(Boolean).join(" • ") ||
 								"Citizen"}
 						</p>
 					</div>
@@ -190,7 +172,7 @@ const Content = ({ reportId }: { reportId: string }) => {
 										{o.farm_name ? ` • ${o.farm_name}` : ""}
 									</p>
 									<p className="text-xs text-[#a6a3a3]">
-										{o.beekeeper_contact ?? "—"} • offered {formatDate(o.created_at)}
+										{formatPhMobile(o.beekeeper_contact) || "—"} • offered {formatDate(o.created_at)}
 									</p>
 								</div>
 								<span

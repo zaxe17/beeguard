@@ -6,6 +6,9 @@ import { Container, FormContainer } from "../ui/Container";
 import { ProfileDisplay } from "../Users";
 import { PrivacyPolicyPage, TermsConditionPage } from "./TermsCondition";
 import { Input, Select } from "../ui/Input";
+import { PhoneInput } from "../ui/PhoneInput";
+import { formatPhMobile } from "@/lib/phone";
+import { isSoundOn, playNotificationSound, setSoundOn, unlockNotificationSound } from "@/lib/notifySound";
 import { Button } from "../ui/Button";
 import { SettingsTabs, SwitchTab } from "../Tab";
 import { Icon } from "@iconify/react";
@@ -137,6 +140,30 @@ const FarmPhotoEditor = ({
 // Small red text under an input.
 const FieldError = ({ text }: { text?: string | null }) =>
 	text ? <p className="text-xs text-red-600 -mt-2">{text}</p> : null;
+
+// Settings → Notification Sound: the "ding" while BeeGuard is open
+// (lib/notifySound.ts). Saved on this device only.
+const NotificationSoundSwitch = () => {
+	const [on, setOn] = useState(true);
+	useEffect(() => setOn(isSoundOn()), []);
+	return (
+		<SwitchTab
+			label="Notification Sound"
+			icon="mdi:volume-high"
+			desc="Play a sound for new notifications and messages while BeeGuard is open."
+			checked={on}
+			onChange={(value: boolean) => {
+				setOn(value);
+				setSoundOn(value);
+				if (value) {
+					// Let them hear it right away.
+					unlockNotificationSound();
+					setTimeout(() => playNotificationSound("notification"), 50);
+				}
+			}}
+		/>
+	);
+};
 
 // Settings → Push Notifications: the account switch + this device.
 const PushNotificationSwitch = () => {
@@ -338,6 +365,7 @@ const Settings = ({
 					{/* TABS */}
 					<div className="w-full flex flex-col items gap-3">
 						<PushNotificationSwitch />
+						<NotificationSoundSwitch />
 					</div>
 				</div>
 			</div>
@@ -511,10 +539,11 @@ const PersonalInfo = () => {
 
 				<Input label="Email" value={form.email ?? ""} disabled />
 
-				<Input
+				{/* "+63" is fixed; only the 10 digits after it are saved */}
+				<PhoneInput
 					label="Phone Number"
 					value={form.contact_no ?? ""}
-					onChange={(e) => set("contact_no", e.target.value)}
+					onChange={(digits) => set("contact_no", digits)}
 					error={!!errors.contact_no}
 				/>
 				<FieldError text={errors.contact_no} />
@@ -853,7 +882,7 @@ const VerifyBeekeeperForm = () => {
 					<Input label="Username" value={user?.username ?? ""} disabled />
 				</div>
 				<Input label="Email" value={info?.email ?? user?.email ?? ""} disabled />
-				<Input label="Phone Number" value={info?.contact_no ?? ""} disabled />
+				<Input label="Phone Number" value={formatPhMobile(info?.contact_no)} disabled />
 				<Input label="Location" value={info?.address ?? ""} disabled />
 
 				{/* VERIFIED — the approved document, read-only */}

@@ -26,8 +26,34 @@ def _valid_password(pw: str) -> bool:
     return bool(re.search(r"[A-Za-z]", pw)) and bool(re.search(r"\d", pw))
 
 
+def normalize_ph_mobile(v) -> str | None:
+    """
+    Philippine mobile number -> the 10 digits AFTER +63, e.g. "9171234567".
+    That's what's saved in the database; the app shows "+63" in front.
+
+    Accepts the ways people usually type it:
+      "9171234567", "09171234567", "639171234567", "+63 917 123 4567",
+      "0917-123-4567"
+    Returns None if it isn't a valid PH mobile number — including too
+    many or too few digits (before, anything 7–15 characters long was
+    accepted).
+    """
+    if not isinstance(v, str):
+        return None
+    digits = re.sub(r"\D", "", v)
+    if len(digits) == 12 and digits.startswith("63"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    return digits if re.fullmatch(r"9\d{9}", digits) else None
+
+
+CONTACT_ERROR = "Enter a valid mobile number: 10 digits after +63, starting with 9 (e.g. 9171234567)."
+
+
 def _valid_contact(v: str) -> bool:
-    return isinstance(v, str) and bool(re.fullmatch(r"[0-9+\-\s()]{7,15}", v.strip()))
+    """Kept for older imports — True if it's a valid PH mobile number."""
+    return normalize_ph_mobile(v) is not None
 
 
 def _valid_email(v: str) -> str | None:
@@ -58,7 +84,7 @@ def validate_register_payload(payload: dict) -> tuple[dict, dict]:
         "name":        (40, "Full name is required."),
         "citizenship": (20, "Citizenship is required."),
         "username":    (30, "Username is required."),
-        "contact_no":  (15, "Contact number is required."),
+        "contact_no":  (20, "Contact number is required."),  # checked + shortened below
         "email":       (50, "Email address is required."),
     }
     for field, (max_len, msg) in required.items():
@@ -76,11 +102,13 @@ def validate_register_payload(payload: dict) -> tuple[dict, dict]:
         else:
             cleaned["email"] = norm_email
 
-    # Contact format
-    if "contact_no" in cleaned and not _valid_contact(cleaned["contact_no"]):
-        field_errors["contact_no"] = (
-            "Phone must be 7–15 characters (digits, +, -, spaces, or parentheses)."
-        )
+    # Contact: saved as the 10 digits after +63 (e.g. "9171234567")
+    if "contact_no" in cleaned:
+        mobile = normalize_ph_mobile(cleaned["contact_no"])
+        if mobile is None:
+            field_errors["contact_no"] = CONTACT_ERROR
+        else:
+            cleaned["contact_no"] = mobile
 
     # Password
     password = payload.get("password")
@@ -248,10 +276,14 @@ def validate_unique_check_payload(payload: dict) -> tuple[dict, dict]:
         else:
             cleaned["email"] = norm
 
-    if "contact_no" in cleaned and not _valid_contact(cleaned["contact_no"]):
-        field_errors["contact_no"] = (
-            "Phone must be 7–15 characters (digits, +, -, spaces, or parentheses)."
-        )
+    # Same format as saved, so "09171234567" and "9171234567" are
+    # recognised as the same number.
+    if "contact_no" in cleaned:
+        mobile = normalize_ph_mobile(cleaned["contact_no"])
+        if mobile is None:
+            field_errors["contact_no"] = CONTACT_ERROR
+        else:
+            cleaned["contact_no"] = mobile
 
     return cleaned, field_errors
 

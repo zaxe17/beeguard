@@ -26,15 +26,26 @@ self.addEventListener("push", (event) => {
 		body: data.body || "",
 		icon: "/assets/icons/icon-192.png",
 		badge: "/assets/icons/icon-192.png",
-		tag: data.tag || undefined,
+		tag: data.tag || undefined, // same tag replaces instead of stacking
+		// A replaced notification (same tag, e.g. the next chat message)
+		// still makes a sound / pops up again.
+		renotify: !!data.tag,
+		silent: false,
 		data: { url: data.url || "/" },
 		vibrate: [120, 60, 120],
 	};
 
 	event.waitUntil(
 		(async () => {
-			await self.registration.showNotification(title, options);
 			const tabs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+			// Someone is looking at BeeGuard right now -> the page plays its
+			// own sound and updates the bell (components/RegisterSW.tsx), so
+			// skip the system pop-up (no double sound). Otherwise -> pop-up
+			// with the computer's / phone's notification sound.
+			const watching = tabs.some((t) => t.visibilityState === "visible" && t.focused);
+			if (!watching) {
+				await self.registration.showNotification(title, options);
+			}
 			tabs.forEach((tab) => tab.postMessage({ type: "beeguard:push", payload: data }));
 		})(),
 	);

@@ -3,62 +3,36 @@
 
 import React from "react";
 import { Container } from "@/components/ui/Container";
-import { Button } from "@/components/ui/Button";
-import { ModalProvider, useModal } from "@/context/ModalContext";
-import { SignupModal } from "@/components/modal/SignupModal";
+import { ModalProvider } from "@/context/ModalContext";
 
 /**
- * GUEST BEE IDENTIFICATION — http://localhost:5000/guest
- * No login needed. Reached from "use bee identification" on the login page.
- * The sign-up popup lives here; page.tsx opens it (via useModal) as soon
- * as a photo has been taken/uploaded and identified.
+ * GUEST BEE IDENTIFICATION — /guest (no login needed).
+ * Reached from "Try Bee Identification" on the login page.
+ *
+ * Just the frame + title. The steps, the Next button and the popups
+ * (bee result -> "log in to submit") live in page.tsx, which needs to
+ * know whether a photo was taken before Next can run.
  */
-type ModalType = "signup";
-
-const GuestLayoutContent = ({ children }: { children?: React.ReactNode }) => {
-	const { isModalOpen, closeModal, openModal } = useModal<ModalType>();
-
-	return (
-		<div className="w-full h-screen lg:p-5 p-3 flex items-center justify-center flex-col gap-3 min-h-0">
-			{/* CONTAINER */}
-			<Container width="lg:w-1/2 w-full" height="100%" scroll>
-				<div className="w-full h-full flex flex-col min-h-0">
-					{/* TITLE */}
-					<div className="shrink-0">
-						<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
-							What Bee Is This?
-						</h2>
-					</div>
-
-					{/* WRAPPER */}
-					<div className="w-full flex-1 min-h-0 pb-3 flex flex-col items-center gap-3">
-						{/* CONTENT */}
-						<div className="w-full flex-1 min-h-0 flex flex-col overflow-y-auto pt-3">
-							{children}
-						</div>
-
-						{/* BUTTON */}
-						<div className="w-full shrink-0 flex justify-center">
-							<Button
-								width="50%"
-								label="Next"
-								onClick={() => openModal("signup")}
-							/>
-						</div>
-					</div>
-				</div>
-			</Container>
-
-			{/* MODAL */}
-			<SignupModal isOpen={isModalOpen("signup")} onClose={closeModal} />
-		</div>
-	);
-};
-
 const GuestLayout = ({ children }: { children?: React.ReactNode }) => {
 	return (
 		<ModalProvider>
-			<GuestLayoutContent>{children}</GuestLayoutContent>
+			<div className="w-full h-screen lg:p-5 p-3 flex items-center justify-center flex-col gap-3 min-h-0">
+				<Container width="lg:w-1/2 w-full" height="100%" scroll>
+					<div className="w-full h-full flex flex-col min-h-0">
+						{/* TITLE */}
+						<div className="shrink-0">
+							<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
+								What Bee Is This?
+							</h2>
+						</div>
+
+						{/* CONTENT (camera, Next button, popups) */}
+						<div className="w-full flex-1 min-h-0 flex flex-col pt-3 pb-3">
+							{children}
+						</div>
+					</div>
+				</Container>
+			</div>
 		</ModalProvider>
 	);
 };

@@ -39,15 +39,32 @@ class MessageModel:
         return Database.execute(sql, (message_id,), fetchone=True)
 
     @staticmethod
-    def list_by_chat(chat_id: int, limit: int = 200):
+    def list_by_chat(chat_id: int, limit: int = 200, before_id: int | None = None):
+        """
+        The NEWEST `limit` messages (optionally only those older than
+        `before_id`), returned oldest -> newest for display.
+
+        FIX: this used to take the OLDEST 200 (ORDER BY ... ASC LIMIT
+        200), so once a chat passed 200 messages the new ones never
+        showed. It now takes the newest ones, and `before_id` loads older
+        messages page by page ("load older" when scrolling up).
+        """
+        where = "chat_id = %s"
+        params: list = [chat_id]
+        if before_id is not None:
+            where += " AND message_id < %s"
+            params.append(int(before_id))
+        params.append(int(limit))
         sql = f"""
             SELECT *, {LOCATION_COLUMNS}
             FROM {MessageModel.TABLE}
-            WHERE chat_id = %s
-            ORDER BY sent_at ASC, message_id ASC
+            WHERE {where}
+            ORDER BY message_id DESC
             LIMIT %s
         """
-        return Database.execute(sql, (chat_id, int(limit)), fetchall=True) or []
+        rows = Database.execute(sql, tuple(params), fetchall=True) or []
+        rows.reverse()  # oldest -> newest
+        return rows
 
     @staticmethod
     def latest_for_chat(chat_id: int):

@@ -4,7 +4,7 @@
 
 import { Icon } from "@iconify/react";
 import React, { useEffect, useState } from "react";
-import { Input, Select } from "../ui/Input";
+import { Input } from "../ui/Input";
 import { HIVE_SPECIES_OPTIONS } from "@/data/species";
 import { Button, CancelButton } from "../ui/Button";
 import { ModalContainer } from "./Modal";
@@ -101,6 +101,96 @@ const groupByMonth = (data: HistoryEntry[]): Record<string, HistoryEntry[]> => {
 	});
 
 	return groups;
+};
+
+// ─────────────────────────────────────────────
+// BEE SPECIES BOX — type freely, or pick from a white dropdown of the
+// suggested species (HIVE_SPECIES_OPTIONS). Custom-made instead of the
+// browser's <datalist>, whose dropdown can't be styled (it showed dark).
+// ─────────────────────────────────────────────
+const SpeciesCombobox = ({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (v: string) => void;
+}) => {
+	const [open, setOpen] = useState(false);
+
+	// Show the species that match what's typed (all of them when empty,
+	// or when the text is exactly one of the options).
+	const q = value.trim().toLowerCase();
+	const exact = HIVE_SPECIES_OPTIONS.some((o) => o.value.toLowerCase() === q);
+	const options =
+		!q || exact
+			? HIVE_SPECIES_OPTIONS
+			: HIVE_SPECIES_OPTIONS.filter((o) => o.label.toLowerCase().includes(q));
+
+	return (
+		<div className="relative flex flex-col w-full gap-1">
+			<label
+				htmlFor="hive-bee-species"
+				className="lg:text-base text-sm text-[#4a2f00]">
+				Bee Species
+			</label>
+			<div className="relative">
+				<input
+					id="hive-bee-species"
+					value={value}
+					onChange={(e) => {
+						onChange(e.target.value);
+						setOpen(true);
+					}}
+					onFocus={() => setOpen(true)}
+					onBlur={() => setOpen(false)}
+					onKeyDown={(e) => {
+						if (e.key === "Escape") setOpen(false);
+					}}
+					placeholder="Select or type the bee species"
+					maxLength={50}
+					autoComplete="off"
+					className="text-sm w-full lg:h-8 h-10 p-2.5 pr-8 border border-[#a6a3a3] outline-0 rounded-lg bg-white/70"
+				/>
+				<Icon
+					icon="mdi:chevron-down"
+					className={`absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 text-[#817b70] pointer-events-none transition-transform ${
+						open ? "rotate-180" : ""
+					}`}
+				/>
+			</div>
+
+			{open && options.length > 0 && (
+				<ul className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-[#e2e2e6] rounded-lg shadow-[0px_6px_16px_rgba(0,0,0,0.15)] max-h-64 overflow-y-auto">
+					{options.map((o, i) => (
+						<React.Fragment key={o.value}>
+						{/* group heading: "Honey Bees" / "Stingless Bees" */}
+						{(i === 0 || options[i - 1].group !== o.group) && (
+							<li className="sticky top-0 bg-[#f7f5ef] px-3 py-1 text-[10px] Poppins-SemiBold uppercase tracking-wide text-[#817b70]">
+								{o.group}
+							</li>
+						)}
+						<li
+							// onMouseDown (not onClick) so it runs before the
+							// input's blur closes the list.
+							onMouseDown={(e) => {
+								e.preventDefault();
+								onChange(o.value);
+								setOpen(false);
+							}}
+							className={`px-3 py-2 cursor-pointer hover:bg-[#fff1ad]/60 ${
+								o.value === value ? "bg-[#fff8e1]" : ""
+							}`}>
+							<p className="Poppins-SemiBold text-sm text-[#4a2f00]">
+								{o.value}
+							</p>
+							<p className="text-xs text-[#817b70]">{o.label}</p>
+						</li>
+						</React.Fragment>
+					))}
+				</ul>
+			)}
+		</div>
+	);
 };
 
 // ─────────────────────────────────────────────
@@ -235,14 +325,8 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					value={hiveName}
 					onChange={(e) => setHiveName(e.target.value)}
 				/>
-				{/* BEE SPECIES — dropdown of the species BeeGuard supports */}
-				<Select
-					label="Bee Species"
-					placeholder="Select bee species"
-					options={HIVE_SPECIES_OPTIONS}
-					value={beeSpecies}
-					onSelectChange={(e) => setBeeSpecies(e.target.value)}
-				/>
+				{/* BEE SPECIES — pick from the list OR type another species */}
+				<SpeciesCombobox value={beeSpecies} onChange={setBeeSpecies} />
 				<div className="flex gap-2 lg:flex-row flex-col">
 					<Input
 						label="Date Established"

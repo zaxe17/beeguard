@@ -7,6 +7,7 @@ import { Icon } from "@iconify/react";
 import { ProfilePhoto } from "./ProfilePhoto";
 import { Button } from "./ui/Button";
 import { VerifyStatus } from "./ui/VerifyStatus";
+import { formatPhMobile } from "@/lib/phone";
 import { useAuth } from "@/context/AuthContext";
 import { checkPhotoFile, PHOTO_ACCEPT, profileService } from "@/services/profile";
 
@@ -53,7 +54,7 @@ export const Users = ({ name, role, email, phoneNo, status, photo }: UserProp) =
 					{role}
 				</p>
 				<p className="text-xs text-[#a6a3a3]">{email}</p>
-				<p className="text-xs text-[#a6a3a3]">{phoneNo}</p>
+				<p className="text-xs text-[#a6a3a3]">{formatPhMobile(phoneNo)}</p>
 			</div>
 
 			<div className="ml-auto pr-3">

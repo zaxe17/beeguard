@@ -1,3 +1,4 @@
+// app/citizen/report/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { speciesLabel } from "@/data/species";
 import { useModal } from "@/context/ModalContext";
 import { useReportFlow } from "@/context/ReportFlowContext";
 import { cvScanService } from "@/services/cvscan";
+import { RETAKE_PHOTO_EVENT } from "@/components/modal/ReportModal";
 import { citizenReportService } from "@/services/citizenReport";
 import {
 	formatCoords,
@@ -37,8 +39,25 @@ const DESCRIPTION_MAX_LEN = 50;
 // Wait this long after the user stops typing before looking up a place.
 const GEOCODE_DEBOUNCE_MS = 800;
 
+// This device's current date "YYYY-MM-DD" and time "HH:MM".
+const nowDateTime = () => {
+	const d = new Date();
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return {
+		date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+		time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+	};
+};
+
+// Step 3's Date & Time. Left empty in step 2 = "reporting it right now",
+// so show the current date & time (the same time the report is saved
+// with) instead of "Not specified".
 const formatSighted = (date: string, time: string) => {
-	if (!date || !time) return "Not specified";
+	if (!date || !time) {
+		const now = nowDateTime();
+		date = now.date;
+		time = now.time;
+	}
 	const d = new Date(`${date}T${time}`);
 	return `${d.toLocaleDateString("en-US", {
 		month: "long",
@@ -174,6 +193,28 @@ const Camera = () => {
 			streamRef.current?.getTracks().forEach((track) => track.stop());
 		};
 	}, []);
+
+	// "Retake Photo" (BeeIdentify popup, no bee detected): clear the photo
+	// and go back to the live camera.
+	useEffect(() => {
+		const retake = () => {
+			setPhoto(null);
+			setPhotoPreview(null);
+			setUploadedFile(null);
+			setScan(null);
+			setScanError(null);
+			setCanProceed(false);
+		};
+		window.addEventListener(RETAKE_PHOTO_EVENT, retake);
+		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, retake);
+	}, [setPhotoPreview, setScan, setCanProceed]);
+
+	// When the <video> comes back after a retake, reconnect the camera.
+	useEffect(() => {
+		if (!photo && videoRef.current && streamRef.current) {
+			videoRef.current.srcObject = streamRef.current;
+		}
+	}, [photo]);
 
 	const handleTakePhoto = () => {
 		const video = videoRef.current;
@@ -650,8 +691,11 @@ const ReviewRep = () => {
 				longitude: location.lng,
 				bee_danger: details.bee_danger,
 				// Both or neither — validators/report_validator.py.
-				sighted_date: details.sighted_date || null,
-				sighted_time: details.sighted_time || null,
+				// Left empty = "right now": send the current date & time,
+				// so the report shows the same time everywhere (step 3,
+				// the report cards and the beekeeper's popup).
+				sighted_date: details.sighted_date || nowDateTime().date,
+				sighted_time: details.sighted_time || nowDateTime().time,
 				description: details.description.trim() || null,
 			});
 			setSubmitting(false);

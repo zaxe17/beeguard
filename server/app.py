@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -45,13 +46,26 @@ def create_app() -> Flask:
     # CORS — restrict to the Next.js dev origin (configurable via .env).
     # Without this, the browser blocks localhost:3000 -> localhost:8000 calls
     # and fetch() rejects with "TypeError: Failed to fetch".
+    # Allowed frontend addresses. Both http AND https for local dev:
+    # `next dev --experimental-https` serves https://localhost:3000, which
+    # the browser treats as a different site from http://localhost:3000
+    # (that mismatch blocked every login with "Network error").
+    # FRONTEND_ORIGIN in .env can hold several, comma-separated, e.g.
+    #   FRONTEND_ORIGIN=https://beeguard.vercel.app,https://www.beeguard.ph
+    allowed_origins = {
+        f"{scheme}://{host}:{port}"
+        for scheme in ("http", "https")
+        for host in ("localhost", "127.0.0.1")
+        for port in (3000, 5000)
+    }
+    for origin in str(Config.FRONTEND_ORIGIN or "").split(","):
+        origin = origin.strip().rstrip("/")
+        if origin:
+            allowed_origins.add(origin)
+
     CORS(
         app,
-        resources={r"/api/*": {"origins": [
-            Config.FRONTEND_ORIGIN,
-            "http://localhost:3000",
-            "http://localhost:5000",   # NEW — frontend on port 5000
-        ]}},
+        resources={r"/api/*": {"origins": sorted(allowed_origins)}},
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
         supports_credentials=False,

@@ -4,20 +4,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 
+import { cvScanService } from "@/services/cvscan";
 import { useModal } from "@/context/ModalContext";
-import { cvScanService, CVScanResult } from "@/services/cvscan";
-import { speciesLabel } from "@/data/species";
+import { Button } from "@/components/ui/Button";
+import { BeeIdentify, RETAKE_PHOTO_EVENT } from "@/components/modal/ReportModal";
+import { SignupModal } from "@/components/modal/SignupModal";
 
 /**
- * GUEST BEE IDENTIFICATION (no login).
- * Take or upload a photo -> it's identified (POST /api/cv-scans, sent
- * without a login token) -> the result shows under the photo and the
- * "Create an Account to Submit" popup opens (SignupModal, in layout.tsx).
- *
+ * GUEST BEE IDENTIFICATION (no login). Scans are sent without a login
+ * token (POST /api/cv-scans) and saved as guest scans.
  * Styling is kept minimal on purpose — the frontend team will design it.
  */
-type ModalType = "signup";
-
 // A data URL (canvas capture) -> a real File the upload can send.
 const dataUrlToFile = async (dataUrl: string, name: string): Promise<File> => {
 	const blob = await (await fetch(dataUrl)).blob();
@@ -81,7 +78,12 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 	}, [photo]);
 
 	const handleTakePhoto = async () => {
-		if (busy || photo) return;
+		if (busy) return;
+		// A photo is showing -> first tap goes back to the live camera.
+		if (photo) {
+			onRetake();
+			return;
+		}
 		const video = videoRef.current;
 		const canvas = canvasRef.current;
 		if (!video || !canvas || !streamRef.current || !video.videoWidth) return;
@@ -150,35 +152,27 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 				<canvas ref={canvasRef} className="hidden" />
 			</div>
 
-			{/* ACTION BUTTONS */}
-			{photo ? (
-				<button
-					type="button"
-					onClick={onRetake}
-					disabled={busy}
-					className="text-sm underline disabled:opacity-50">
-					Retake / choose another photo
-				</button>
-			) : (
-				<div className="w-full flex justify-center gap-20">
-					{/* TAKE PHOTO BUTTON */}
-					<div
-						onClick={handleTakePhoto}
-						className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-						<Icon icon="entypo:camera" className="w-full h-full text-white" />
-					</div>
-
-					{/* UPLOAD PHOTO BUTTON */}
-					<div
-						onClick={handleUploadClick}
-						className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-						<Icon
-							icon="icon-park-outline:upload-picture"
-							className="w-full h-full text-white"
-						/>
-					</div>
+			{/* ACTION BUTTONS — always shown (Retake is in the result popup).
+			    Tapping the camera while a photo is showing goes back to
+			    the live camera. */}
+			<div className="w-full flex justify-center gap-20">
+				{/* TAKE PHOTO BUTTON */}
+				<div
+					onClick={handleTakePhoto}
+					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
+					<Icon icon="entypo:camera" className="w-full h-full text-white" />
 				</div>
-			)}
+
+				{/* UPLOAD PHOTO BUTTON */}
+				<div
+					onClick={handleUploadClick}
+					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
+					<Icon
+						icon="icon-park-outline:upload-picture"
+						className="w-full h-full text-white"
+					/>
+				</div>
+			</div>
 
 			<input
 				ref={fileInputRef}
@@ -191,70 +185,105 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 	);
 };
 
+type ModalType = "beeIdentify" | "signup";
+type BeeIdentifyPayload = {
+	species: string | null;
+	confidencePercent: number | null;
+};
+
+/**
+ * Flow:
+ *   1. take or upload a photo
+ *   2. Next -> the bee is identified (saved in cv_scans as a guest scan)
+ *   3. result popup ("Bee Species Identified!"):
+ *        Submit Photo -> "Log in to submit" popup -> Log In / Sign Up page
+ *        Cancel       -> back to the photo
+ *        (no bee found -> Retake Photo / Cancel)
+ */
 const GuestIdentify = () => {
-	const { openModal } = useModal<ModalType>();
+	const { isModalOpen, openModal, closeModal } = useModal<
+		ModalType,
+		BeeIdentifyPayload
+	>();
 
 	const [photo, setPhoto] = useState<string | null>(null);
+	const [file, setFile] = useState<File | null>(null);
 	const [scanning, setScanning] = useState(false);
-	const [result, setResult] = useState<CVScanResult | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const handlePhoto = useCallback(
-		async (dataUrl: string, file: File) => {
-			setPhoto(dataUrl);
-			setResult(null);
-			setError(null);
-			setScanning(true);
-
-			const res = await cvScanService.scanAsGuest(file);
-			setScanning(false);
-
-			if (!res.success || !res.data) {
-				setError(res.message || "Identification failed. Please try again.");
-			} else {
-				setResult(res.data);
-			}
-
-			// Photo taken/uploaded -> ask the guest to sign up.
-			openModal("signup");
-		},
-		[openModal],
-	);
-
-	const handleRetake = () => {
-		setPhoto(null);
-		setResult(null);
+	const handlePhoto = useCallback((dataUrl: string, picked: File) => {
+		setPhoto(dataUrl);
+		setFile(picked);
 		setError(null);
+	}, []);
+
+	const handleRetake = useCallback(() => {
+		setPhoto(null);
+		setFile(null);
+		setError(null);
+	}, []);
+
+	// "Retake Photo" in the result popup (no bee detected).
+	useEffect(() => {
+		window.addEventListener(RETAKE_PHOTO_EVENT, handleRetake);
+		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, handleRetake);
+	}, [handleRetake]);
+
+	// Next -> identify the bee, then show the result popup.
+	const handleNext = async () => {
+		if (!file || scanning) return;
+		setScanning(true);
+		setError(null);
+		const res = await cvScanService.scanAsGuest(file);
+		setScanning(false);
+
+		if (!res.success || !res.data) {
+			setError(res.message || "Identification failed. Please try again.");
+			return;
+		}
+		openModal("beeIdentify", {
+			species: res.data.identified_species,
+			confidencePercent: res.data.confidence_score,
+		});
 	};
 
 	return (
-		<div className="w-full h-full flex flex-col justify-center items-center gap-3">
-			{/* CAMERA */}
-			<Camera
-				photo={photo}
-				busy={scanning}
-				onPhoto={handlePhoto}
-				onRetake={handleRetake}
+		<div className="w-full h-full flex flex-col items-center gap-3 min-h-0">
+			<div className="w-full flex-1 min-h-0 flex flex-col justify-center items-center overflow-y-auto">
+				{/* CAMERA */}
+				<Camera
+					photo={photo}
+					busy={scanning}
+					onPhoto={handlePhoto}
+					onRetake={handleRetake}
+				/>
+				{error && (
+					<p className="text-sm text-red-600 text-center mt-2">{error}</p>
+				)}
+			</div>
+
+			{/* NEXT — only after a photo is taken/uploaded */}
+			<div className="w-full shrink-0 flex justify-center">
+				<Button
+					width="50%"
+					label={scanning ? "Identifying..." : "Next"}
+					onClick={handleNext}
+					disabled={!file || scanning}
+				/>
+			</div>
+
+			{/* RESULT POPUP — Submit Photo -> must log in first */}
+			<BeeIdentify
+				isOpen={isModalOpen("beeIdentify")}
+				onClose={closeModal}
+				onSubmit={() => {
+					closeModal();
+					openModal("signup");
+				}}
 			/>
 
-			{/* RESULT (plain — for the design team to style) */}
-			{result && (
-				<div className="text-center">
-					<p className="text-sm">You are seeing:</p>
-					<p className="Poppins-Bold text-lg text-[#4a2f00]">
-						{result.identified_species
-							? speciesLabel(result.identified_species)
-							: "No bee detected"}
-					</p>
-					{result.confidence_score !== null && (
-						<p className="text-sm">
-							{Math.round(result.confidence_score)}% match
-						</p>
-					)}
-				</div>
-			)}
-
-			{error && <p className="text-sm text-red-600 text-center">{error}</p>}
+			{/* "Log in to submit" popup */}
+			<SignupModal isOpen={isModalOpen("signup")} onClose={closeModal} />
 		</div>
 	);
 };

@@ -8,9 +8,10 @@ import re
 
 from validators.auth_validator import (
     ALLOWED_APIARY_TYPES,
+    CONTACT_ERROR,
     _is_nonempty_str,
-    _valid_contact,
     _valid_password,
+    normalize_ph_mobile,
 )
 
 USERNAME_RE = re.compile(r"^\S{3,30}$")  # like registration: no spaces, max 30
@@ -40,13 +41,12 @@ def validate_profile_update(role: str, payload: dict) -> tuple[dict, dict]:
             cleaned["username"] = v.strip()
 
     if "contact_no" in payload:
-        v = payload["contact_no"]
-        if not _is_nonempty_str(v, max_len=15) or not _valid_contact(v):
-            errors["contact_no"] = (
-                "Phone must be 7–15 characters (digits, +, -, spaces, or parentheses)."
-            )
+        # Saved as the 10 digits after +63 (same as sign-up).
+        mobile = normalize_ph_mobile(payload["contact_no"])
+        if mobile is None:
+            errors["contact_no"] = CONTACT_ERROR
         else:
-            cleaned["contact_no"] = v.strip()
+            cleaned["contact_no"] = mobile
 
     # Location = map pin only (latitude + longitude, both or neither).
     if "latitude" in payload or "longitude" in payload:

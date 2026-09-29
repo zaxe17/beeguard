@@ -8,7 +8,8 @@ import { usePlaceName } from "@/hooks/usePlaceName";
 
 import bee from "@/public/assets/bee_example.jpg";
 
-// Leaflet needs `window` — load the map in the browser only.
+// Leaflet needs `window` — the map loads in the browser only, after the
+// rest of the report is already showing.
 const Map = dynamic(() => import("./ui/google-maps/Map"), {
 	ssr: false,
 	loading: () => (
@@ -17,6 +18,11 @@ const Map = dynamic(() => import("./ui/google-maps/Map"), {
 		</div>
 	),
 });
+
+
+// `showMap` (default true): citizen and admin report popups show the
+// location map; the beekeeper's popup passes showMap={false}.
+type ReportDetailsProps = ReportProps & { showMap?: boolean };
 
 const ReportDetails = ({
 	status,
@@ -31,11 +37,13 @@ const ReportDetails = ({
 	imageUrl,
 	latitude,
 	longitude,
-}: ReportProps) => {
+	showMap = true,
+}: ReportDetailsProps) => {
 	// Reports store only coordinates — look the place name up for display.
 	const placeName = usePlaceName(latitude, longitude);
 	const shownLocation = location || placeName;
-	// NEW — pin of where the bees were reported.
+	// Pin of where the bees were reported (citizen, beekeeper and admin
+	// report popups all use this component).
 	const pin =
 		latitude != null && longitude != null
 			? { lat: Number(latitude), lng: Number(longitude) }
@@ -152,8 +160,8 @@ const ReportDetails = ({
 				</div>
 			</div>
 
-			{/* LOCATION MAP (NEW) — read-only pin of the reported swarm */}
-			{pin && (
+			{/* LOCATION MAP — read-only pin of the reported swarm */}
+			{showMap && pin && !Number.isNaN(pin.lat) && !Number.isNaN(pin.lng) && (
 				<div className="flex flex-col gap-1">
 					<div className="w-full h-56 rounded-xl overflow-hidden border border-[#e2e2e6] relative isolate">
 						<Map

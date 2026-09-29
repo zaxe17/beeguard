@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { FormContainer } from "@/components/ui/Container";
 import { Input, Select } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { useFetch } from "@/hooks/useFetch";
 import {
 	FieldErrors,
@@ -16,7 +17,6 @@ import {
 import { authService } from "@/services/auth";
 
 import citizenship from "@/data/citizenship.json";
-import { Icon } from "@iconify/react";
 
 const APIARY_TYPES = [
 	{ label: "Commercial Farm", value: "Commercial Farm" },
@@ -261,7 +261,7 @@ const RegistrationForm = () => {
 		) : null;
 
 	return (
-		<FormContainer width="lg:w-1/3" onSubmit={handleNext}>
+		<FormContainer width="lg:w-1/2" onSubmit={handleNext}>
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}
@@ -440,19 +440,17 @@ const RegistrationForm = () => {
 				{/* CONTACTS */}
 				<div className="flex flex-row gap-2.5">
 					<div className="flex-1 flex flex-col">
-						<Input
+						{/* "+63" is fixed; only the 10 digits after it are saved */}
+						<PhoneInput
 							label={
 								<>
 									Contact Number{" "}
 									<span className="text-[#ff0000]">*</span>
 								</>
 							}
-							type="text"
 							height={30}
 							value={form.contact_no}
-							onChange={(e) =>
-								update("contact_no", e.target.value)
-							}
+							onChange={(digits) => update("contact_no", digits)}
 							error={!!errors.contact_no}
 						/>
 						<FieldError name="contact_no" />
@@ -563,24 +561,14 @@ const RegistrationForm = () => {
 				<p className="mb-3 text-xs text-red-600">{errors.form}</p>
 			)}
 
-			<div className="flex flex-col items-center justify-center gap-3">
+			<div className="flex justify-center">
 				{/* type="submit" -> clicking it OR pressing Enter goes Next */}
 				<Button
 					buttonType="submit"
-					width="lg:w-1/2 w-full"
+					width="50%"
 					label={submitting ? "Checking..." : "Next"}
 					disabled={submitting}
 				/>
-
-				<button
-					onClick={() => router.back()}
-					className="flex items-center gap-2 cursor-pointer">
-					<Icon
-						icon="bx:arrow-back"
-						className="text-2xl text-[#ffa004]"
-					/>
-					Go back
-				</button>
 			</div>
 		</FormContainer>
 	);

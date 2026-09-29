@@ -1,3 +1,5 @@
+# services/analytics_service.py
+
 """
 Read-only analytics aggregations for the beekeeper dashboard,
 yield reports (Feature 5), and historical trends (Feature 6).
@@ -84,7 +86,12 @@ class AnalyticsService:
         cur_kg  = float(this_month.get("total_kg") or 0)
         prev_kg = float(prev_month.get("total_kg") or 0)
         change_amount  = round(cur_kg - prev_kg, 2)
-        change_percent = round(((cur_kg - prev_kg) / prev_kg * 100.0), 2) if prev_kg > 0 else 0.0
+        # FIX: with NO harvest last month there's nothing to compare
+        # against — send null instead of 0.0 (0.0 showed "+12 kg (↑0%)",
+        # which reads as "no growth").
+        change_percent = (
+            round(((cur_kg - prev_kg) / prev_kg * 100.0), 2) if prev_kg > 0 else None
+        )
 
         open_recs = QueenRecommendationModel.list_open_for_beekeeper(beekeeper_id)
         replace_count = sum(1 for r in open_recs if r["level"] == "Replace")
@@ -105,6 +112,60 @@ class AnalyticsService:
                 "monitor":  monitor_count,
             },
         }
+
+    # ── Monthly yield totals (Dashboard "yield summary" chart) ──
+    @staticmethod
+    def monthly_yield_totals(beekeeper_id: str, months: int = 6) -> dict:
+        """
+        NEW — total kg per calendar month for the last `months` months
+        (this month included), ONE point per month, and months with no
+        harvest shown as 0 instead of being skipped.
+
+        The dashboard used monthly_yield_trend(), which is one point PER
+        HARVEST labelled "YYYY-MM": two harvests in May showed as two
+        "2026-05" points, and months without a harvest disappeared — so
+        the line didn't match the "Yield This Month" number next to it.
+        (monthly_yield_trend() is left as-is for the report / History.)
+        """
+        months = max(1, min(int(months or 6), 24))
+        today = dt.date.today()
+
+        # First day of the oldest month in the window.
+        y, m = today.year, today.month - (months - 1)
+        while m <= 0:
+            m += 12
+            y -= 1
+        start = dt.date(y, m, 1)
+
+        rows = Database.execute(
+            """
+            SELECT YEAR(y.yield_date)  AS yr,
+                   MONTH(y.yield_date) AS mo,
+                   COALESCE(SUM(y.yield_kg), 0) AS total_kg
+            FROM yields y
+            JOIN hives h ON h.hive_id = y.hive_id
+            WHERE h.beekeeper_id = %s
+              AND y.is_baseline = FALSE
+              AND y.yield_date >= %s
+              AND y.yield_date <= %s
+            GROUP BY YEAR(y.yield_date), MONTH(y.yield_date)
+            """,
+            (beekeeper_id, start, today),
+            fetchall=True,
+        ) or []
+        totals = {(int(r["yr"]), int(r["mo"])): float(r["total_kg"] or 0) for r in rows}
+
+        categories, data = [], []
+        y, m = start.year, start.month
+        for _ in range(months):
+            categories.append(dt.date(y, m, 1).strftime("%b %Y"))  # "Sep 2026"
+            data.append(round(totals.get((y, m), 0.0), 2))
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+
+        return {"categories": categories, "data": data}
 
     # ── Yield trend (Line.tsx) — ONE POINT PER HARVEST ENTRY ──
     @staticmethod

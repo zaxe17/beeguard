@@ -230,6 +230,7 @@ type ModalType = "beeIdentify" | "signup";
 type BeeIdentifyPayload = {
 	species: string | null;
 	confidencePercent: number | null;
+	matchStatus?: "matched" | "unrecognized" | "no_bee";
 };
 
 /**
@@ -285,6 +286,7 @@ const GuestIdentify = () => {
 		openModal("beeIdentify", {
 			species: res.data.identified_species,
 			confidencePercent: res.data.confidence_score,
+			matchStatus: res.data.match_status,
 		});
 	};
 

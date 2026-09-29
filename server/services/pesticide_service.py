@@ -46,6 +46,8 @@ schema (schemas/alert_schema.py) so numeric DB types (DECIMAL columns
 come back as Decimal/str depending on driver config) are normalized to
 real JSON numbers before they ever reach the frontend.
 """
+import datetime as dt
+
 from geopy.distance import geodesic
 
 from config.database import Database
@@ -70,6 +72,17 @@ RADIUS_KM_BY_TYPE = {
     "Fungicide":   3.0,
 }
 DEFAULT_RADIUS_KM = 3.0
+
+# ALERT VALIDITY — every pesticide alert stays active for 14 days after
+# its scheduled spraying date (expiration_date = scheduled_date + 14 days)
+# unless an expiration_date is sent. After that it leaves "All" and is
+# listed in History instead.
+# This is a precautionary system parameter that keeps a reported
+# pesticide hazard visible within its alert radius. It is NOT the
+# residual toxicity period of every pesticide product — actual residual
+# toxicity depends on the active ingredient, formulation, application
+# rate, crop and environmental conditions.
+ALERT_VALIDITY_DAYS = 14
 REJECTION_REASON_MAX_LEN = 255
 
 # For picking the alert's overall risk = the HIGHEST personal risk any
@@ -206,6 +219,12 @@ class PesticideService:
             cleaned["latitude"], cleaned["longitude"]
         )
 
+        # Default 14-day validity (see ALERT_VALIDITY_DAYS). Both dates are
+        # stored the same way (UTC), so the difference is exactly 14 days.
+        expiration_date = cleaned.get("expiration_date") or (
+            cleaned["scheduled_date"] + dt.timedelta(days=ALERT_VALIDITY_DAYS)
+        )
+
         conn = Database.get_connection()
         try:
             alert_id = AlertModel.insert_with_conn(conn, {
@@ -220,7 +239,7 @@ class PesticideService:
                 "latitude":           cleaned["latitude"],
                 "longitude":          cleaned["longitude"],
                 "scheduled_date":     cleaned["scheduled_date"],
-                "expiration_date":    cleaned.get("expiration_date"),
+                "expiration_date":    expiration_date,
                 "danger_radius_km":   radius,
                 "risk_level":         cleaned.get("risk_level", "Medium"),
                 "approval_status": (
@@ -634,11 +653,13 @@ class PesticideService:
         return AlertModel.list_for_admin(admin_id)
 
     @staticmethod
-    def list_active(beekeeper_id: str | None = None, include_past: bool = False):
+    def list_active(beekeeper_id: str | None = None, include_past: bool = False,
+                    only_expired: bool = False):
         return AlertModel.list_active(
-            limit=300 if include_past else 100,
+            limit=300 if (include_past or only_expired) else 100,
             beekeeper_id=beekeeper_id,
             include_past=include_past,
+            only_expired=only_expired,
         )
 
     @staticmethod

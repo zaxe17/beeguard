@@ -22,6 +22,30 @@ the model actually was in that class — e.g. 9 boxes read "Apis cerana" and 1
 stray box reads "Apis mellifera" -> species "Apis cerana", with that one
 mellifera box treated as a likely misclassification rather than a real second
 species.
+
+UNRECOGNIZED BEES (NEW)
+-----------------------
+The model only knows the species it was trained on (Apis cerana, Apis
+mellifera, Tetragonula biroi). Shown a bee it doesn't know, e.g. the giant
+honey bee Apis dorsata, it can't say "I don't know": it still picks the
+closest class it has, usually cerana or mellifera. So a result is only
+accepted as a match when
+  - the model's average confidence for the winning species is at least
+    CV_SCAN_MIN_SPECIES_CONFIDENCE (default 60%), and
+  - at least CV_SCAN_MIN_AGREEMENT (default 70%) of the boxes agree on it.
+Otherwise the scan is returned with NO species (match_status
+"unrecognized"), so the app shows the no-match popup instead of calling it
+cerana / mellifera. Both limits can be changed in .env / Railway Variables
+without touching code.
+Note: this only catches the cases where the model is UNSURE. If it is very
+confident that a dorsata is a cerana, only retraining fixes that (add
+Apis dorsata, or an "other bee" class, to the training data).
+
+match_status in the result:
+  "matched"       a known species was identified
+  "unrecognized"  something bee-like was found, but not confidently one of
+                  the known species (see above)
+  "no_bee"        nothing was detected at all
 """
 import os
 import threading
@@ -34,6 +58,14 @@ from config.database import Database
 from models.cv_scan import CVScanModel
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+
+# See "UNRECOGNIZED BEES" above. Percentages (0-100).
+MIN_SPECIES_CONFIDENCE = float(os.getenv("CV_SCAN_MIN_SPECIES_CONFIDENCE", "60"))
+MIN_AGREEMENT = float(os.getenv("CV_SCAN_MIN_AGREEMENT", "70"))
+
+MATCH_MATCHED = "matched"
+MATCH_UNRECOGNIZED = "unrecognized"
+MATCH_NO_BEE = "no_bee"
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
 
 # Large images take longer to run through the model, so oversized uploads are
@@ -62,12 +94,10 @@ def _get_model():
                 )
             try:
                 from ultralytics import YOLO
-            except Exception as e:  # hindi lang ImportError; may OSError din minsan
-                import traceback
-                print(f"[CVSCAN] ultralytics import failed: {e!r}", flush=True)
-                traceback.print_exc()
+            except ImportError as e:
                 raise ValueError(
-                    f"CV identification is not configured (ultralytics import failed: {e})."
+                    "CV identification is not configured (ultralytics package "
+                    "not installed — add 'ultralytics' to requirements.txt)."
                 ) from e
 
             _model = YOLO(Config.CV_SCAN_MODEL_PATH)
@@ -152,6 +182,8 @@ def _majority_vote(predictions: list[dict]) -> dict:
         "identified_species": dominant_species,
         "confidence_score": confidence_score,
         "species_breakdown": species_breakdown,
+        "agreement_pct": agreement_pct,
+        "dominant_avg_confidence": dominant_avg_confidence,
     }
 
 
@@ -202,6 +234,8 @@ class CVScanService:
                 "confidence_score": None,
                 "detections": [],
                 "species_breakdown": [],
+                "match_status": MATCH_NO_BEE,
+                "closest_species": None,
             }
 
         vote = _majority_vote(predictions)
@@ -216,11 +250,35 @@ class CVScanService:
         # highest single confidence.
         print(f"[CVSCAN] Detected {len(predictions)} box(es): {vote['species_breakdown']}")
 
+        # Not sure enough -> probably a bee the model doesn't know
+        # (e.g. Apis dorsata read as cerana/mellifera). Report no species.
+        unsure = (
+            vote["dominant_avg_confidence"] < MIN_SPECIES_CONFIDENCE
+            or vote["agreement_pct"] < MIN_AGREEMENT
+        )
+        if unsure:
+            print(
+                f"[CVSCAN] Unrecognized: closest '{vote['identified_species']}' "
+                f"avg {vote['dominant_avg_confidence']}% (min {MIN_SPECIES_CONFIDENCE}), "
+                f"agreement {vote['agreement_pct']}% (min {MIN_AGREEMENT})"
+            )
+            return {
+                "identified_species": None,
+                "confidence_score": None,
+                "detections": predictions,
+                "species_breakdown": vote["species_breakdown"],
+                "match_status": MATCH_UNRECOGNIZED,
+                # Only for logs/debugging — the app doesn't show it as a result.
+                "closest_species": vote["identified_species"],
+            }
+
         return {
             "identified_species": vote["identified_species"],
             "confidence_score": vote["confidence_score"],
             "detections": predictions,
             "species_breakdown": vote["species_breakdown"],
+            "match_status": MATCH_MATCHED,
+            "closest_species": vote["identified_species"],
         }
 
     # ── Full upload -> identify -> record flow ──
@@ -290,6 +348,7 @@ class CVScanService:
             "confidence_score":    detection["confidence_score"],
             "detections":          detection["detections"],
             "species_breakdown":   detection["species_breakdown"],
+            "match_status":        detection["match_status"],
         }
 
     # ── Read helpers used by routes ─────────────

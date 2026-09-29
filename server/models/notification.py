@@ -14,6 +14,20 @@ import secrets
 from config.database import Database
 
 
+# Migration 024 widened notifications.title from 30 to 100 characters.
+# Titles like "Pesticide Alert: Insecticide Application" (40) didn't fit:
+# XAMPP silently cut them, but Railway's MySQL (strict mode) refused the
+# insert -> "Data too long for column 'title'" -> creating the alert failed.
+# Titles are also cut here as a safety net so a long title can never
+# break the action that creates the notification.
+TITLE_MAX = 100
+
+
+def _fit_title(title: str) -> str:
+    title = (title or "").strip()
+    return title if len(title) <= TITLE_MAX else title[: TITLE_MAX - 1] + "…"
+
+
 def _owner_col(role: str) -> str:
     if role == "citizen":
         return "citizenID"
@@ -89,6 +103,7 @@ class NotificationModel:
             )
 
         nid = NotificationModel._gen_id()
+        title = _fit_title(data["title"])
         sql = f"""
             INSERT INTO {NotificationModel.TABLE}
                 (notification_id, beekeeperID, citizenID, adminID, alert_id, reportID,
@@ -103,7 +118,7 @@ class NotificationModel:
                 admin_id,
                 data.get("alert_id"),
                 data.get("report_id"),
-                data["title"],
+                title,
                 data["message"],
                 data["notification_type"],
             ))
@@ -117,7 +132,7 @@ class NotificationModel:
                 nid,
                 "beekeeper" if beekeeper_id else ("citizen" if citizen_id else "admin"),
                 beekeeper_id or citizen_id or admin_id,
-                data["title"],
+                title,
                 data["message"],
                 data["notification_type"],
                 alert_id=data.get("alert_id"),

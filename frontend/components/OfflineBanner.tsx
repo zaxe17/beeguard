@@ -10,7 +10,9 @@ import {
 	OfflineStatus,
 	OUTBOX_CHANGED_EVENT,
 	reportNetworkError,
+	reportReachedServer,
 } from "@/lib/offlineStatus";
+import { checkServerReachable } from "@/services/api";
 import {
 	clearSyncFailures,
 	flushOutbox,
@@ -28,9 +30,17 @@ import { OutboxItem } from "@/lib/offlineDb";
  *   - anything the server refused, with Dismiss
  * Also starts the sync: on load, when the phone comes back online, and
  * every 30s while something is waiting.
+ *
+ * NEW
+ *   - While the banner is showing, it checks the server every 15s and
+ *     hides itself as soon as the server answers. Before, it stayed on
+ *     until some page happened to make a request that worked.
+ *   - If the internet is ON but the server was too slow (over 8s), it now
+ *     says "Slow connection to the server" instead of "You're offline".
  */
 
 const RETRY_MS = 30000;
+const RECHECK_MS = 15000;
 const EMPTY_ROUTES: string[] = [];
 
 type Props = {
@@ -104,6 +114,19 @@ export const OfflineBanner = ({
 		};
 	}, []);
 
+	// Banner showing -> keep checking; hide it once the server answers.
+	useEffect(() => {
+		if (!status.offline) return;
+		const t = setInterval(async () => {
+			if (await checkServerReachable()) {
+				reportReachedServer();
+				flushOutbox();
+				onBackOnlineRef.current?.();
+			}
+		}, RECHECK_MS);
+		return () => clearInterval(t);
+	}, [status.offline]);
+
 	// Send waiting changes on load, then retry every 30s while any wait.
 	useEffect(() => {
 		flushOutbox();
@@ -153,6 +176,13 @@ export const OfflineBanner = ({
 			);
 		}
 	}, [status.offline, status.showingSavedFrom]);
+
+	// Internet is on but the server was too slow, so saved data is shown.
+	const slowNotOffline =
+		status.offline &&
+		!!status.showingSavedFrom &&
+		typeof navigator !== "undefined" &&
+		navigator.onLine;
 
 	const count = pending.length;
 	const plural = count === 1 ? "change" : "changes";
@@ -259,11 +289,9 @@ export const OfflineBanner = ({
 						className="h-4 w-4 shrink-0"
 					/>
 					<span className="Poppins-SemiBold">
-						You&apos;re offline
-						{/* {status.showingSavedFrom
-							? ` — showing data saved ${formatSaved(status.showingSavedFrom)}`
-							: ""} */}
-						.
+						{slowNotOffline
+							? "Slow connection to the server."
+							: "You're offline."}
 					</span>
 				</div>
 			)}

@@ -11,6 +11,16 @@
 //          internet the change is saved in an outbox and sent later
 //          (lib/offlineSync.ts); the call returns { queued: true }.
 //   Everything else (post / patch / delete / postForm) stays online-only.
+//
+// "YOU'RE OFFLINE" FIX
+//   A request that fails is no longer enough to say "offline". One failed
+//   request (a CORS problem, a Railway 502/timeout, a crashed route) used
+//   to turn the banner on even though the internet and the server were
+//   fine. Now a failure is double-checked with a tiny ping to the server
+//   (checkServerReachable). Only if the ping ALSO fails is it "offline".
+//   If the server answers the ping, the failed request is logged in the
+//   browser console as "[BeeGuard] … failed but the server is reachable"
+//   so you can see which endpoint has the problem.
 
 import { outbox, responseCache } from "@/lib/offlineDb";
 import {
@@ -29,6 +39,9 @@ export type ApiEnvelope<T = unknown> = {
 	offline?: boolean; // this is a saved copy, not live data
 	saved_at?: string; // when that copy was saved (ISO)
 	queued?: boolean; // change saved on the phone, will be sent later
+	// The request never got an answer (offline, CORS, server down/timeout)
+	// — not a real "no" from the server.
+	network_error?: boolean;
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -43,6 +56,13 @@ export const OFFLINE_SAVED_MESSAGE =
 const OFFLINE_NO_COPY_MESSAGE =
 	"You're offline and this hasn't been saved on this device yet. Open it once while online.";
 const NETWORK_ERROR_MESSAGE = "Network error. Is the backend running?";
+const SERVER_ERROR_MESSAGE =
+	"The server couldn't finish this request. Please try again.";
+
+// Any small public endpoint works as the ping (no login needed).
+const PING_PATH = "/push/public-key";
+const PING_TIMEOUT_MS = 6000;
+const PING_REUSE_MS = 5000; // reuse a ping result for this long
 
 // REMEMBER ME — where the login token lives decides how long you stay
 // signed in on this browser:
@@ -125,6 +145,91 @@ export const currentUserKey = (): string => {
 const isOfflineNow = () =>
 	typeof navigator !== "undefined" && navigator.onLine === false;
 
+// ── Is the server reachable at all? ──
+let pingInFlight: Promise<boolean> | null = null;
+let lastPing = { at: 0, ok: false };
+
+export const checkServerReachable = (): Promise<boolean> => {
+	if (typeof window === "undefined") return Promise.resolve(true);
+	if (isOfflineNow()) return Promise.resolve(false);
+	if (Date.now() - lastPing.at < PING_REUSE_MS) return Promise.resolve(lastPing.ok);
+	if (pingInFlight) return pingInFlight;
+
+	pingInFlight = (async () => {
+		const ctrl = new AbortController();
+		const timer = setTimeout(() => ctrl.abort(), PING_TIMEOUT_MS);
+		try {
+			// Any answer at all (even an error status) means we reached it.
+			await fetch(`${BASE_URL}/api${PING_PATH}`, {
+				method: "GET",
+				headers: { Accept: "application/json" },
+				signal: ctrl.signal,
+				cache: "no-store",
+			});
+			return true;
+		} catch {
+			return false;
+		} finally {
+			clearTimeout(timer);
+		}
+	})().then((ok) => {
+		lastPing = { at: Date.now(), ok };
+		pingInFlight = null;
+		return ok;
+	});
+	return pingInFlight;
+};
+
+/**
+ * A request didn't get an answer. Returns true if we're really offline
+ * (and turns the banner on); false if the server is fine and only this
+ * request failed (logged in the console instead).
+ */
+const confirmOffline = async (
+	method: string,
+	path: string,
+	error: unknown,
+): Promise<boolean> => {
+	const reachable = await checkServerReachable();
+	if (reachable) {
+		reportReachedServer();
+		console.warn(
+			`[BeeGuard] ${method} ${path} failed but the server is reachable ` +
+				"(CORS, a server error/timeout, or the request was blocked):",
+			error,
+		);
+		return false;
+	}
+	reportNetworkError();
+	return true;
+};
+
+// ── LOGIN EXPIRED / MISSING ──
+// The backend refused the saved login token (expired, invalid, or none was
+// found in this tab). Instead of every button failing with "Failed to
+// create alert" etc., the token is cleared and the person is sent to the
+// login page (app/page.tsx is "/") with ?expired=1.
+// Only for requests that SENT a token, and never for /auth/* (a wrong
+// password on the login page is also a 401 and must stay on the page).
+const LOGIN_PROBLEM_MESSAGES = [
+	"Token has expired.",
+	"Invalid token.",
+	"Missing or invalid Authorization header.",
+];
+let redirectingToLogin = false;
+
+const handleLoginExpired = () => {
+	if (typeof window === "undefined" || redirectingToLogin) return;
+	redirectingToLogin = true;
+	tokenStore.clear();
+	// Already on the login page -> nothing to redirect.
+	if (window.location.pathname === "/") {
+		redirectingToLogin = false;
+		return;
+	}
+	window.location.href = "/?expired=1";
+};
+
 // ── one HTTP call ──
 export type SendResult<T> =
 	| { reached: true; status: number; body: ApiEnvelope<T> }
@@ -164,14 +269,27 @@ async function send<T>(
 			errors: [],
 		};
 	}
+	if (
+		token &&
+		!path.startsWith("/auth") &&
+		(res.status === 401 || res.status === 403) &&
+		LOGIN_PROBLEM_MESSAGES.includes(body.message)
+	) {
+		handleLoginExpired();
+	}
 	return { reached: true, status: res.status, body };
 }
 
-const networkErrorEnvelope = <T>(error: unknown): ApiEnvelope<T> => ({
+const networkErrorEnvelope = <T>(error: unknown, offline = true): ApiEnvelope<T> => ({
 	success: false,
-	message: isOfflineNow() ? OFFLINE_NO_COPY_MESSAGE : NETWORK_ERROR_MESSAGE,
+	message: !offline
+		? SERVER_ERROR_MESSAGE
+		: isOfflineNow()
+			? OFFLINE_NO_COPY_MESSAGE
+			: NETWORK_ERROR_MESSAGE,
 	errors: [String(error ?? "offline")],
-	offline: isOfflineNow() || undefined,
+	offline: (offline && isOfflineNow()) || undefined,
+	network_error: true,
 });
 
 // Plain online-only request (POST / PATCH / DELETE).
@@ -181,8 +299,8 @@ async function request<T>(
 ): Promise<ApiEnvelope<T>> {
 	const r = await send<T>(path, init);
 	if (!r.reached) {
-		reportNetworkError();
-		return networkErrorEnvelope<T>(r.error);
+		const offline = await confirmOffline(init.method ?? "GET", path, r.error);
+		return networkErrorEnvelope<T>(r.error, offline);
 	}
 	reportReachedServer();
 	return r.body;
@@ -232,8 +350,8 @@ async function getWithCache<T>(path: string): Promise<ApiEnvelope<T>> {
 	if (!cached) {
 		const r = await networkPromise;
 		if (!r.reached) {
-			reportNetworkError();
-			return networkErrorEnvelope<T>(r.error);
+			const offline = await confirmOffline("GET", path, r.error);
+			return networkErrorEnvelope<T>(r.error, offline);
 		}
 		return r.body;
 	}
@@ -246,9 +364,22 @@ async function getWithCache<T>(path: string): Promise<ApiEnvelope<T>> {
 	const first = await Promise.race([networkPromise, timeout]);
 	clearTimeout(timer);
 
-	if (first === "timeout" || !first.reached) {
+	if (first === "timeout") {
+		// Server is too slow -> show the saved copy (banner says so).
 		answeredFromCache = true;
 		return fromCache(cached);
+	}
+	if (!first.reached) {
+		answeredFromCache = true;
+		const offline = await confirmOffline("GET", path, first.error);
+		if (offline) return fromCache(cached);
+		// Server is up, only this request failed -> still show the saved
+		// copy so the page isn't empty, but DON'T say "offline".
+		return {
+			...(cached.body as ApiEnvelope<T>),
+			offline: true,
+			saved_at: cached.savedAt,
+		};
 	}
 	return first.body;
 }
@@ -282,6 +413,11 @@ async function writeOrQueue<T>(
 			reportReachedServer();
 			return r.body;
 		}
+		// The internet is fine and the server is up -> this is a server
+		// problem, not "offline". Don't save it for later (it may even
+		// have been saved already); let the person try again.
+		const offline = await confirmOffline(method, path, r.error);
+		if (!offline) return networkErrorEnvelope<T>(r.error, false);
 	}
 
 	// Offline -> save it in the outbox.
@@ -361,8 +497,8 @@ async function requestForm<T>(
 		{ json: false, withAuth },
 	);
 	if (!r.reached) {
-		reportNetworkError();
-		return networkErrorEnvelope<T>(r.error);
+		const offline = await confirmOffline("POST", path, r.error);
+		return networkErrorEnvelope<T>(r.error, offline);
 	}
 	reportReachedServer();
 	return r.body;

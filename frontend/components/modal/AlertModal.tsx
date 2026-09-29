@@ -10,6 +10,7 @@ import pesticides from "@/data/typesOfPesticide.json";
 import { pesticideService, PesticideType } from "@/services/pesticide";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
+import { Icon } from "@iconify/react";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — load it client-side only. AddAlert stays mounted
@@ -63,6 +64,19 @@ function notifyAlertsChanged() {
 
 type LatLng = { lat: number; lng: number };
 
+// "Use current location" — why the phone/browser couldn't give it.
+const geoErrorMessage = (err: unknown) => {
+	if (typeof window !== "undefined" && !window.isSecureContext) {
+		return "Current location only works on https:// or localhost. Tap the map instead.";
+	}
+	const code = (err as GeolocationPositionError)?.code;
+	if (code === 1) {
+		return "Location permission was denied. Allow it in your browser's site settings, or tap the map instead.";
+	}
+	if (code === 3) return "Getting your location took too long. Try again or tap the map.";
+	return "Couldn't get your location. Tap the map to pin it instead.";
+};
+
 export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 	// Beekeepers' alerts wait for admin approval; admins' go out right away.
 	const { user } = useAuth();
@@ -84,6 +98,30 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 	const [radiusManuallySet, setRadiusManuallySet] = useState(false);
 
 	const [coords, setCoords] = useState<LatLng | null>(null);
+	// "Use current location" button
+	const [locating, setLocating] = useState(false);
+
+	const handleUseCurrentLocation = () => {
+		if (locating) return;
+		setErrorMsg(null);
+		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			setErrorMsg("This browser can't get your location. Tap the map instead.");
+			return;
+		}
+		setLocating(true);
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				// Moves the pin (and its radius circle) there; the map flies to it.
+				setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+				setLocating(false);
+			},
+			(err) => {
+				setErrorMsg(geoErrorMessage(err));
+				setLocating(false);
+			},
+			{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+		);
+	};
 
 	// NEW — the current beekeeper's own farm location, fetched from
 	// their profile so the map opens centered on THEIR farm instead
@@ -132,6 +170,7 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		setRadiusKm(DEFAULT_RADIUS_KM);
 		setRadiusManuallySet(false);
 		setCoords(null);
+		setLocating(false);
 		setErrorMsg(null);
 	};
 
@@ -157,7 +196,9 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		setErrorMsg(null);
 
 		if (!coords) {
-			setErrorMsg("Please tap the map to pin the affected location.");
+			setErrorMsg(
+				"Please tap the map or use your current location to pin the affected area.",
+			);
 			return;
 		}
 		if (!scheduledDate) {
@@ -276,10 +317,29 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 					}
 					onLocationSelect={setCoords}
 					initialCenter={ownLocation ?? undefined}
-					initialMarker={coords}
+					// Controlled pin: tapping the map OR "Use current
+					// location" both move it.
+					markerPosition={coords}
 					radiusKm={radiusKm}
 				/>
+
+				{/* USE CURRENT LOCATION — pins where the admin/beekeeper
+				    is standing right now (e.g. at the spraying site). */}
+				<button
+					type="button"
+					onClick={handleUseCurrentLocation}
+					disabled={locating || submitting}
+					className="absolute top-2 right-2 z-1000 flex items-center gap-1.5 bg-white hover:bg-[#fff8e1] text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] cursor-pointer disabled:opacity-60">
+					<Icon
+						icon={locating ? "svg-spinners:ring-resize" : "mdi:crosshairs-gps"}
+						className="w-4 h-4 text-[#ffa004]"
+					/>
+					{locating ? "Locating…" : "Use current location"}
+				</button>
 			</div>
+			<p className="text-[11px] text-[#817b70] -mt-1">
+				Tap the map to pin the spraying area, or use your current location.
+			</p>
 			<div className="flex flex-col gap-3">
 				<h2 className="Poppins-SemiBold text-[#817b70]">
 					Alert Information

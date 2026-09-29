@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
 	MapContainer,
 	TileLayer,
@@ -25,6 +25,17 @@ export type FarmMarker = {
 	lat: number;
 	lng: number;
 	label?: string;
+};
+
+// NEW — alert overview (admin Alerts page): EVERY alert in the current
+// tab (All / High / Medium / Low / …) is drawn at once, each with its
+// risk-color pin and danger-radius circle. Tapping a pin selects it.
+export type AlertPin = {
+	id: string;
+	lat: number;
+	lng: number;
+	radiusKm?: number | null;
+	color: string; // red = High, orange = Medium, green = Low
 };
 
 type MapProps = {
@@ -56,6 +67,94 @@ type MapProps = {
 	// NEW — color of the pin and its radius circle (e.g. an alert's risk
 	// level: red / orange / green). Defaults to the usual orange.
 	pinColor?: string;
+
+	// NEW — alert overview mode (see AlertPin). When `alertPins` is
+	// given (even empty), the single click-to-place pin is off and all
+	// these pins are shown instead. With nothing selected the map frames
+	// all of them; selecting one zooms to it and highlights it.
+	alertPins?: AlertPin[];
+	selectedAlertId?: string | null;
+	onAlertClick?: (id: string) => void;
+};
+
+// Risk-colored alert pin (bigger when selected). Cached per color+size.
+const alertIconCache: Record<string, L.DivIcon> = {};
+const alertIcon = (color: string, selected: boolean): L.DivIcon => {
+	const size = selected ? 32 : 22;
+	const key = `${color}:${size}`;
+	if (!alertIconCache[key]) {
+		alertIconCache[key] = L.divIcon({
+			className: "",
+			html: `<div style="
+				width: ${size}px; height: ${size}px;
+				background: ${color};
+				border: 3px solid #fff;
+				border-radius: 50% 50% 50% 0;
+				transform: rotate(-45deg);
+				box-shadow: 0 ${selected ? 3 : 2}px ${selected ? 8 : 6}px rgba(0,0,0,0.4);
+			"></div>`,
+			iconSize: [size, size],
+			iconAnchor: [size / 2, size],
+		});
+	}
+	return alertIconCache[key];
+};
+
+// The area an alert covers (its pin + danger radius).
+const alertBounds = (a: AlertPin) =>
+	L.latLng(a.lat, a.lng).toBounds(Math.max(200, (a.radiusKm ?? 0) * 2000));
+
+// Alert overview: nothing selected -> frame every alert shown; one
+// selected -> zoom to its danger circle. Re-runs when the tab changes.
+// FIXED — used flyToBounds (animated). If it ran while the map box was
+// still being sized, Leaflet got an invalid zoom and the tiles broke
+// apart (scattered squares, page scrolling sideways). Now it waits for a
+// real size, checks the zoom is a real number, and jumps without the
+// fly animation.
+const FitToAlerts = ({
+	pins,
+	selected,
+}: {
+	pins: AlertPin[];
+	selected: AlertPin | null;
+}) => {
+	const map = useMap();
+	const key = pins.map((p) => `${p.id}:${p.lat},${p.lng}`).join("|");
+
+	useEffect(() => {
+		let tries = 0;
+		let timer: ReturnType<typeof setTimeout>;
+
+		const fit = () => {
+			map.invalidateSize();
+			const size = map.getSize();
+			// Box not laid out yet -> try again shortly (max ~2 s).
+			if (size.x < 80 || size.y < 80) {
+				if (tries++ < 10) timer = setTimeout(fit, 200);
+				return;
+			}
+			const targets = selected ? [selected] : pins;
+			if (targets.length === 0) return;
+
+			const bounds = alertBounds(targets[0]);
+			targets.slice(1).forEach((p) => bounds.extend(alertBounds(p)));
+			if (!bounds.isValid()) return;
+
+			const padding = L.point(30, 30);
+			const zoom = map.getBoundsZoom(bounds, false, padding);
+			if (!Number.isFinite(zoom)) return;
+
+			map.setView(bounds.getCenter(), Math.min(zoom, selected ? 16 : 15), {
+				animate: false,
+			});
+		};
+
+		timer = setTimeout(fit, 100);
+		return () => clearTimeout(timer);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [key, selected?.id, map]);
+
+	return null;
 };
 
 const DEFAULT_PIN_COLOR = "#ff9a00";
@@ -155,8 +254,17 @@ const Map = ({
 	markerPosition,
 	readOnly = false,
 	pinColor = DEFAULT_PIN_COLOR,
+	alertPins,
+	selectedAlertId,
+	onAlertClick,
 }: MapProps) => {
+	const alertMode = alertPins !== undefined;
+	// Alert overview replaces the single pin, like farm mode does.
 	const farmMode = markers !== undefined;
+	const singlePinMode = !farmMode && !alertMode;
+	const selectedAlert = alertMode
+		? (alertPins.find((a) => a.id === selectedAlertId) ?? null)
+		: null;
 	const controlled = markerPosition !== undefined;
 
 	const [marker, setMarker] = useState<LatLng | null>(
@@ -171,11 +279,13 @@ const Map = ({
 		? (markers.find((m) => m.id === selectedMarkerId) ?? null)
 		: null;
 	const center =
-		(farmMode ? selectedFarm : marker) ??
+		(alertMode ? selectedAlert : farmMode ? selectedFarm : marker) ??
 		initialCenter ??
 		(farmMode && markers.length > 0
 			? { lat: markers[0].lat, lng: markers[0].lng }
-			: DEFAULT_CENTER);
+			: alertMode && alertPins.length > 0
+				? { lat: alertPins[0].lat, lng: alertPins[0].lng }
+				: DEFAULT_CENTER);
 
 	// Built lazily inside the component (not at module scope) so it
 	// never runs during SSR/module evaluation — sidesteps Leaflet's
@@ -262,10 +372,10 @@ const Map = ({
 				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 			/>
 
-			{!farmMode && marker && (
+			{singlePinMode && marker && (
 				<Marker position={[marker.lat, marker.lng]} icon={pinIcon} />
 			)}
-			{!farmMode && marker && radiusKm != null && radiusKm > 0 && (
+			{singlePinMode && marker && radiusKm != null && radiusKm > 0 && (
 				<Circle
 					center={[marker.lat, marker.lng]}
 					radius={radiusKm * 1000}
@@ -277,8 +387,44 @@ const Map = ({
 					}}
 				/>
 			)}
-			{!farmMode && !readOnly && <ClickHandler onClick={handleClick} />}
-			{!farmMode && controlled && <FollowMarker target={markerPosition ?? null} />}
+			{singlePinMode && !readOnly && <ClickHandler onClick={handleClick} />}
+			{singlePinMode && controlled && <FollowMarker target={markerPosition ?? null} />}
+
+			{/* ALERT OVERVIEW — every alert in the tab. The selected one is
+			    drawn last so it sits on top. */}
+			{alertMode &&
+				[...alertPins]
+					.sort((a, b) => Number(a.id === selectedAlertId) - Number(b.id === selectedAlertId))
+					.map((a) => {
+						const isSelected = a.id === selectedAlertId;
+						const dim = !!selectedAlertId && !isSelected;
+						return (
+							<Fragment key={a.id}>
+								{a.radiusKm != null && a.radiusKm > 0 && (
+									<Circle
+										center={[a.lat, a.lng]}
+										radius={a.radiusKm * 1000}
+										pathOptions={{
+											color: a.color,
+											fillColor: a.color,
+											fillOpacity: dim ? 0.05 : isSelected ? 0.2 : 0.12,
+											opacity: dim ? 0.35 : 1,
+											weight: isSelected ? 3 : 1.5,
+										}}
+										eventHandlers={{ click: () => onAlertClick?.(a.id) }}
+									/>
+								)}
+								<Marker
+									position={[a.lat, a.lng]}
+									icon={alertIcon(a.color, isSelected)}
+									opacity={dim ? 0.6 : 1}
+									zIndexOffset={isSelected ? 1000 : 0}
+									eventHandlers={{ click: () => onAlertClick?.(a.id) }}
+								/>
+							</Fragment>
+						);
+					})}
+			{alertMode && <FitToAlerts pins={alertPins} selected={selectedAlert} />}
 
 			{farmMode &&
 				markers.map((m) => (

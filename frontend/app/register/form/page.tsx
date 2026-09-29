@@ -16,6 +16,7 @@ import {
 import { authService } from "@/services/auth";
 
 import citizenship from "@/data/citizenship.json";
+import { Icon } from "@iconify/react";
 
 const APIARY_TYPES = [
 	{ label: "Commercial Farm", value: "Commercial Farm" },
@@ -260,7 +261,7 @@ const RegistrationForm = () => {
 		) : null;
 
 	return (
-		<FormContainer width="lg:w-1/2" onSubmit={handleNext}>
+		<FormContainer width="lg:w-1/3" onSubmit={handleNext}>
 			<div className="text-center mb-4">
 				<h1 className="Poppins-Bold text-3xl">
 					Sign Up - {role === "citizen" ? "Citizen" : "Beekeeper"}
@@ -562,14 +563,24 @@ const RegistrationForm = () => {
 				<p className="mb-3 text-xs text-red-600">{errors.form}</p>
 			)}
 
-			<div className="flex justify-center">
+			<div className="flex flex-col items-center justify-center gap-3">
 				{/* type="submit" -> clicking it OR pressing Enter goes Next */}
 				<Button
 					buttonType="submit"
-					width="50%"
+					width="lg:w-1/2 w-full"
 					label={submitting ? "Checking..." : "Next"}
 					disabled={submitting}
 				/>
+
+				<button
+					onClick={() => router.back()}
+					className="flex items-center gap-2 cursor-pointer">
+					<Icon
+						icon="bx:arrow-back"
+						className="text-2xl text-[#ffa004]"
+					/>
+					Go back
+				</button>
 			</div>
 		</FormContainer>
 	);

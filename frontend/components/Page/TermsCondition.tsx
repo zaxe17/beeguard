@@ -1,8 +1,10 @@
+import { Icon } from "@iconify/react";
 import { Button } from "../ui/Button";
 import { FormContainer } from "../ui/Container";
 import { CheckBox } from "../ui/Input";
 
 import termCondContent from "@/data/termsCondition.json";
+import { useRouter } from "next/navigation";
 
 type TermsConditionPageProps = {
 	mode?: "register" | "view";
@@ -21,6 +23,8 @@ export const TermsConditionPage = ({
 	submitting,
 	onSubmit,
 }: TermsConditionPageProps) => {
+	const router = useRouter();
+
 	return (
 		<FormContainer>
 			<div className="text-center lg:mb-7 mb-15">
@@ -69,12 +73,26 @@ export const TermsConditionPage = ({
 						<p className="text-xs text-red-600">{errorMsg}</p>
 					)}
 
-					<Button
-						buttonType="button"
-						label={submitting ? "Submitting..." : "Create Account"}
-						onClick={onSubmit}
-						disabled={submitting || !accepted}
-					/>
+					<div className="flex flex-col justify-center items-center gap-4">
+						<Button
+							buttonType="button"
+							label={
+								submitting ? "Submitting..." : "Create Account"
+							}
+							onClick={onSubmit}
+							disabled={submitting || !accepted}
+						/>
+
+						<button
+							onClick={() => router.back()}
+							className="flex items-center gap-2 cursor-pointer">
+							<Icon
+								icon="bx:arrow-back"
+								className="text-2xl text-[#ffa004]"
+							/>
+							Go back
+						</button>
+					</div>
 				</div>
 			)}
 		</FormContainer>

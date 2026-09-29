@@ -8,6 +8,8 @@ import Image, { StaticImageData } from "next/image";
 import { FormContainer } from "@/components/ui/Container";
 
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@iconify/react";
+import Link from "next/link";
 
 interface ChoicesProps {
 	icon: string | StaticImageData;
@@ -27,8 +29,7 @@ const Choices = ({
 	onSelect,
 }: ChoicesProps) => {
 	return (
-		<label
-			className="lg:w-120 w-full bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer shadow-[0_25px_20px_-20px_rgba(0,0,0,0.45)]">
+		<label className="lg:w-120 w-full bg-white/60 border-3 border-[#a6a3a3] rounded-xl p-5 group has-[input:checked]:border-[#ffcc53] has-[input:checked]:bg-[#f8f4e1]/60 transition-all cursor-pointer shadow-[0_25px_20px_-20px_rgba(0,0,0,0.45)]">
 			<div className="flex justify-between items-center lg:gap-5 gap-2">
 				<input
 					type="radio"
@@ -90,14 +91,14 @@ const Register = () => {
 
 	return (
 		<FormContainer>
-			<div className="text-center lg:mb-12 mb-8">
+			<div className="text-center">
 				<h1 className="Poppins-Bold lg:text-4xl text-2xl">I am a</h1>
 				<span className="text-[#a6a3a3] text-base">
 					Please select how you want to continue
 				</span>
 			</div>
 
-			<div className="flex flex-col gap-6 lg:mb-12 mb-8 p-2">
+			<div className="flex flex-col gap-6 p-2">
 				<Choices
 					icon="/assets/citizen.png"
 					role="Citizen"
@@ -128,7 +129,18 @@ const Register = () => {
 					}
 				/>
 
-				<Button buttonType="button" label="Next" onClick={goNext} />
+				<div className="flex flex-col items-center justify-center gap-4">
+					<Button buttonType="button" label="Next" onClick={goNext} />
+
+					<span className="">
+						Already have an account?{" "}
+						<Link
+							href="/"
+							className="hover:underline text-[#ff9a00] font-bold">
+							Sign In
+						</Link>
+					</span>
+				</div>
 			</div>
 		</FormContainer>
 	);

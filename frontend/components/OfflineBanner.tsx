@@ -1,7 +1,7 @@
 // components/OfflineBanner.tsx
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 
 import {
@@ -31,6 +31,7 @@ import { OutboxItem } from "@/lib/offlineDb";
  */
 
 const RETRY_MS = 30000;
+const EMPTY_ROUTES: string[] = [];
 
 type Props = {
 	// Called when the phone comes back online, so pages reload live data.
@@ -40,7 +41,7 @@ type Props = {
 	warmRoutes?: string[];
 };
 
-const formatSaved = (iso: string) =>
+const formatSaved = (iso: string): string =>
 	new Date(iso).toLocaleString([], {
 		month: "short",
 		day: "numeric",
@@ -48,11 +49,24 @@ const formatSaved = (iso: string) =>
 		minute: "2-digit",
 	});
 
-export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
+export const OfflineBanner = ({
+	onBackOnline,
+	warmRoutes = EMPTY_ROUTES,
+}: Props) => {
 	const [status, setStatus] = useState<OfflineStatus>(getOfflineStatus());
 	const [pending, setPending] = useState<OutboxItem[]>([]);
 	const [failures, setFailures] = useState<SyncFailure[]>([]);
 	const [showList, setShowList] = useState(false);
+
+	// Keep the latest callback without re-running the effects below
+	// every time the parent re-renders with a new inline function.
+	const onBackOnlineRef = useRef(onBackOnline);
+	useEffect(() => {
+		onBackOnlineRef.current = onBackOnline;
+	}, [onBackOnline]);
+
+	// Same idea for warmRoutes: compare by content, not by array identity.
+	const warmRoutesKey = warmRoutes.join("|");
 
 	const reloadOutbox = useCallback(async () => {
 		setPending(await listPending());
@@ -65,6 +79,7 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 			setStatus((e as CustomEvent<OfflineStatus>).detail);
 		window.addEventListener(OFFLINE_STATUS_EVENT, onStatus);
 		window.addEventListener(OUTBOX_CHANGED_EVENT, reloadOutbox);
+		setStatus(getOfflineStatus()); // catch anything that changed before mount
 		reloadOutbox();
 		return () => {
 			window.removeEventListener(OFFLINE_STATUS_EVENT, onStatus);
@@ -79,7 +94,7 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 		const goOffline = () => reportNetworkError();
 		const goOnline = () => {
 			flushOutbox();
-			onBackOnline?.();
+			onBackOnlineRef.current?.();
 		};
 		window.addEventListener("offline", goOffline);
 		window.addEventListener("online", goOnline);
@@ -87,7 +102,7 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 			window.removeEventListener("offline", goOffline);
 			window.removeEventListener("online", goOnline);
 		};
-	}, [onBackOnline]);
+	}, []);
 
 	// Send waiting changes on load, then retry every 30s while any wait.
 	useEffect(() => {
@@ -103,7 +118,8 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 	// Save the main pages for offline use (production build only — the
 	// service worker is off in `npm run dev`). Once per browser session.
 	useEffect(() => {
-		if (warmRoutes.length === 0 || !("serviceWorker" in navigator)) return;
+		const routes = warmRoutesKey ? warmRoutesKey.split("|") : [];
+		if (routes.length === 0 || !("serviceWorker" in navigator)) return;
 		const KEY = "beeguard_offline_pages_saved";
 		try {
 			if (sessionStorage.getItem(KEY)) return;
@@ -112,8 +128,9 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 		}
 
 		const t = setTimeout(async () => {
-			if (!navigator.onLine || !navigator.serviceWorker.controller) return;
-			for (const route of warmRoutes) {
+			if (!navigator.onLine || !navigator.serviceWorker.controller)
+				return;
+			for (const route of routes) {
 				try {
 					await fetch(route, { credentials: "same-origin" });
 				} catch {
@@ -127,38 +144,75 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 			}
 		}, 5000);
 		return () => clearTimeout(t);
-	}, [warmRoutes]);
+	}, [warmRoutesKey]);
+
+	useEffect(() => {
+		if (status.offline && status.showingSavedFrom) {
+			console.log(
+				`You're offline — showing data saved ${formatSaved(status.showingSavedFrom)}`,
+			);
+		}
+	}, [status.offline, status.showingSavedFrom]);
 
 	const count = pending.length;
 	const plural = count === 1 ? "change" : "changes";
 
-	if (!status.offline && !status.syncing && count === 0 && failures.length === 0) {
+	if (
+		!status.offline &&
+		!status.syncing &&
+		count === 0 &&
+		failures.length === 0
+	) {
 		return null;
 	}
 
 	return (
-		<div className="w-full flex flex-col gap-1 px-3 pt-2 text-xs">
-			{/* OFFLINE */}
-			{status.offline && (
-				<div className="w-full flex items-center gap-2 rounded-lg p-2 bg-[#FAEEDA] border border-[#FAC775] text-[#854F0B]">
-					<Icon icon="material-symbols:wifi-off-rounded" className="w-4 h-4 shrink-0" />
-					<span className="Poppins-SemiBold">
-						You&apos;re offline
-						{status.showingSavedFrom
-							? ` — showing data saved ${formatSaved(status.showingSavedFrom)}`
-							: ""}
-						.
-					</span>
+		// One stack for all banners so they never overlap.
+		// Mobile: bottom-20 keeps the bottom nav visible. Desktop: bottom-0.
+		// pointer-events-none on the wrapper so it never blocks taps on the
+		// page; each banner turns pointer-events back on.
+		<div className="pointer-events-none fixed left-0 bottom-20 lg:bottom-0 z-9999 flex w-full flex-col items-end gap-2 p-3 text-xs lg:max-w-100 lg:w-1/4">
+			{/* REFUSED BY THE SERVER */}
+			{failures.length > 0 && (
+				<div className="pointer-events-auto w-full rounded-lg border border-[#ff9b9b] bg-[#ffecec] p-2 text-[#a10000]">
+					<div className="flex items-center gap-2">
+						<Icon
+							icon="octicon:alert-16"
+							className="h-4 w-4 shrink-0"
+						/>
+						<span className="Poppins-SemiBold">
+							{failures.length === 1
+								? "1 offline change couldn't be saved"
+								: `${failures.length} offline changes couldn't be saved`}
+						</span>
+						<button
+							type="button"
+							onClick={clearSyncFailures}
+							className="ml-auto underline">
+							Dismiss
+						</button>
+					</div>
+					<ul className="mt-1 ml-6 list-disc">
+						{failures.map((f, i) => (
+							<li key={i}>
+								{f.label} — {f.message}
+							</li>
+						))}
+					</ul>
 				</div>
 			)}
 
 			{/* WAITING TO SYNC / SYNCING */}
 			{(count > 0 || status.syncing) && (
-				<div className="w-full rounded-lg p-2 bg-[#fff8e1] border border-[#ffdb4f] text-[#4a2f00]">
+				<div className="pointer-events-auto w-full rounded-lg border border-[#ffdb4f] bg-[#fff8e1] p-2 text-[#4a2f00]">
 					<div className="flex items-center gap-2">
 						<Icon
-							icon={status.syncing ? "line-md:loading-loop" : "mdi:cloud-upload-outline"}
-							className="w-4 h-4 shrink-0"
+							icon={
+								status.syncing
+									? "line-md:loading-loop"
+									: "mdi:cloud-upload-outline"
+							}
+							className="h-4 w-4 shrink-0"
 						/>
 						<span className="Poppins-SemiBold">
 							{status.syncing
@@ -169,7 +223,7 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 							<button
 								type="button"
 								onClick={() => setShowList((s) => !s)}
-								className="underline ml-auto">
+								className="ml-auto underline">
 								{showList ? "Hide" : "Show"}
 							</button>
 						)}
@@ -197,30 +251,20 @@ export const OfflineBanner = ({ onBackOnline, warmRoutes = [] }: Props) => {
 				</div>
 			)}
 
-			{/* REFUSED BY THE SERVER */}
-			{failures.length > 0 && (
-				<div className="w-full rounded-lg p-2 bg-[#ffecec] border border-[#ff9b9b] text-[#a10000]">
-					<div className="flex items-center gap-2">
-						<Icon icon="octicon:alert-16" className="w-4 h-4 shrink-0" />
-						<span className="Poppins-SemiBold">
-							{failures.length === 1
-								? "1 offline change couldn't be saved"
-								: `${failures.length} offline changes couldn't be saved`}
-						</span>
-						<button
-							type="button"
-							onClick={clearSyncFailures}
-							className="underline ml-auto">
-							Dismiss
-						</button>
-					</div>
-					<ul className="mt-1 ml-6 list-disc">
-						{failures.map((f, i) => (
-							<li key={i}>
-								{f.label} — {f.message}
-							</li>
-						))}
-					</ul>
+			{/* OFFLINE */}
+			{status.offline && (
+				<div className="pointer-events-auto flex w-full items-center gap-2 rounded-lg border border-[#FAC775] bg-[#FAEEDA] p-2 text-[#854F0B]">
+					<Icon
+						icon="material-symbols:wifi-off-rounded"
+						className="h-4 w-4 shrink-0"
+					/>
+					<span className="Poppins-SemiBold">
+						You&apos;re offline
+						{/* {status.showingSavedFrom
+							? ` — showing data saved ${formatSaved(status.showingSavedFrom)}`
+							: ""} */}
+						.
+					</span>
 				</div>
 			)}
 		</div>

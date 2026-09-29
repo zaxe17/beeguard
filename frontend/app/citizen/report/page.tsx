@@ -107,26 +107,35 @@ const Camera = () => {
 	// to set manually in step 2 instead of guessing from the device.
 	const captureLocationFromDevice = () => {
 		if (!navigator.geolocation) {
-			setLocationError("Location isn't supported on this device — please set it manually.");
+			setLocationError(
+				"Location isn't supported on this device — please set it manually.",
+			);
 			setLocationSource("manual");
 			return;
 		}
 
 		navigator.geolocation.getCurrentPosition(
 			(pos) => {
-				const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+				const coords = {
+					lat: pos.coords.latitude,
+					lng: pos.coords.longitude,
+				};
 				setLocation(coords);
 				setLocationSource("auto");
 				setLocationError(null);
 				// Show a place name in step 2's (read-only) Location field.
-				updateDetails({ locationText: formatCoords(coords.lat, coords.lng) });
+				updateDetails({
+					locationText: formatCoords(coords.lat, coords.lng),
+				});
 				reverseGeocode(coords.lat, coords.lng).then((label) => {
 					if (label) updateDetails({ locationText: label });
 				});
 			},
 			(err) => {
 				console.error("Geolocation error:", err);
-				setLocationError("Couldn't get your location — please set it manually.");
+				setLocationError(
+					"Couldn't get your location — please set it manually.",
+				);
 				setLocationSource("manual");
 			},
 			{ enableHighAccuracy: true, timeout: 10000 },
@@ -238,7 +247,10 @@ const Camera = () => {
 			setScanning(false);
 
 			if (!res.success || !res.data) {
-				setScanError(res.message || "Failed to identify species. Please try again.");
+				setScanError(
+					res.message ||
+						"Failed to identify species. Please try again.",
+				);
 				return;
 			}
 
@@ -294,7 +306,10 @@ const Camera = () => {
 				<div
 					onClick={handleTakePhoto}
 					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-					<Icon icon="entypo:camera" className="w-full h-full text-white" />
+					<Icon
+						icon="entypo:camera"
+						className="w-full h-full text-white"
+					/>
 				</div>
 
 				<div
@@ -318,7 +333,9 @@ const Camera = () => {
 				<p className="text-red-500 text-sm text-center">{scanError}</p>
 			)}
 			{locationError && (
-				<p className="text-[#a6a3a3] text-xs text-center">{locationError}</p>
+				<p className="text-[#a6a3a3] text-xs text-center">
+					{locationError}
+				</p>
 			)}
 		</div>
 	);
@@ -340,9 +357,9 @@ const FormDetails = () => {
 	const isAutoLocation = locationSource === "auto" && !!location;
 
 	// "searching" | "found" | "notFound" — feedback under the Location box.
-	const [lookup, setLookup] = useState<"idle" | "searching" | "found" | "notFound">(
-		location ? "found" : "idle",
-	);
+	const [lookup, setLookup] = useState<
+		"idle" | "searching" | "found" | "notFound"
+	>(location ? "found" : "idle");
 	// Set when the text was filled in by a map click, so it doesn't get
 	// looked up again (which could move the pin away from the click).
 	const skipNextLookup = useRef(false);
@@ -406,14 +423,23 @@ const FormDetails = () => {
 	const hasDate = !!details.sighted_date;
 	const hasTime = !!details.sighted_time;
 	const sightedInFuture =
-		hasDate && hasTime && new Date(`${details.sighted_date}T${details.sighted_time}`) > new Date();
+		hasDate &&
+		hasTime &&
+		new Date(`${details.sighted_date}T${details.sighted_time}`) >
+			new Date();
 
 	let formError: string | null = null;
-	if (hasDate !== hasTime) formError = "Please fill in both the date and the time, or leave both empty.";
-	else if (sightedInFuture) formError = "The date and time can't be in the future.";
+	if (hasDate !== hasTime)
+		formError =
+			"Please fill in both the date and the time, or leave both empty.";
+	else if (sightedInFuture)
+		formError = "The date and time can't be in the future.";
 
 	const ready =
-		!!location && !!details.bee_danger && !formError && lookup !== "searching";
+		!!location &&
+		!!details.bee_danger &&
+		!formError &&
+		lookup !== "searching";
 
 	useEffect(() => {
 		setCanProceed(ready);
@@ -450,7 +476,9 @@ const FormDetails = () => {
 					onChange={() => updateDetails({ bee_danger: value })}
 					className="hidden"
 				/>
-				<span className="Poppins-SemiBold text-sm" style={{ color: "#4a2f00" }}>
+				<span
+					className="Poppins-SemiBold text-sm"
+					style={{ color: "#4a2f00" }}>
 					{value}
 				</span>
 			</div>
@@ -484,10 +512,17 @@ const FormDetails = () => {
 							onChange={
 								isAutoLocation
 									? undefined
-									: (e) => updateDetails({ locationText: e.target.value })
+									: (e) =>
+											updateDetails({
+												locationText: e.target.value,
+											})
 							}
 							disabled={isAutoLocation}
-							placeholder={isAutoLocation ? undefined : "e.g. Payatas, Quezon City"}
+							placeholder={
+								isAutoLocation
+									? undefined
+									: "e.g. Payatas, Quezon City"
+							}
 						/>
 						<span
 							className={`text-xs ${lookup === "notFound" ? "text-red-600" : "text-[#817b70]"}`}>
@@ -496,7 +531,9 @@ const FormDetails = () => {
 					</div>
 
 					<div className="flex flex-col">
-						<label className="Poppins-SemiBold">Is anyone in danger?</label>
+						<label className="Poppins-SemiBold">
+							Is anyone in danger?
+						</label>
 						<div className="flex gap-2">
 							{dangerOption("Yes")}
 							{dangerOption("No")}
@@ -504,49 +541,76 @@ const FormDetails = () => {
 					</div>
 
 					<div className="flex flex-col">
-						<label className="Poppins-SemiBold">When did you see it?</label>
+						<label className="Poppins-SemiBold">
+							When did you see it?
+						</label>
 						<div className="flex gap-2">
 							<Input
 								label="Date"
 								type="date"
 								value={details.sighted_date}
-								onChange={(e) => updateDetails({ sighted_date: e.target.value })}
+								onChange={(e) =>
+									updateDetails({
+										sighted_date: e.target.value,
+									})
+								}
 							/>
 							<Input
 								label="Time"
 								type="time"
 								value={details.sighted_time}
-								onChange={(e) => updateDetails({ sighted_time: e.target.value })}
+								onChange={(e) =>
+									updateDetails({
+										sighted_time: e.target.value,
+									})
+								}
 							/>
 						</div>
 						{!hasDate && !hasTime && (
 							<span className="text-xs text-[#817b70] mt-1">
-								Optional. Leave empty if you&apos;re reporting it right now.
+								Optional. Leave empty if you&apos;re reporting
+								it right now.
 							</span>
 						)}
 					</div>
 
 					<div className="h-full min-h-24 flex flex-col">
 						<div className="flex justify-between items-end">
-							<label className="Poppins-SemiBold">Tell us more</label>
+							<label className="Poppins-SemiBold">
+								Tell us more
+							</label>
 							<span className="text-xs text-[#817b70]">
-								{details.description.length}/{DESCRIPTION_MAX_LEN}
+								{details.description.length}/
+								{DESCRIPTION_MAX_LEN}
 							</span>
 						</div>
 						<textarea
 							value={details.description}
 							maxLength={DESCRIPTION_MAX_LEN}
-							onChange={(e) => updateDetails({ description: e.target.value })}
+							onChange={(e) =>
+								updateDetails({ description: e.target.value })
+							}
 							placeholder="e.g. On a mango tree near the basketball court"
 							className="text-sm w-full h-full p-2.5 border border-[#a6a3a3] outline-0 rounded-lg bg-white/70 resize-none"
 						/>
 					</div>
 
-					<Input label="Payment Method" value="Cash Upon Rescue" disabled />
+					<Input
+						label="Payment Method"
+						value="Cash Upon Rescue"
+						disabled
+					/>
 
-					{formError && <p className="text-xs text-red-600">{formError}</p>}
+					{formError && (
+						<>
+							{/* <p className="text-xs text-red-600">{formError}</p> */}
+							{console.log(formError)}
+						</>
+					)}
 					{!location && (
-						<p className="text-xs text-[#817b70]">Set a location to continue.</p>
+						<p className="text-xs text-[#817b70]">
+							Set a location to continue.
+						</p>
 					)}
 					{location && !details.bee_danger && (
 						<p className="text-xs text-[#817b70]">
@@ -625,21 +689,30 @@ const ReviewRep = () => {
 			</div>
 
 			<div className="lg:w-1/2 w-full h-full">
-				<form onSubmit={(e) => e.preventDefault()} className="h-full flex flex-col gap-3">
+				<form
+					onSubmit={(e) => e.preventDefault()}
+					className="h-full flex flex-col gap-3">
 					<Input label="Location" value={locationLabel} disabled />
 
 					<div className="flex gap-2">
 						<Input
 							label="Date & Time"
-							value={formatSighted(details.sighted_date, details.sighted_time)}
+							value={formatSighted(
+								details.sighted_date,
+								details.sighted_time,
+							)}
 							disabled
 						/>
 					</div>
 
 					<div className="h-full min-h-24 flex flex-col">
-						<label className="lg:text-base text-xs text-[#4a2f00]">Details</label>
+						<label className="lg:text-base text-xs text-[#4a2f00]">
+							Details
+						</label>
 						<textarea
-							value={details.description || "No details provided."}
+							value={
+								details.description || "No details provided."
+							}
 							readOnly
 							disabled
 							className="text-sm w-full h-full p-2.5 border border-[#a6a3a3] outline-0 rounded-lg bg-white/70 resize-none cursor-not-allowed"
@@ -652,11 +725,20 @@ const ReviewRep = () => {
 							value={details.bee_danger ?? "—"}
 							disabled
 						/>
-						<Input label="Payment Method" value="Cash Upon Rescue" disabled />
+						<Input
+							label="Payment Method"
+							value="Cash Upon Rescue"
+							disabled
+						/>
 					</div>
 
 					{submitError && (
-						<p className="text-sm text-red-600">{submitError}</p>
+						<>
+							{/* <p className="text-sm text-red-600">
+								{submitError}
+							</p> */}
+							{console.log(submitError)}
+						</>
 					)}
 				</form>
 			</div>

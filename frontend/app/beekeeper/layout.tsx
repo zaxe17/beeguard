@@ -22,6 +22,7 @@ import { Delete, Report } from "@/components/modal/ChatModal";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { OFFLINE_SYNCED_EVENT } from "@/lib/offlineStatus";
 import { BEEKEEPER_REPORTS_CHANGED_EVENT } from "@/services/beekeeperReport";
+import BeeGuardLayout from "@/components/BeeGuardLayout";
 
 // Beekeeper pages saved on the phone so they still open offline.
 const OFFLINE_PAGES = [
@@ -57,11 +58,8 @@ type ModalType =
 
 type HivePayload = { hiveId: string };
 
-const BeekeeperLayoutContent = ({
-	children,
-}: {
-	children: React.ReactNode;
-}) => {
+// PUT MODAL IN THIS FUNCTION
+const MyModal = () => {
 	const { closeModal, isModalOpen, payload } = useModal<
 		ModalType,
 		HivePayload
@@ -72,10 +70,9 @@ const BeekeeperLayoutContent = ({
 	// OFFLINE MODE — offline changes just reached the server: reload pages.
 	useEffect(() => {
 		window.addEventListener(OFFLINE_SYNCED_EVENT, reloadAllPages);
-		return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, reloadAllPages);
+		return () =>
+			window.removeEventListener(OFFLINE_SYNCED_EVENT, reloadAllPages);
 	}, []);
-
-	const handleBackOnline = useCallback(() => reloadAllPages(), []);
 
 	const hiveScoped =
 		isModalOpen("monitorHealth") ||
@@ -99,19 +96,7 @@ const BeekeeperLayoutContent = ({
 	}, [payload?.hiveId, hiveScoped]);
 
 	return (
-		<div className="w-full h-svh flex lg:flex-row flex-col-reverse overflow-hidden">
-			<Sidebar />
-
-			<main className="w-full flex-1 min-h-0 flex flex-col relative overflow-y-auto">
-				<div className="absolute top-0 z-[-2] h-full w-full bg-white bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,219,79,0.3),rgba(255,255,255,0))]"></div>
-				{/* OFFLINE MODE — offline notice + changes waiting to sync */}
-				<OfflineBanner
-					onBackOnline={handleBackOnline}
-					warmRoutes={OFFLINE_PAGES}
-				/>
-				{children}
-			</main>
-
+		<>
 			<GenerateReportModal
 				isOpen={isModalOpen("generate")}
 				onClose={closeModal}
@@ -186,15 +171,29 @@ const BeekeeperLayoutContent = ({
 			<Delete isOpen={isModalOpen("DeleteChat")} onClose={closeModal} />
 
 			<Report isOpen={isModalOpen("ReportChat")} onClose={closeModal} />
-		</div>
+		</>
 	);
 };
 
 const BeekeeperLayout = ({ children }: { children: React.ReactNode }) => {
+	const handleBackOnline = useCallback(() => reloadAllPages(), []);
+
 	return (
 		<ModalProvider>
 			<Suspense fallback={null}>
-				<BeekeeperLayoutContent>{children}</BeekeeperLayoutContent>
+				<BeeGuardLayout
+					// OFFLINE MODE — offline notice + changes waiting to sync
+					offlineBanner={
+						<OfflineBanner
+							onBackOnline={handleBackOnline}
+							warmRoutes={OFFLINE_PAGES}
+						/>
+					}
+					// CHILDREN CONTENT
+					content={children}
+					// MODALS
+					modal={<MyModal />}
+				/>
 			</Suspense>
 		</ModalProvider>
 	);

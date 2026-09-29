@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { BackButton, Button } from "@/components/ui/Button";
 import { FormContainer } from "@/components/ui/Container";
-import { Input, Select } from "@/components/ui/Input";
-import { PhoneInput } from "@/components/ui/PhoneInput";
+import { Input, PhoneInput, Select } from "@/components/ui/Input";
 import { useFetch } from "@/hooks/useFetch";
 import {
 	FieldErrors,

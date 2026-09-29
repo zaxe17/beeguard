@@ -2,6 +2,7 @@
 
 import { Icon } from "@iconify/react";
 import { ChangeEvent, ReactNode, useState } from "react";
+import { toPhDigits } from "@/lib/phone";
 
 type InputProps = {
 	name?: string;
@@ -34,6 +35,15 @@ type RangeInputProps = {
 	// back to its original uncontrolled internal state.
 	value?: number;
 	onChange?: (value: number) => void;
+};
+
+type PhoneInputProps = {
+	label?: ReactNode;
+	value: string;
+	onChange?: (digits: string) => void;
+	error?: boolean;
+	disabled?: boolean;
+	height?: number;
 };
 
 const capitalizeWords = (value: string) =>
@@ -279,6 +289,52 @@ export const RangeInput = ({
 				<span>
 					{max} {unit}
 				</span>
+			</div>
+		</div>
+	);
+};
+
+// FOR PHONE NUMBER
+export const PhoneInput = ({
+	label = "Contact Number",
+	value,
+	onChange,
+	error,
+	disabled,
+	height,
+}: PhoneInputProps) => {
+	const heightStyle = height ? { height: `${height}px` } : undefined;
+
+	return (
+		<div className="flex flex-col w-full gap-1">
+			<label
+				className={`lg:text-base text-sm ${
+					error ? "text-red-600" : "text-[#4a2f00]"
+				}`}>
+				{label}
+			</label>
+			<div
+				className={`w-full flex items-stretch border ${
+					error ? "border-red-600" : "border-[#a6a3a3]"
+				} rounded-lg bg-white/70 overflow-hidden ${
+					disabled ? "opacity-60 cursor-not-allowed" : ""
+				}`}
+				style={heightStyle}>
+				<span className="shrink-0 px-2.5 flex items-center text-sm text-[#4a2f00] bg-[#f3eed8] border-r border-[#a6a3a3] select-none">
+					+63
+				</span>
+				<input
+					type="tel"
+					inputMode="numeric"
+					autoComplete="tel-national"
+					placeholder="9XXXXXXXXX"
+					maxLength={10}
+					value={toPhDigits(value)}
+					disabled={disabled}
+					onChange={(e) => onChange?.(toPhDigits(e.target.value))}
+					className="text-sm w-full lg:h-8 h-10 p-2.5 outline-0 bg-transparent disabled:cursor-not-allowed"
+					style={heightStyle}
+				/>
 			</div>
 		</div>
 	);

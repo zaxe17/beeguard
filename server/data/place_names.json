@@ -1,22 +1,9 @@
 {
  "_version": 2,
  "names": {
-  "14.4921,121.0188": "Moonwalk, Parañaque",
-  "14.4966,121.0271": "Merville, Parañaque",
-  "14.5554,121.0217": "San Lorenzo, Makati",
-  "14.6543,121.0281": "Veterans Village, Quezon City",
-  "14.4878,121.0166": "Don Bosco, Parañaque",
-<<<<<<< HEAD
-<<<<<<< HEAD
-  "14.5317,121.0437": "Western Bicutan, Taguig",
-  "14.5172,121.0385": "Western Bicutan, Taguig"
-=======
-  "14.4916,121.0146": "Moonwalk, Parañaque",
-  "14.4893,121.0185": "Moonwalk, Parañaque"
->>>>>>> d900718f554b93ca263f8536981038fa8253e5f4
-=======
-  "14.5317,121.0437": "Western Bicutan, Taguig",
-  "14.5172,121.0385": "Western Bicutan, Taguig"
->>>>>>> 89eef0c297b3c0945c7ad68c93958240c62b3aff
+  "14.5123,121.0562": "Central Signal Village, Taguig",
+  "14.5105,121.0546": "Central Signal Village, Taguig",
+  "14.5073,121.0528": "South Signal Village, Taguig",
+  "14.4859,121.0367": "Sun Valley, Parañaque"
  }
 }

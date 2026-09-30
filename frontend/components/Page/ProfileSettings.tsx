@@ -47,6 +47,82 @@ import {
 	warmUpPush,
 	type PushState,
 } from "@/services/push";
+import BeefarmView from "../BeefarmView";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
+
+type ViewKey = "main" | "settings" | "about" | "verify" | "viewprofile";
+type DetailKey =
+	| "personal"
+	| "password"
+	| "privacy"
+	| "terms"
+	| "verify"
+	| null;
+
+type SettingsItem<K> = {
+	label: string;
+	icon: string;
+	onClickName: K;
+};
+
+const settingsTab: {
+	main: SettingsItem<ViewKey>[];
+	settings: SettingsItem<NonNullable<DetailKey>>[];
+	about: SettingsItem<NonNullable<DetailKey>>[];
+} = {
+	main: [
+		{
+			label: "View Profile",
+			icon: "flowbite:profile-card-solid",
+			onClickName: "viewprofile",
+		},
+		{ label: "Settings", icon: "mdi:cog", onClickName: "settings" },
+		{
+			label: "About BeeGuard",
+			icon: "fa7-solid:circle-info",
+			onClickName: "about",
+		},
+	],
+	settings: [
+		{
+			label: "Personal Information",
+			icon: "bi:person-circle",
+			onClickName: "personal",
+		},
+		{
+			label: "Change Password",
+			icon: "carbon:password",
+			onClickName: "password",
+		},
+	],
+	about: [
+		{
+			label: "Privacy Policy",
+			icon: "fa7-solid:user-shield",
+			onClickName: "privacy",
+		},
+		{
+			label: "Terms & Conditions",
+			icon: "fa7-solid:file-contract",
+			onClickName: "terms",
+		},
+	],
+};
+
+const DETAIL_TITLES: Record<Exclude<DetailKey, null>, string> = {
+	personal: "Personal Information",
+	password: "Change Password",
+	privacy: "Privacy Policy",
+	terms: "Terms & Conditions",
+	verify: "Verify Your Account",
+};
+
+const useProfileRoute = () => {
+	const pathname = usePathname();
+	return pathname.startsWith("/beekeeper")
+		? "/beekeeper/profile"
+		: "/citizen/profile";
+};
 
 // Leaflet needs `window` — client-side only.
 const Map = dynamic(() => import("../ui/google-maps/Map"), {
@@ -291,24 +367,23 @@ const PushNotificationSwitch = () => {
 				onChange={toggle}
 				disabled={on === null || busy}
 			/>
-			{on && device === "off" && (
-				<button
-					type="button"
-					onClick={turnOnDevice}
-					disabled={busy}
-					className="Poppins-SemiBold self-start text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1.5 disabled:opacity-60">
-					{busy ? "Turning on…" : "Turn on for this device"}
-				</button>
-			)}
-			{on && device === "on" && (
-				<button
-					type="button"
-					onClick={test}
-					disabled={busy}
-					className="Poppins-SemiBold self-start text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1.5 disabled:opacity-60">
-					{busy ? "Sending…" : "Send a test notification"}
-				</button>
-			)}
+			{/* {on &&
+				device !== undefined &&
+				(device === "off" || device === "on") && (
+					<button
+						type="button"
+						onClick={device === "off" ? turnOnDevice : test}
+						disabled={busy}
+						className="Poppins-SemiBold self-start text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1.5 disabled:opacity-60">
+						{device === "off"
+							? busy
+								? "Turning on…"
+								: "Turn on for this device"
+							: busy
+								? "Sending…"
+								: "Send a test notification"}
+					</button>
+				)} */}
 			{on && device === "blocked" && (
 				<p className="text-xs text-red-600">
 					Notifications are blocked in this browser. Allow them in the
@@ -323,23 +398,6 @@ const PushNotificationSwitch = () => {
 			)}
 		</div>
 	);
-};
-
-type ViewKey = "main" | "settings" | "about" | "verify";
-type DetailKey =
-	| "personal"
-	| "password"
-	| "privacy"
-	| "terms"
-	| "verify"
-	| null;
-
-const DETAIL_TITLES: Record<Exclude<DetailKey, null>, string> = {
-	personal: "Personal Information",
-	password: "Change Password",
-	privacy: "Privacy Policy",
-	terms: "Terms & Conditions",
-	verify: "Verify Your Account",
 };
 
 const MainProfileSettings = ({
@@ -373,16 +431,19 @@ const MainProfileSettings = ({
 			/>
 			<div className="w-full h-full flex justify-center mt-5">
 				<div className="lg:w-2/3 w-full h-full flex flex-col gap-3">
-					<SettingsTabs
-						label="Settings"
-						icon="mdi:cog"
-						onClick={() => onSelect("settings")}
-					/>
-					<SettingsTabs
-						label="About BeeGuard"
-						icon="fa7-solid:circle-info"
-						onClick={() => onSelect("about")}
-					/>
+					{settingsTab["main"]
+						.filter(
+							(m) =>
+								m.onClickName !== "viewprofile" || isBeekeeper,
+						)
+						.map((m) => (
+							<SettingsTabs
+								key={m.onClickName}
+								label={m.label}
+								icon={m.icon}
+								onClick={() => onSelect(m.onClickName)}
+							/>
+						))}
 					{/* Clears the saved login before leaving */}
 					<Link
 						href="/"
@@ -404,17 +465,14 @@ const Settings = ({
 }: {
 	onSelectDetail: (detail: DetailKey) => void;
 }) => {
-	const pathname = usePathname();
-	const profileRoute = pathname.startsWith("/beekeeper")
-		? "/beekeeper/profile"
-		: "/citizen/profile";
+	const profileRoute = useProfileRoute();
 
 	return (
 		<Container
 			height="100%"
 			borderNone
 			className="lg:w-[35%] w-full h-full shrink-0">
-			<div className="sticky top-0 z-10 flex w-full items-center justify-center bg-[#fffbe6] px-4 pt-4 pb-6">
+			<div className="sticky top-0 z-10 flex w-full items-center justify-center px-4 pt-4 pb-6">
 				<div className="absolute left-2 top-1/2 -translate-y-1/2">
 					<BackButton route={profileRoute} />
 				</div>
@@ -429,16 +487,14 @@ const Settings = ({
 					<span className="text-[#817b70]">Account</span>
 					{/* TABS */}
 					<div className="w-full flex flex-col items gap-3">
-						<SettingsTabs
-							label="Personal Information"
-							icon="bi:person-circle"
-							onClick={() => onSelectDetail("personal")}
-						/>
-						<SettingsTabs
-							label="Change Password"
-							icon="carbon:password"
-							onClick={() => onSelectDetail("password")}
-						/>
+						{settingsTab["settings"].map((m) => (
+							<SettingsTabs
+								key={m.onClickName}
+								label={m.label}
+								icon={m.icon}
+								onClick={() => onSelectDetail(m.onClickName)}
+							/>
+						))}
 					</div>
 				</div>
 
@@ -461,14 +517,21 @@ const About = ({
 }: {
 	onSelectDetail: (detail: DetailKey) => void;
 }) => {
+	const profileRoute = useProfileRoute();
+
 	return (
 		<Container
 			height="100%"
 			borderNone
 			className="lg:w-[35%] w-full h-full shrink-0">
-			<span className="Poppins-Bold text-center text-[#4a2f00] text-3xl mt-5 mb-10">
-				About BeeGuard
-			</span>
+			<div className="sticky top-0 z-10 flex w-full items-center justify-center px-4 pt-4 pb-6">
+				<div className="absolute left-2 top-1/2 -translate-y-1/2">
+					<BackButton route={profileRoute} />
+				</div>
+				<span className="Poppins-Bold text-3xl text-[#4a2f00]">
+					About BeeGuard
+				</span>
+			</div>
 
 			<div className="w-full h-full flex flex-col items-center justify-center gap-8">
 				<div className="flex flex-col justify-center items-center lg:border-none border-b border-b-[#b6771d] lg:pb-0 pb-5">
@@ -482,16 +545,14 @@ const About = ({
 				</div>
 
 				<div className="lg:w-2/3 w-full flex flex-col gap-3">
-					<SettingsTabs
-						label="Privacy Policy"
-						icon="fa7-solid:user-shield"
-						onClick={() => onSelectDetail("privacy")}
-					/>
-					<SettingsTabs
-						label="Terms & Conditions"
-						icon="fa7-solid:file-contract"
-						onClick={() => onSelectDetail("terms")}
-					/>
+					{settingsTab["about"].map((m) => (
+						<SettingsTabs
+							key={m.onClickName}
+							label={m.label}
+							icon={m.icon}
+							onClick={() => onSelectDetail(m.onClickName)}
+						/>
+					))}
 				</div>
 
 				<p className="text-[#545454] mt-auto">
@@ -1142,14 +1203,86 @@ const VerifyBeekeeperForm = () => {
 	);
 };
 
+// Yellow "Edit farm details" pill — opens Personal Information.
+const EditFarmButton = ({ onClick }: { onClick: () => void }) => (
+	<button
+		type="button"
+		onClick={onClick}
+		className="Poppins-SemiBold text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-4 py-2 flex items-center gap-1 shrink-0">
+		<Icon icon="mdi:pencil" className="w-4 h-4" />
+		Edit farm details
+	</button>
+);
+
+// VIEW PROFILE — the beekeeper's Bee Farm page. Shown on the RIGHT:
+// desktop = inline next to the menu, mobile = inside MobileOverlay.
+const BeekeeperFarmView = ({
+	onSelectDetail,
+	showTitle = true,
+}: {
+	onSelectDetail: (detail: DetailKey) => void;
+	showTitle?: boolean;
+}) => (
+	<div className="w-full h-full flex flex-col min-h-0">
+		{/* DESKTOP — title + Edit button on top */}
+		{showTitle && (
+			<div className="flex w-full items-center justify-between gap-3 lg:px-8 px-4 pt-6 pb-4 shrink-0">
+				<span className="Poppins-Bold text-3xl text-[#4a2f00]">
+					My Bee Farm
+				</span>
+				<EditFarmButton onClick={() => onSelectDetail("personal")} />
+			</div>
+		)}
+
+		<div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-18 lg:scrollbar-auto scrollbar-none">
+			<BeefarmView farmId="BKP-000001" />
+
+			{/* MOBILE */}
+			{!showTitle && (
+				<div className="flex w-full items-center justify-center px-4 pt-3 pb-4 shrink-0 border-t border-[#e2e2e6] bg-white">
+					<EditFarmButton
+						onClick={() => onSelectDetail("personal")}
+					/>
+				</div>
+			)}
+		</div>
+	</div>
+);
+
+// Sticky header of the mobile overlay: back arrow + centered title.
+const OverlayHeader = ({
+	title,
+	onBack,
+}: {
+	title: string;
+	onBack: () => void;
+}) => (
+	<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
+		<button
+			type="button"
+			onClick={onBack}
+			aria-label="Back"
+			className="absolute flex items-center shrink-0">
+			<Icon icon="bx:arrow-back" className="text-2xl text-[#ffa004]" />
+		</button>
+		<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
+			{title}
+		</span>
+	</div>
+);
+
 const ProfileSettingsContent = () => {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const pathname = usePathname();
+	const isDesktop = useIsDesktop();
 
 	const { user } = useAuth();
 	const view = (searchParams.get("view") as ViewKey) || "main";
 	const detail = (searchParams.get("detail") as DetailKey) || null;
+
+	// "View Profile" with nothing else open = show the farm on the right.
+	const showFarm = view === "viewprofile" && !detail;
 
 	const setView = (v: ViewKey) => {
 		router.push(`${pathname}?view=${v}`);
@@ -1169,6 +1302,9 @@ const ProfileSettingsContent = () => {
 				return <Settings onSelectDetail={setDetail} />;
 			case "about":
 				return <About onSelectDetail={setDetail} />;
+			// View Profile keeps the menu on the left; the farm is a
+			// "right side" page like the other details.
+			case "viewprofile":
 			case "main":
 			default:
 				return (
@@ -1197,38 +1333,48 @@ const ProfileSettingsContent = () => {
 		}
 	};
 
+	const detailTitle = detail
+		? detail === "verify" && user?.verification_status === "Verified"
+			? "Verified Beekeeper"
+			: DETAIL_TITLES[detail]
+		: "";
+
 	return (
 		<div className="w-full h-full flex items-start relative">
 			{renderLeft()}
 
 			{/* RIGHT SIDE — desktop: always visible inline */}
-			<div className="hidden lg:block flex-1 h-full w-full min-h-0 overflow-y-auto">
-				<div className="flex flex-col items-center justify-center py-8 px-25 w-full h-full">
-					{renderDetailContent()}
-				</div>
+			<div className="hidden lg:block flex-1 h-full w-full min-w-0 min-h-0 overflow-y-auto">
+				{showFarm && isDesktop ? (
+					<BeekeeperFarmView onSelectDetail={setDetail} />
+				) : (
+					<div className="flex flex-col items-center justify-center py-8 px-25 w-full h-full">
+						{renderDetailContent()}
+					</div>
+				)}
 			</div>
+
+			{/* RIGHT SIDE — mobile: slide-up overlay for View Profile */}
+			{showFarm && !isDesktop && (
+				<MobileOverlay>
+					<OverlayHeader
+						title="My Bee Farm"
+						onBack={() => setView("main")}
+					/>
+					<BeekeeperFarmView
+						onSelectDetail={setDetail}
+						showTitle={false}
+					/>
+				</MobileOverlay>
+			)}
 
 			{/* RIGHT SIDE — mobile: slide-up overlay, only after a tab is selected */}
 			{detail && (
 				<MobileOverlay>
-					{/* BACK BUTTON */}
-					<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
-						<button
-							onClick={() => setDetail(null)}
-							className="absolute flex items-center shrink-0">
-							<Icon
-								icon="bx:arrow-back"
-								className="text-2xl text-[#ffa004]"
-							/>
-						</button>
-						<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
-							{detail === "verify" &&
-							user?.verification_status === "Verified"
-								? "Verified Beekeeper"
-								: DETAIL_TITLES[detail]}
-						</span>
-					</div>
-
+					<OverlayHeader
+						title={detailTitle}
+						onBack={() => setDetail(null)}
+					/>
 					<div className="flex flex-col items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
 						{renderDetailContent()}
 					</div>

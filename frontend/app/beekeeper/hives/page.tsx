@@ -30,7 +30,8 @@ type ModalType =
 	| "addYield"
 	| "generate"
 	| "viewHistory"
-	| "replace";
+	| "replace"
+	| "editHive";
 
 type HivePayload = { hiveId: string };
 
@@ -127,7 +128,12 @@ const HivesInner = () => {
 	);
 
 	const openHiveModal = (
-		modal: "monitorHealth" | "addYield" | "viewHistory" | "replace",
+		modal:
+			| "monitorHealth"
+			| "addYield"
+			| "viewHistory"
+			| "replace"
+			| "editHive",
 	) => {
 		if (!selectedHive) return;
 		openModal(modal, { hiveId: selectedHive.hive_id });
@@ -259,6 +265,7 @@ const HivesInner = () => {
 								null
 							}
 							queenAgeDays={selectedHive.queen_age_days ?? null}
+							onEdit={() => openHiveModal("editHive")}
 						/>
 					) : loading ? (
 						<HiveDetailsSkeleton />
@@ -321,6 +328,7 @@ const HivesInner = () => {
 									queenAgeDays={
 										selectedHive.queen_age_days ?? null
 									}
+									onEdit={() => openHiveModal("editHive")}
 								/>
 							</div>
 						) : (

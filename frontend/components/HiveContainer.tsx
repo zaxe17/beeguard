@@ -46,6 +46,8 @@ export type HiveProps = {
 	replaceRecommended?: boolean;
 	replaceReason?: string | null;
 	queenAgeDays?: number | null;
+	// NEW — "Edit" (pencil) on the Hive Details card.
+	onEdit?: () => void;
 };
 
 // "1 yr 3 mo" style queen age.
@@ -105,7 +107,6 @@ export const HiveDetailsContainer = ({
 	addYieldButton,
 	history,
 	replacement,
-	hiveId,
 	hive,
 	location,
 	lastCheck,
@@ -115,6 +116,7 @@ export const HiveDetailsContainer = ({
 	replaceRecommended,
 	replaceReason,
 	queenAgeDays,
+	onEdit,
 }: HiveProps) => {
 	const iconKey = getHiveIconKey(status);
 	const queenAge = formatQueenAge(queenAgeDays);
@@ -154,10 +156,22 @@ export const HiveDetailsContainer = ({
 
 			{/* HIVES DETAILS */}
 			<div
-				className="border-2 border-[#e2e2e6] rounded-2xl p-5 capitalize flex flex-col lg:flex-row gap-5"
+				className="relative border-2 border-[#e2e2e6] rounded-2xl p-5 capitalize flex flex-col lg:flex-row gap-5"
 				style={{
 					boxShadow: `rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px`,
 				}}>
+				{/* EDIT HIVE (NEW) */}
+				{onEdit && (
+					<button
+						type="button"
+						onClick={onEdit}
+						aria-label="Edit hive"
+						title="Edit hive"
+						className="absolute top-3 right-3 w-8 h-8 p-1.5 rounded-full bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] flex items-center justify-center cursor-pointer transition-colors">
+						<Icon icon="mdi:pencil" className="w-full h-full text-[#704500]" />
+					</button>
+				)}
+
 				{/* LEFT */}
 				<div
 					className="flex justify-center items-center p-6 lg:p-10 rounded-md border shrink-0 mx-auto lg:mx-0"
@@ -181,11 +195,11 @@ export const HiveDetailsContainer = ({
 
 				{/* RIGHT */}
 				<div className="w-full">
-					{/* HIVE ID */}
-					<h1 className="Poppins-Bold text-2xl">{hiveId}</h1>
-
-					{/* NAME */}
-					<h2 className="Poppins-Bold text-xl italic mb-4">{hive}</h2>
+					{/* HIVE NAME — takes the place of the hive number (HV-000006),
+					    which isn't shown anymore. pr-8 leaves room for the pencil. */}
+					<h1 className="Poppins-Bold text-2xl mb-4 pr-8 normal-case wrap-break-word">
+						{hive}
+					</h1>
 
 					{/* LOCATION AND DATE CHECK */}
 					<div className="flex flex-col mb-8 lg:mb-15">
@@ -268,7 +282,6 @@ export const HiveDetailsContainer = ({
 };
 
 export const HiveTabs = ({
-	hiveId,
 	hive,
 	location,
 	lastCheck,
@@ -310,10 +323,10 @@ export const HiveTabs = ({
 
 			{/* RIGHT */}
 			<div className="w-full">
-				{/* HIVE ID */}
-				<div className="flex justify-between items-center">
-					<h1 className="Poppins-Bold lg:text-2xl text-lg">
-						{hiveId}
+				{/* HIVE NAME — in place of the hive number (HV-000006) */}
+				<div className="flex justify-between items-center gap-2">
+					<h1 className="Poppins-Bold lg:text-2xl text-lg normal-case wrap-break-word">
+						{hive}
 					</h1>
 					<span
 						className="Poppins-SemiBold lg:text-xs text-[10px] text-center py-0.5 lg:px-3 px-1 rounded-sm"
@@ -324,11 +337,6 @@ export const HiveTabs = ({
 						{status}
 					</span>
 				</div>
-
-				{/* NAME */}
-				<h2 className="Poppins-Bold lg:text-lg text-sm italic">
-					{hive}
-				</h2>
 
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
@@ -374,7 +382,6 @@ export const HiveTabs = ({
 };
 
 export const HiveTrans = ({
-	hiveId,
 	hive,
 	location,
 	lastCheck,
@@ -403,10 +410,7 @@ export const HiveTrans = ({
 
 			{/* RIGHT */}
 			<div className="w-full">
-				{/* HIVE ID */}
-				<h1 className="Poppins-Bold text-2xl">{hiveId}</h1>
-
-				{/* NAME */}
+				{/* NAME (the hive number was removed here) */}
 				<h2 className="Poppins-Bold text-lg italic">{hive}</h2>
 
 				{/* LOCATION AND DATE CHECK */}

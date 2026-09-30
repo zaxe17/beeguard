@@ -71,7 +71,9 @@ export const HIVE_SPECIES = HIVE_SPECIES_GROUPS.flatMap((g) => g.species);
 
 /** "Apis cerana" -> "Apis cerana / Asian Honey Bee". */
 export const speciesLabel = (species: string | null | undefined): string => {
-	if (!species || species === "Unidentified") return "Unidentified";
+	if (!species) return "Unidentified";
+	// CV scan: a bee that isn't cerana / mellifera / biroi (e.g. Apis dorsata).
+	if (species === "Unidentified") return "Unidentified Bee";
 	// Already "Scientific / English" (e.g. older dummy data) — keep as-is.
 	if (species.includes("/")) return species;
 	const scientific = formatScientific(species);

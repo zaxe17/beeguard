@@ -6,6 +6,7 @@ import { AddAlert, ALERTS_CHANGED_EVENT } from "@/components/modal/AlertModal";
 import {
 	AddHiveModal,
 	AddYield,
+	EditHiveModal,
 	HIVES_CHANGED_EVENT,
 	MonitorHealth,
 	QueenReplace,
@@ -54,7 +55,8 @@ type ModalType =
 	| "replace"
 	| "BeeReport"
 	| "DeleteChat"
-	| "ReportChat";
+	| "ReportChat"
+	| "editHive";
 
 type HivePayload = { hiveId: string };
 
@@ -78,7 +80,8 @@ const MyModal = () => {
 		isModalOpen("monitorHealth") ||
 		isModalOpen("addYield") ||
 		isModalOpen("viewHistory") ||
-		isModalOpen("replace");
+		isModalOpen("replace") ||
+		isModalOpen("editHive");
 
 	useEffect(() => {
 		if (!hiveScoped || !payload?.hiveId) {
@@ -152,9 +155,17 @@ const MyModal = () => {
 									targetHive.health_status,
 								),
 								hiveState: targetHive.hive_state,
+								dateEstablished: targetHive.date_established,
 							}
 						: undefined
 				}
+			/>
+
+			{/* NEW — pencil on the Hive Details card */}
+			<EditHiveModal
+				isOpen={isModalOpen("editHive")}
+				onClose={closeModal}
+				hive={targetHive}
 			/>
 
 			<QueenReplace

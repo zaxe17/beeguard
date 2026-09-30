@@ -936,6 +936,10 @@ const ChangePassword = () => {
 	);
 };
 
+// "Other" in the Type of Document dropdown -> type the document name.
+const OTHER_DOCUMENT = "Other";
+const OTHER_DOCUMENT_MAX = 60;
+
 const VerifyBeekeeperForm = () => {
 	const { user } = useAuth();
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -943,6 +947,8 @@ const VerifyBeekeeperForm = () => {
 	const [info, setInfo] = useState<VerificationInfo | null>(null);
 	const [documentTypes, setDocumentTypes] = useState<string[]>([]);
 	const [documentType, setDocumentType] = useState("");
+	// Typed name when "Other" is picked (e.g. "LGU Certification").
+	const [otherDocument, setOtherDocument] = useState("");
 	const [file, setFile] = useState<File | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [submitting, setSubmitting] = useState(false);
@@ -962,12 +968,21 @@ const VerifyBeekeeperForm = () => {
 			verificationService.documentTypes(),
 		]).then(([mine, types]) => {
 			if (cancelled) return;
+			const listed = types.success && types.data ? types.data : [];
 			if (mine.success && mine.data) {
 				setInfo(mine.data);
-				if (mine.data.document_type)
-					setDocumentType(mine.data.document_type);
+				const saved = mine.data.document_type;
+				if (saved) {
+					// A document typed under "Other" before -> show it there.
+					if (listed.length && !listed.includes(saved)) {
+						setDocumentType(OTHER_DOCUMENT);
+						setOtherDocument(saved);
+					} else {
+						setDocumentType(saved);
+					}
+				}
 			}
-			if (types.success && types.data) setDocumentTypes(types.data);
+			if (listed.length) setDocumentTypes(listed);
 			setLoading(false);
 		});
 		return () => {
@@ -992,6 +1007,12 @@ const VerifyBeekeeperForm = () => {
 			setErrorMsg("Please select the type of document.");
 			return;
 		}
+		const isOther = documentType === OTHER_DOCUMENT;
+		const finalType = isOther ? otherDocument.trim() : documentType;
+		if (isOther && finalType.length < 3) {
+			setErrorMsg("Please type the name of your document.");
+			return;
+		}
 		if (!file) {
 			setErrorMsg("Please upload your document (photo or PDF).");
 			return;
@@ -999,7 +1020,7 @@ const VerifyBeekeeperForm = () => {
 		setSubmitting(true);
 		setErrorMsg(null);
 		setSuccessMsg(null);
-		const res = await verificationService.submit(documentType, file);
+		const res = await verificationService.submit(finalType, file);
 		setSubmitting(false);
 		if (res.success && res.data) {
 			setInfo(res.data);
@@ -1118,10 +1139,13 @@ const VerifyBeekeeperForm = () => {
 						<Select
 							label="Type of Document"
 							placeholder="Select Document"
-							options={documentTypes.map((t) => ({
-								label: t,
-								value: t,
-							}))}
+							options={[
+								...documentTypes.map((t) => ({
+									label: t,
+									value: t,
+								})),
+								{ label: OTHER_DOCUMENT, value: OTHER_DOCUMENT },
+							]}
 							value={documentType}
 							onSelectChange={(e) => {
 								setDocumentType(e.target.value);
@@ -1154,6 +1178,22 @@ const VerifyBeekeeperForm = () => {
 							onChange={handleFileChange}
 						/>
 					</div>
+				)}
+
+				{/* OTHER — type the document name */}
+				{!isVerified && documentType === OTHER_DOCUMENT && (
+					<Input
+						label="Specify Document"
+						placeholder="Type the name of your document"
+						value={otherDocument}
+						onChange={(e) => {
+							setOtherDocument(
+								e.target.value.slice(0, OTHER_DOCUMENT_MAX),
+							);
+							setErrorMsg(null);
+						}}
+						disabled={submitting}
+					/>
 				)}
 
 				{/* CHOSEN FILE */}
@@ -1216,13 +1256,19 @@ const EditFarmButton = ({ onClick }: { onClick: () => void }) => (
 
 // VIEW PROFILE — the beekeeper's Bee Farm page. Shown on the RIGHT:
 // desktop = inline next to the menu, mobile = inside MobileOverlay.
+// FIXED — was <BeefarmView farmId="BKP-000001" />, so EVERY beekeeper saw
+// BKP-000001's ratings and followers. Now it's the logged-in beekeeper's
+// own farm (GET /api/farms/<their id> -> rating_avg, rating_count,
+// follower_count).
 const BeekeeperFarmView = ({
 	onSelectDetail,
 	showTitle = true,
 }: {
 	onSelectDetail: (detail: DetailKey) => void;
 	showTitle?: boolean;
-}) => (
+}) => {
+	const { user } = useAuth();
+	return (
 	<div className="w-full h-full flex flex-col min-h-0">
 		{/* DESKTOP — title + Edit button on top */}
 		{showTitle && (
@@ -1235,7 +1281,7 @@ const BeekeeperFarmView = ({
 		)}
 
 		<div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-18 lg:scrollbar-auto scrollbar-none">
-			<BeefarmView farmId="BKP-000001" />
+			{user?.id && <BeefarmView farmId={user.id} />}
 
 			{/* MOBILE */}
 			{!showTitle && (
@@ -1247,7 +1293,8 @@ const BeekeeperFarmView = ({
 			)}
 		</div>
 	</div>
-);
+	);
+};
 
 // Sticky header of the mobile overlay: back arrow + centered title.
 const OverlayHeader = ({

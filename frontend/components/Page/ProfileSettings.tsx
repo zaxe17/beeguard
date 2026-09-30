@@ -1144,7 +1144,10 @@ const VerifyBeekeeperForm = () => {
 									label: t,
 									value: t,
 								})),
-								{ label: OTHER_DOCUMENT, value: OTHER_DOCUMENT },
+								{
+									label: OTHER_DOCUMENT,
+									value: OTHER_DOCUMENT,
+								},
 							]}
 							value={documentType}
 							onSelectChange={(e) => {
@@ -1269,30 +1272,32 @@ const BeekeeperFarmView = ({
 }) => {
 	const { user } = useAuth();
 	return (
-	<div className="w-full h-full flex flex-col min-h-0">
-		{/* DESKTOP — title + Edit button on top */}
-		{showTitle && (
-			<div className="flex w-full items-center justify-between gap-3 lg:px-8 px-4 pt-6 pb-4 shrink-0">
-				<span className="Poppins-Bold text-3xl text-[#4a2f00]">
-					My Bee Farm
-				</span>
-				<EditFarmButton onClick={() => onSelectDetail("personal")} />
-			</div>
-		)}
-
-		<div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-18 lg:scrollbar-auto scrollbar-none">
-			{user?.id && <BeefarmView farmId={user.id} />}
-
-			{/* MOBILE */}
-			{!showTitle && (
-				<div className="flex w-full items-center justify-center px-4 pt-3 pb-4 shrink-0 border-t border-[#e2e2e6] bg-white">
+		<div className="w-full h-full flex flex-col min-h-0">
+			{/* DESKTOP — title + Edit button on top */}
+			{showTitle && (
+				<div className="flex w-full items-center justify-between gap-3 lg:px-8 px-4 pt-6 pb-4 shrink-0">
+					<span className="Poppins-Bold text-3xl text-[#4a2f00]">
+						My Bee Farm
+					</span>
 					<EditFarmButton
 						onClick={() => onSelectDetail("personal")}
 					/>
 				</div>
 			)}
+
+			<div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-18 lg:scrollbar-auto scrollbar-none">
+				{user?.id && <BeefarmView farmId={user.id} />}
+
+				{/* MOBILE */}
+				{!showTitle && (
+					<div className="flex w-full items-center justify-center px-4 pt-3 mt-3 pb-4 shrink-0 border-t border-[#e2e2e6] bg-white">
+						<EditFarmButton
+							onClick={() => onSelectDetail("personal")}
+						/>
+					</div>
+				)}
+			</div>
 		</div>
-	</div>
 	);
 };
 

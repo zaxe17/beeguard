@@ -665,7 +665,7 @@ export const BeefarmViewSkeleton = ({
 
 				{/* RATE CARDS */}
 				<div className="w-full flex gap-3 mt-3">
-					{Array.from({ length: 3 }).map((_, i) => (
+					{Array.from({ length: 4 }).map((_, i) => (
 						<div
 							key={i}
 							className="w-full border border-[#e2e2e6] rounded-full p-2 flex flex-col items-center gap-1.5">
@@ -677,7 +677,7 @@ export const BeefarmViewSkeleton = ({
 			</div>
 
 			{/* RIGHT SIDE */}
-			<div className="lg:w-1/3 w-full">
+			<div className="lg:w-2/3 w-full">
 				{/* BUTTONS */}
 				{showActions && (
 					<div className="flex gap-2 mt-3">

@@ -168,7 +168,10 @@ export const HiveDetailsContainer = ({
 						aria-label="Edit hive"
 						title="Edit hive"
 						className="absolute top-3 right-3 w-8 h-8 p-1.5 rounded-full bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] flex items-center justify-center cursor-pointer transition-colors">
-						<Icon icon="mdi:pencil" className="w-full h-full text-[#704500]" />
+						<Icon
+							icon="mdi:pencil"
+							className="w-full h-full text-[#704500]"
+						/>
 					</button>
 				)}
 
@@ -381,12 +384,7 @@ export const HiveTabs = ({
 	);
 };
 
-export const HiveTrans = ({
-	hive,
-	location,
-	lastCheck,
-	status,
-}: HiveProps) => {
+export const HiveTrans = ({ hive, location, lastCheck, status }: HiveProps) => {
 	const iconKey = getHiveIconKey(status);
 	const { icon, color } = HiveIcon[iconKey];
 

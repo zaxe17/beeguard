@@ -14,6 +14,7 @@ import { formatPeriod, periodYear } from "@/lib/harvestSeason";
 import {
 	BQHistoryCardSkeleton,
 	YearFilterSkeleton,
+	YieldChartSkeleton,
 } from "@/components/loading/SkeletonLoading";
 
 function formatKg(v: number | undefined | null) {
@@ -288,9 +289,7 @@ const History = () => {
 
 					<div className="w-full h-screen relative">
 						{loading ? (
-							<p className="text-center text-sm text-[#817b70] p-4">
-								Loading history...
-							</p>
+							<YieldChartSkeleton showSummary={false} />
 						) : (
 							<>
 								<YieldSummaryChart

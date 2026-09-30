@@ -23,6 +23,10 @@ import { queenService } from "@/services/queen";
 import bee_report from "@/public/assets/bee_report.png";
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import {
+	HistoryTableSkeleton,
+	HiveTransSkeleton,
+} from "../loading/SkeletonLoading";
 
 type ModalProps = {
 	isOpen: boolean;
@@ -140,7 +144,9 @@ const SpeciesCombobox = ({
 	const options =
 		!q || exact
 			? HIVE_SPECIES_OPTIONS
-			: HIVE_SPECIES_OPTIONS.filter((o) => o.label.toLowerCase().includes(q));
+			: HIVE_SPECIES_OPTIONS.filter((o) =>
+					o.label.toLowerCase().includes(q),
+				);
 
 	return (
 		<div className="relative flex flex-col w-full gap-1">
@@ -179,28 +185,30 @@ const SpeciesCombobox = ({
 				<ul className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-[#e2e2e6] rounded-lg shadow-[0px_6px_16px_rgba(0,0,0,0.15)] max-h-64 overflow-y-auto">
 					{options.map((o, i) => (
 						<React.Fragment key={o.value}>
-						{/* group heading: "Honey Bees" / "Stingless Bees" */}
-						{(i === 0 || options[i - 1].group !== o.group) && (
-							<li className="sticky top-0 bg-[#f7f5ef] px-3 py-1 text-[10px] Poppins-SemiBold uppercase tracking-wide text-[#817b70]">
-								{o.group}
+							{/* group heading: "Honey Bees" / "Stingless Bees" */}
+							{(i === 0 || options[i - 1].group !== o.group) && (
+								<li className="sticky top-0 bg-[#f7f5ef] px-3 py-1 text-[10px] Poppins-SemiBold uppercase tracking-wide text-[#817b70]">
+									{o.group}
+								</li>
+							)}
+							<li
+								// onMouseDown (not onClick) so it runs before the
+								// input's blur closes the list.
+								onMouseDown={(e) => {
+									e.preventDefault();
+									onChange(o.value);
+									setOpen(false);
+								}}
+								className={`px-3 py-2 cursor-pointer hover:bg-[#fff1ad]/60 ${
+									o.value === value ? "bg-[#fff8e1]" : ""
+								}`}>
+								<p className="Poppins-SemiBold text-sm text-[#4a2f00]">
+									{o.value}
+								</p>
+								<p className="text-xs text-[#817b70]">
+									{o.label}
+								</p>
 							</li>
-						)}
-						<li
-							// onMouseDown (not onClick) so it runs before the
-							// input's blur closes the list.
-							onMouseDown={(e) => {
-								e.preventDefault();
-								onChange(o.value);
-								setOpen(false);
-							}}
-							className={`px-3 py-2 cursor-pointer hover:bg-[#fff1ad]/60 ${
-								o.value === value ? "bg-[#fff8e1]" : ""
-							}`}>
-							<p className="Poppins-SemiBold text-sm text-[#4a2f00]">
-								{o.value}
-							</p>
-							<p className="text-xs text-[#817b70]">{o.label}</p>
-						</li>
 						</React.Fragment>
 					))}
 				</ul>
@@ -358,10 +366,10 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					/>
 				</div>
 				<p className="text-[10px] text-[#817b70] -mt-2">
-					Queen Established Date: when the current queen was put in. Leave
-					blank if she came with the hive (same as Date Established). A
-					queen past the age limit gets a &quot;Replace Queen&quot;
-					recommendation.
+					Queen Established Date: when the current queen was put in.
+					Leave blank if she came with the hive (same as Date
+					Established). A queen past the age limit gets a
+					&quot;Replace Queen&quot; recommendation.
 				</p>
 
 				<div className="flex gap-2 lg:flex-row flex-col">
@@ -560,8 +568,9 @@ export const EditHiveModal = ({
 					/>
 				</div>
 				<p className="text-[10px] text-[#817b70] -mt-2">
-					Queen Established Date: when the current queen was put in. Leave
-					blank if she came with the hive (same as Date Established).
+					Queen Established Date: when the current queen was put in.
+					Leave blank if she came with the hive (same as Date
+					Established).
 				</p>
 
 				<Select
@@ -939,8 +948,8 @@ export const AddYield = ({
 					onChange={(e) => setYieldKg(e.target.value)}
 				/>
 				<p className="text-[10px] text-[#817b70] -mt-2">
-					Already logged a harvest for this hive on the same date? This
-					amount is added to it (e.g. 150 kg + 15 kg = 165 kg).
+					Already logged a harvest for this hive on the same date?
+					This amount is added to it (e.g. 150 kg + 15 kg = 165 kg).
 				</p>
 
 				<label className="lg:text-base text-xs text-black">
@@ -1071,7 +1080,9 @@ export const ViewHistory = ({
 		setDeletingId(null);
 		setConfirmId(null);
 		if (!res.success) {
-			setDeleteMsg(res.message || "Couldn't delete it. Please try again.");
+			setDeleteMsg(
+				res.message || "Couldn't delete it. Please try again.",
+			);
 			return;
 		}
 		setDeleteMsg(
@@ -1133,26 +1144,29 @@ export const ViewHistory = ({
 					</button>
 				</div>
 
-				{hiveSummary && (
-					<HiveTrans
-						hive={hiveSummary.hive}
-						location={hiveSummary.species}
-						// FIXED — was lastCheck="" so Established was blank.
-						lastCheck={hiveSummary.dateEstablished ?? ""}
-						status={hiveSummary.status}
-						hiveState={hiveSummary.hiveState}
-					/>
+				{loading ? (
+					<HiveTransSkeleton />
+				) : (
+					hiveSummary && (
+						<HiveTrans
+							hive={hiveSummary.hive}
+							location={hiveSummary.species}
+							lastCheck={hiveSummary.dateEstablished ?? ""}
+							status={hiveSummary.status}
+							hiveState={hiveSummary.hiveState}
+						/>
+					)
 				)}
 
 				{deleteMsg && (
-					<p className="text-xs text-center text-[#817b70]">{deleteMsg}</p>
+					<p className="text-xs text-center text-[#817b70]">
+						{deleteMsg}
+					</p>
 				)}
 
 				<div className="border-2 border-[#e2e2e6] rounded-xl p-2 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0">
 					{loading ? (
-						<p className="text-center text-sm text-[#817b70] p-4">
-							Loading...
-						</p>
+						<HistoryTableSkeleton />
 					) : Object.keys(grouped).length === 0 ? (
 						<p className="text-center text-sm text-[#817b70] p-4">
 							No{" "}
@@ -1190,19 +1204,37 @@ export const ViewHistory = ({
 													{/* DELETE (NEW) */}
 													<td className="pr-2 py-3 text-right w-px whitespace-nowrap">
 														{entry.id &&
-															(confirmId === entry.id ? (
+															(confirmId ===
+															entry.id ? (
 																<span className="flex items-center justify-end gap-2 text-xs">
 																	<button
 																		type="button"
-																		onClick={() => handleDelete(entry.id!)}
-																		disabled={deletingId !== null}
+																		onClick={() =>
+																			handleDelete(
+																				entry.id!,
+																			)
+																		}
+																		disabled={
+																			deletingId !==
+																			null
+																		}
 																		className="Poppins-SemiBold text-red-600 cursor-pointer disabled:opacity-60">
-																		{deletingId === entry.id ? "Deleting…" : "Delete"}
+																		{deletingId ===
+																		entry.id
+																			? "Deleting…"
+																			: "Delete"}
 																	</button>
 																	<button
 																		type="button"
-																		onClick={() => setConfirmId(null)}
-																		disabled={deletingId !== null}
+																		onClick={() =>
+																			setConfirmId(
+																				null,
+																			)
+																		}
+																		disabled={
+																			deletingId !==
+																			null
+																		}
 																		className="text-[#817b70] cursor-pointer">
 																		Cancel
 																	</button>
@@ -1210,7 +1242,11 @@ export const ViewHistory = ({
 															) : (
 																<button
 																	type="button"
-																	onClick={() => setConfirmId(entry.id!)}
+																	onClick={() =>
+																		setConfirmId(
+																			entry.id!,
+																		)
+																	}
 																	aria-label="Delete"
 																	title="Delete"
 																	className="w-7 h-7 p-1 rounded-full hover:bg-red-50 inline-flex items-center justify-center cursor-pointer">

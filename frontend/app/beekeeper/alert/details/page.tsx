@@ -11,6 +11,7 @@ import { pesticideService, AlertDetail } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/Button";
+import { AlertDetailsSkeleton } from "@/components/loading/SkeletonLoading";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx. This
@@ -431,11 +432,7 @@ const AlertDetailsInner = () => {
 		: "";
 
 	if (loading) {
-		return (
-			<div className="h-screen w-full flex items-center justify-center text-[#817b70]">
-				Loading alert…
-			</div>
-		);
+		return <AlertDetailsSkeleton />;
 	}
 
 	if (errorMsg || !alert) {
@@ -590,12 +587,7 @@ const AlertDetailsInner = () => {
 // inside AlertDetailsInner no longer breaks static/prerendered builds.
 const AlertDetails = () => {
 	return (
-		<Suspense
-			fallback={
-				<div className="h-screen w-full flex items-center justify-center text-[#817b70]">
-					Loading alert…
-				</div>
-			}>
+		<Suspense fallback={<AlertDetailsSkeleton />}>
 			<AlertDetailsInner />
 		</Suspense>
 	);

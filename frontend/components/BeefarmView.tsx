@@ -13,6 +13,7 @@ import { RateCard } from "./ui/Card";
 import { Icon } from "@iconify/react";
 import { api } from "@/services/api";
 import { mediaSrc } from "@/services/profile";
+import { BeefarmViewSkeleton } from "./loading/SkeletonLoading";
 
 // Shape returned by GET /api/farms/<beekeeperID> — see farm_service.py
 type FarmDetail = {
@@ -74,11 +75,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 	}, [farmId]);
 
 	if (loading) {
-		return (
-			<div className="w-full flex-1 flex items-center justify-center text-[#a6a3a3] text-sm p-6">
-				Loading farm…
-			</div>
-		);
+		return <BeefarmViewSkeleton showActions={showActions} />;
 	}
 
 	if (!farm) {
@@ -107,7 +104,10 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 			// FIXED — previously failed completely silently (e.g. when
 			// not logged in), which looked identical to "the button
 			// doesn't work." Now it actually tells you why.
-			setActionError(res.message || "Couldn't start a conversation. Are you logged in?");
+			setActionError(
+				res.message ||
+					"Couldn't start a conversation. Are you logged in?",
+			);
 		}
 	};
 
@@ -122,7 +122,10 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 		if (res.success) {
 			setFollowing(!following);
 		} else {
-			setActionError(res.message || "Couldn't update follow status. Are you logged in?");
+			setActionError(
+				res.message ||
+					"Couldn't update follow status. Are you logged in?",
+			);
 		}
 	};
 
@@ -168,7 +171,9 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 								{farm.name}
 							</span>
 
-							{farm.verification_status === "Verified" && <VerifyStatus />}
+							{farm.verification_status === "Verified" && (
+								<VerifyStatus />
+							)}
 						</div>
 					</div>
 
@@ -188,15 +193,22 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 						))}
 
 						<span className="pl-3 text-base text-[#a6a3a3]">
-							{farm.rating_avg.toFixed(1)} ({farm.rating_count} reviews)
+							{farm.rating_avg.toFixed(1)} ({farm.rating_count}{" "}
+							reviews)
 						</span>
 					</div>
 
 					{/* STATUS RATES */}
 					<div className="w-full flex gap-3 mt-3">
-						<RateCard total={String(farm.rescued)} title="Rescued" />
+						<RateCard
+							total={String(farm.rescued)}
+							title="Rescued"
+						/>
 						<RateCard total={String(farm.hives)} title="Hives" />
-						<RateCard total={farm.rating_avg.toFixed(1)} title="Ratings" />
+						<RateCard
+							total={farm.rating_avg.toFixed(1)}
+							title="Ratings"
+						/>
 					</div>
 				</div>
 
@@ -204,32 +216,41 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 				<div className="lg:w-1/3 w-full">
 					{/* BUTTONS — citizens only (hidden on the beekeeper's own profile) */}
 					{showActions && (
-					<div className="flex gap-2 mt-3">
-						<Button
-							width="100%"
-							buttonType="button"
-							label={messageBusy ? "Starting…" : "Message"}
-							bgNone
-							disabled={messageBusy}
-							onClick={handleMessage}
-						/>
-						<Button
-							width="100%"
-							buttonType="button"
-							label={followBusy ? "…" : following ? "Following" : "Follow"}
-							bgNone={following}
-							disabled={followBusy}
-							onClick={handleFollowToggle}
-						/>
-					</div>
+						<div className="flex gap-2 mt-3">
+							<Button
+								width="100%"
+								buttonType="button"
+								label={messageBusy ? "Starting…" : "Message"}
+								bgNone
+								disabled={messageBusy}
+								onClick={handleMessage}
+							/>
+							<Button
+								width="100%"
+								buttonType="button"
+								label={
+									followBusy
+										? "…"
+										: following
+											? "Following"
+											: "Follow"
+								}
+								bgNone={following}
+								disabled={followBusy}
+								onClick={handleFollowToggle}
+							/>
+						</div>
 					)}
 
 					{actionError && (
-						<p className="text-xs text-red-600 mt-2">{actionError}</p>
+						<p className="text-xs text-red-600 mt-2">
+							{actionError}
+						</p>
 					)}
 
 					<p className="text-xs text-[#a6a3a3] mt-2">
-						{farm.follower_count} follower{farm.follower_count === 1 ? "" : "s"}
+						{farm.follower_count} follower
+						{farm.follower_count === 1 ? "" : "s"}
 					</p>
 
 					{/* ABOUT */}
@@ -245,7 +266,9 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 					{/* LOCATION */}
 					<div className="flex flex-col mt-3 pl-2">
 						<h3 className="Poppins-SemiBold text-sm">Location</h3>
-						<p className="text-xs">{farm.location || "Not provided"}</p>
+						<p className="text-xs">
+							{farm.location || "Not provided"}
+						</p>
 					</div>
 				</div>
 			</div>

@@ -26,6 +26,7 @@ import {
 	reportImageSrc,
 } from "@/services/citizenReport";
 import { speciesLabel } from "@/data/species";
+import { BeeReportSkeleton } from "../loading/SkeletonLoading";
 
 type ReportModalProps = {
 	isOpen: boolean;
@@ -250,12 +251,14 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 		if (res.success) {
 			await afterChange();
 		} else {
-			setActionError(res.message || "Couldn't mark this rescue as resolved.");
+			setActionError(
+				res.message || "Couldn't mark this rescue as resolved.",
+			);
 		}
 	};
 
 	if (loading) {
-		return <p className="text-sm text-[#817b70] text-center py-10">Loading report…</p>;
+		return <BeeReportSkeleton />;
 	}
 	if (!report) {
 		return (
@@ -268,7 +271,8 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 	const status = report.beekeeper_status;
 	const hasOffered = report.my_offer_status === "Pending";
 	// The citizen declined my last offer, but the report is still open.
-	const wasDeclined = status === "pending" && report.my_offer_status === "Rejected";
+	const wasDeclined =
+		status === "pending" && report.my_offer_status === "Rejected";
 	const offerLabel = hasOffered
 		? "Offered"
 		: wasDeclined
@@ -315,7 +319,11 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 							disabled={busy}
 						/>
 						<Button
-							label={resolveArmed ? "Tap to confirm" : "Mark as Resolved"}
+							label={
+								resolveArmed
+									? "Tap to confirm"
+									: "Mark as Resolved"
+							}
 							width="w-45"
 							onClick={handleResolve}
 							disabled={busy}
@@ -332,7 +340,9 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 					/>
 				);
 			default:
-				return <Button label="Rejected" width="lg:w-40 w-full" disabled />;
+				return (
+					<Button label="Rejected" width="lg:w-40 w-full" disabled />
+				);
 		}
 	})();
 
@@ -383,16 +393,22 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 							</h3>
 							<p className="text-sm text-[#a6a3a3]">
 								Citizen
-								{report.distance_km != null && ` • ${report.distance_km} km away`}
+								{report.distance_km != null &&
+									` • ${report.distance_km} km away`}
 							</p>
 							{status === "resolved" &&
 								(report.my_rating ? (
 									<span className="text-sm text-[#a6a3a3] flex items-center gap-1">
 										Rated you
-										<StarRating value={report.my_rating} onChange={() => {}} />
+										<StarRating
+											value={report.my_rating}
+											onChange={() => {}}
+										/>
 									</span>
 								) : (
-									<span className="text-sm text-[#a6a3a3]">Not rated yet</span>
+									<span className="text-sm text-[#a6a3a3]">
+										Not rated yet
+									</span>
 								))}
 						</div>
 					</div>
@@ -422,7 +438,9 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 				)}
 
 				{actionError && (
-					<p className="text-xs text-red-600 text-right">{actionError}</p>
+					<p className="text-xs text-red-600 text-right">
+						{actionError}
+					</p>
 				)}
 			</div>
 
@@ -454,7 +472,9 @@ export const BeeReport = ({ isOpen, onClose }: ReportModalProps) => {
 		// key: fresh state when a different report is opened
 		<BeeReportContent key={reportId} reportId={reportId} />
 	) : (
-		<p className="text-sm text-[#817b70] text-center py-10">No report selected.</p>
+		<p className="text-sm text-[#817b70] text-center py-10">
+			No report selected.
+		</p>
 	);
 
 	if (isDesktop) {
@@ -532,7 +552,8 @@ export const ReportOfferModal = ({
 					value={amount}
 					onChange={(e) => setAmount(e.target.value)}
 				/>
-				<p className={`text-xs ${isValid ? "text-[#817b70]" : "text-red-600"}`}>
+				<p
+					className={`text-xs ${isValid ? "text-[#817b70]" : "text-red-600"}`}>
 					{!isValid
 						? "Enter 0 or a positive amount."
 						: isFree
@@ -589,7 +610,8 @@ export const BeeIdentify = ({
 
 	const hasMatch = species !== null && confidencePercent !== null;
 	const displaySpecies = species ? speciesLabel(species) : "No bee detected";
-	const pctLabel = confidencePercent !== null ? `${Math.round(confidencePercent)}%` : "—";
+	const pctLabel =
+		confidencePercent !== null ? `${Math.round(confidencePercent)}%` : "—";
 
 	return (
 		<ModalContainer
@@ -631,8 +653,8 @@ export const BeeIdentify = ({
 				{/* No bee detected -> nothing to submit: offer a retake. */}
 				{!hasMatch && (
 					<p className="text-xs text-[#817b70] text-center mt-3">
-						We couldn&apos;t find a bee in this photo. Try again with the
-						bees clearly in view.
+						We couldn&apos;t find a bee in this photo. Try again
+						with the bees clearly in view.
 					</p>
 				)}
 
@@ -640,7 +662,9 @@ export const BeeIdentify = ({
 					<CancelButton onClick={onClose} />
 					{hasMatch ? (
 						<Button
-							label={submitting ? "Submitting..." : "Submit Photo"}
+							label={
+								submitting ? "Submitting..." : "Submit Photo"
+							}
 							onClick={onSubmit}
 							disabled={submitting}
 						/>
@@ -649,7 +673,9 @@ export const BeeIdentify = ({
 							label="Retake Photo"
 							onClick={() => {
 								onClose();
-								window.dispatchEvent(new Event(RETAKE_PHOTO_EVENT));
+								window.dispatchEvent(
+									new Event(RETAKE_PHOTO_EVENT),
+								);
 							}}
 						/>
 					)}
@@ -667,7 +693,11 @@ type SwarmNoticeProps = ReportModalProps & {
 	onContinue?: () => void;
 };
 
-export const SwarmNotice = ({ isOpen, onClose, onContinue }: SwarmNoticeProps) => {
+export const SwarmNotice = ({
+	isOpen,
+	onClose,
+	onContinue,
+}: SwarmNoticeProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
@@ -682,9 +712,9 @@ export const SwarmNotice = ({ isOpen, onClose, onContinue }: SwarmNoticeProps) =
 				</p>
 
 				<p className="text-[#817b70] text-center text-sm mt-3">
-					After you submit, nearby beekeepers will send you their offers
-					(some may offer a free rescue). You can compare them and
-					choose one in Documents.
+					After you submit, nearby beekeepers will send you their
+					offers (some may offer a free rescue). You can compare them
+					and choose one in Documents.
 				</p>
 
 				<h3 className="Poppins-SemiBold text-xl text-[#4a2f00] mt-5">

@@ -23,6 +23,7 @@ import {
 	HiveDetailsSkeleton,
 	HiveTabSkeleton,
 } from "@/components/loading/SkeletonLoading";
+import dynamic from "next/dynamic";
 
 type ModalType =
 	| "addHive"
@@ -50,6 +51,21 @@ const HIVE_PARAM = "hive";
 function formatKg(v: number | undefined | null) {
 	return v == null ? "—" : `${v.toFixed(1)}kg`;
 }
+
+const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
+
+const farmMarkers = [
+	{ id: "farm-1", lat: 14.6507, lng: 120.9672, label: "Caloocan Bee Farm" },
+	{ id: "farm-2", lat: 14.5995, lng: 120.9842, label: "Manila Apiary" },
+	{ id: "farm-3", lat: 14.676, lng: 121.0437, label: "QC Honey Farm" },
+];
 
 const HivesInner = () => {
 	const { openModal } = useModal<ModalType, HivePayload>();
@@ -151,6 +167,12 @@ const HivesInner = () => {
 		}
 	};
 
+	const [selectedFarmParam, setSelectedFarmParam] = useState<string | null>(
+		null,
+	);
+
+	const openFarmParam = (id: string) => setSelectedFarmParam(id);
+
 	return (
 		<div className="w-full h-full flex items-start relative">
 			{/* CONTAINER FOR HIVE LIST */}
@@ -158,12 +180,8 @@ const HivesInner = () => {
 				height="100%"
 				borderNone
 				className="lg:w-[40%] w-full h-full shrink-0">
-				<div className="w-full pt-5 px-2 flex flex-col gap-4">
+				<div className="w-full pt-3.5 px-2 flex flex-row-reverse gap-4">
 					<div className="flex justify-between items-center">
-						<h3 className="Poppins-SemiBold text-3xl text-[#020101]">
-							Hives
-						</h3>
-
 						<div className="flex items-center gap-3">
 							{/* GENERATE */}
 							<div
@@ -191,6 +209,15 @@ const HivesInner = () => {
 						placeholder="Search My Hives"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
+					/>
+				</div>
+
+				{/* HIVE MAPS */}
+				<div className="relative flex-1 min-h-40 min-w-0 overflow-hidden isolate rounded-xl mx-1.5">
+					<Map
+						markers={farmMarkers}
+						selectedMarkerId={selectedFarmParam}
+						onMarkerClick={(id) => openFarmParam(id)}
 					/>
 				</div>
 

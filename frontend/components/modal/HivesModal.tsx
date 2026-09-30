@@ -27,6 +27,7 @@ import {
 	HistoryTableSkeleton,
 	HiveTransSkeleton,
 } from "../loading/SkeletonLoading";
+import dynamic from "next/dynamic";
 
 type ModalProps = {
 	isOpen: boolean;
@@ -105,6 +106,15 @@ type HistoryEntry = {
 	// NEW — the record's id, for Delete.
 	id?: string;
 };
+
+const Map = dynamic(() => import("../ui/google-maps/Map"), {
+	ssr: false,
+	loading: () => (
+		<div className="w-full h-full flex items-center justify-center text-[#a6a3a3] text-sm">
+			Loading map…
+		</div>
+	),
+});
 
 const groupByMonth = (data: HistoryEntry[]): Record<string, HistoryEntry[]> => {
 	const groups: Record<string, HistoryEntry[]> = {};
@@ -337,92 +347,122 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="lg:w-1/3 w-full"
+			width=""
 			height="lg:max-h-full max-h-[80vh]"
 			header="Add New Hive"
 			onClose={onClose}>
 			<form
 				onSubmit={handleSubmit}
 				className="w-full flex flex-col gap-3">
-				<Input
-					label="Hive Name"
-					value={hiveName}
-					onChange={(e) => setHiveName(e.target.value)}
-				/>
-				{/* BEE SPECIES — pick from the list OR type another species */}
-				<SpeciesCombobox value={beeSpecies} onChange={setBeeSpecies} />
-				<div className="flex gap-2 lg:flex-row flex-col">
-					<Input
-						label="Date Established"
-						type="date"
-						value={dateEstablished}
-						onChange={(e) => setDateEstablished(e.target.value)}
-					/>
-					<Input
-						label="Queen Established Date"
-						type="date"
-						value={queenDate}
-						onChange={(e) => setQueenDate(e.target.value)}
-					/>
-				</div>
-				<p className="text-[10px] text-[#817b70] -mt-2">
-					Queen Established Date: when the current queen was put in.
-					Leave blank if she came with the hive (same as Date
-					Established). A queen past the age limit gets a
-					&quot;Replace Queen&quot; recommendation.
-				</p>
+				<div className="w-full flex lg:flex-row flex-col gap-3">
+					{/* MAPS */}
+					<div className="w-full aspect-square rounded-lg overflow-hidden">
+						<Map />
+					</div>
 
-				<div className="flex gap-2 lg:flex-row flex-col">
-					<Input
-						label="Historical Yield (kg, if any)"
-						value={histYieldKg}
-						onChange={(e) => setHistYieldKg(e.target.value)}
-					/>
-					<Input
-						label="Historical Yield Year"
-						value={histYieldYear}
-						onChange={(e) => setHistYieldYear(e.target.value)}
-					/>
-				</div>
+					<div className="w-full flex flex-col gap-3">
+						{/* FORM */}
+						<Input
+							label="Hive Name"
+							value={hiveName}
+							onChange={(e) => setHiveName(e.target.value)}
+						/>
+						{/* HIVE LOCATION */}
+						<Input
+							label="Location"
+							// value={hiveName}
+							// onChange={(e) => setHiveName(e.target.value)}
+						/>
+						{/* BEE SPECIES — pick from the list OR type another species */}
+						<SpeciesCombobox
+							value={beeSpecies}
+							onChange={setBeeSpecies}
+						/>
+						<div className="flex gap-2 lg:flex-row flex-col">
+							<Input
+								label="Date Established"
+								type="date"
+								value={dateEstablished}
+								onChange={(e) =>
+									setDateEstablished(e.target.value)
+								}
+							/>
+							<Input
+								label="Queen Established Date"
+								type="date"
+								value={queenDate}
+								onChange={(e) => setQueenDate(e.target.value)}
+							/>
+						</div>
+						<p className="text-[10px] text-[#817b70] -mt-2">
+							Queen Established Date: when the current queen was
+							put in. Leave blank if she came with the hive (same
+							as Date Established). A queen past the age limit
+							gets a &quot;Replace Queen&quot; recommendation.
+						</p>
 
-				{/* HEALTH STATUS */}
-				<div className="grid grid-cols-2 gap-2 mb-3">
-					{HealthStatusOptions.map((stat) => (
-						<label
-							key={stat.value}
-							className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent bg-(--stat-bg) has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
-							style={
-								{
-									boxShadow:
-										"rgba(0, 0, 0, 0.24) 0px 3px 8px",
-									"--stat-bg": `${stat.color}33`,
-								} as React.CSSProperties
-							}>
-							<div className="flex justify-center items-center">
-								<input
-									type="radio"
-									name="healthStatus"
-									className="hidden"
-									checked={healthStatus === stat.value}
-									onChange={() => setHealthStatus(stat.value)}
-								/>
-								<span
-									className="Poppins-SemiBold text-sm"
-									style={{ color: stat.color }}>
-									{stat.label}
-								</span>
-							</div>
-						</label>
-					))}
+						<div className="flex gap-2 lg:flex-row flex-col">
+							<Input
+								label="Historical Yield (kg, if any)"
+								value={histYieldKg}
+								onChange={(e) => setHistYieldKg(e.target.value)}
+							/>
+							<Input
+								label="Historical Yield Year"
+								value={histYieldYear}
+								onChange={(e) =>
+									setHistYieldYear(e.target.value)
+								}
+							/>
+						</div>
+
+						{/* HEALTH STATUS */}
+						<div className="grid grid-cols-2 gap-2 mb-3">
+							{HealthStatusOptions.map((stat) => (
+								<label
+									key={stat.value}
+									className="rounded-lg p-2 group transition-all cursor-pointer border-2 border-transparent bg-(--stat-bg) has-[input:checked]:bg-[#a6a3a3]/20 has-[input:checked]:border-2 has-[input:checked]:border-[#a6a3a3]"
+									style={
+										{
+											boxShadow:
+												"rgba(0, 0, 0, 0.24) 0px 3px 8px",
+											"--stat-bg": `${stat.color}33`,
+										} as React.CSSProperties
+									}>
+									<div className="flex justify-center items-center">
+										<input
+											type="radio"
+											name="healthStatus"
+											className="hidden"
+											checked={
+												healthStatus === stat.value
+											}
+											onChange={() =>
+												setHealthStatus(stat.value)
+											}
+										/>
+										<span
+											className="Poppins-SemiBold text-sm"
+											style={{ color: stat.color }}>
+											{stat.label}
+										</span>
+									</div>
+								</label>
+							))}
+						</div>
+					</div>
 				</div>
 
 				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 
-				<Button
-					buttonType="submit"
-					label={submitting ? "Adding..." : "Add"}
-					disabled={submitting}
-				/>
+				<div className="flex justify-center">
+					<Button
+						buttonType="submit"
+						width="lg:w-1/2 w-full"
+						label={submitting ? "Adding..." : "Add"}
+						disabled={submitting}
+					/>
+				</div>
 			</form>
 		</ModalContainer>
 	);

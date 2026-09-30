@@ -195,7 +195,10 @@ const Camera = () => {
 				// Camera names/count are only visible after permission.
 				const devices = await navigator.mediaDevices.enumerateDevices();
 				if (mounted) {
-					setCanSwitch(devices.filter((d) => d.kind === "videoinput").length > 1);
+					setCanSwitch(
+						devices.filter((d) => d.kind === "videoinput").length >
+							1,
+					);
 				}
 			} catch (err) {
 				console.error("Camera access error:", err);
@@ -233,7 +236,8 @@ const Camera = () => {
 
 	useEffect(() => {
 		window.addEventListener(RETAKE_PHOTO_EVENT, retakePhoto);
-		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, retakePhoto);
+		return () =>
+			window.removeEventListener(RETAKE_PHOTO_EVENT, retakePhoto);
 	}, [retakePhoto]);
 
 	// When the <video> comes back after a retake, reconnect the camera.
@@ -372,7 +376,11 @@ const Camera = () => {
 						title="Switch camera"
 						className="absolute top-3 right-3 z-10 w-11 h-11 p-2 rounded-full bg-black/40 hover:bg-black/55 backdrop-blur-sm flex items-center justify-center cursor-pointer disabled:opacity-50">
 						<Icon
-							icon={switching ? "svg-spinners:ring-resize" : "mdi:camera-flip-outline"}
+							icon={
+								switching
+									? "svg-spinners:ring-resize"
+									: "mdi:camera-flip-outline"
+							}
 							className="w-full h-full text-white"
 						/>
 					</button>
@@ -385,7 +393,10 @@ const Camera = () => {
 						onClick={retakePhoto}
 						aria-label="Retake photo"
 						className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
-						<Icon icon="mdi:camera-retake-outline" className="w-4 h-4" />
+						<Icon
+							icon="mdi:camera-retake-outline"
+							className="w-4 h-4"
+						/>
 						Retake
 					</button>
 				)}
@@ -584,8 +595,8 @@ const FormDetails = () => {
 	);
 
 	return (
-		<div className="w-7/8 h-full flex lg:flex-row flex-col-reverse justify-between gap-4">
-			<div className="lg:w-1/2 w-full lg:h-full h-auto flex flex-col gap-3 min-h-0">
+		<div className="w-7/8 lg:h-full h-auto flex lg:flex-row flex-col justify-between gap-4">
+			<div className="lg:w-1/2 w-full lg:h-full h-auto flex flex-col gap-3 lg:min-h-0 shrink-0">
 				<div className="lg:h-1/2 h-56 min-h-0 rounded-xl overflow-hidden shrink-0 isolate">
 					<Map
 						markerPosition={location}
@@ -594,15 +605,15 @@ const FormDetails = () => {
 					/>
 				</div>
 
-				<div className="lg:h-1/2 h-auto min-h-0">
+				<div className="lg:h-1/2 h-auto lg:min-h-0 shrink-0">
 					<PhotoAndSpecies />
 				</div>
 			</div>
 
-			<div className="lg:w-1/2 w-full h-full">
+			<div className="lg:w-1/2 w-full lg:h-full h-auto shrink-0">
 				<form
 					onSubmit={(e) => e.preventDefault()}
-					className="h-full flex flex-col gap-3">
+					className="lg:h-full flex flex-col gap-3">
 					<div className="flex flex-col gap-1">
 						<Input
 							label="Location"
@@ -672,7 +683,7 @@ const FormDetails = () => {
 						)}
 					</div>
 
-					<div className="h-full min-h-24 flex flex-col">
+					<div className="lg:h-full min-h-24 flex flex-col">
 						<div className="flex justify-between items-end">
 							<label className="Poppins-SemiBold">
 								Tell us more
@@ -689,7 +700,7 @@ const FormDetails = () => {
 								updateDetails({ description: e.target.value })
 							}
 							placeholder="e.g. On a mango tree near the basketball court"
-							className="text-sm w-full h-full p-2.5 border border-[#a6a3a3] outline-0 rounded-lg bg-white/70 resize-none"
+							className="text-sm w-full lg:h-full h-28 p-2.5 border border-[#a6a3a3] outline-0 rounded-lg bg-white/70 resize-none"
 						/>
 					</div>
 
@@ -866,7 +877,7 @@ const CitizenReport = () => {
 	}
 
 	return (
-		<div className="w-full h-full flex flex-col justify-center items-center">
+		<div className="w-full h-full flex flex-col lg:justify-center justify-start items-center">
 			{step === 1 && <Camera />}
 			{step === 2 && <FormDetails />}
 			{step === 3 && <ReviewRep />}

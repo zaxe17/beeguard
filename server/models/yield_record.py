@@ -188,7 +188,31 @@ class YieldModel:
         """
         return Database.execute(sql, (beekeeper_id,), fetchall=True) or []
 
+    @staticmethod
+    def find_by_id_for_hive(yield_id: str, hive_id: str, conn=None):
+        """NEW — one harvest row of this hive (for Delete)."""
+        sql = f"""
+            SELECT * FROM {YieldModel.TABLE}
+            WHERE yield_id = %s AND hive_id = %s
+            LIMIT 1
+        """
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql, (yield_id, hive_id))
+                return cur.fetchone()
+        return Database.execute(sql, (yield_id, hive_id), fetchone=True)
+
     # ── WRITE ─────────────────────────────────
+    @staticmethod
+    def delete_with_conn(conn, yield_id: str, hive_id: str) -> int:
+        """NEW — deletes one REAL harvest (never the historical baseline)."""
+        sql = f"""
+            DELETE FROM {YieldModel.TABLE}
+            WHERE yield_id = %s AND hive_id = %s AND is_baseline = FALSE
+        """
+        with conn.cursor() as cur:
+            return cur.execute(sql, (yield_id, hive_id))
+
     @staticmethod
     def insert_with_conn(conn, data: dict) -> str:
         """

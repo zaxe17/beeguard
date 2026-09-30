@@ -83,6 +83,49 @@ def _has_symptom_logged_today(hive_id: str, yield_date) -> bool:
     return False
 
 
+def _as_date(v):
+    if isinstance(v, dt.datetime):
+        return v.date()
+    return v
+
+
+def recompute_health_after_delete(beekeeper_id: str, hive_id: str) -> str:
+    """
+    NEW — works out the hive's health again after a harvest or a
+    monitoring record was DELETED, so the deleted entry no longer counts:
+      - The hive still has harvests -> same rule as Add Yield, using the
+        most recent remaining harvest (its date + that day's symptoms)
+        and the year's new, smaller total.
+      - No harvests left -> from the Monitor Hive Health symptoms that
+        are still unresolved (same rule as Monitor Hive Health).
+    Then re-runs the queen check (which may also switch a Healthy hive
+    with a 2+ year old queen to Needs Attention). Returns the new health.
+    """
+    from services.hive_service import _health_from_observations  # avoid import cycle
+
+    hive = HiveModel.find_by_id_and_beekeeper(hive_id, beekeeper_id)
+    if not hive:
+        raise PermissionError("Hive does not exist or is not owned by this beekeeper.")
+
+    latest = YieldModel.latest_non_baseline(hive_id)
+    if latest:
+        latest_date = _as_date(latest["yield_date"])
+        new_health, _details = compute_health_status(
+            hive, latest_date, hive.get("health_status"),
+            _has_symptom_logged_today(hive_id, latest_date),
+        )
+    else:
+        new_health = _health_from_observations(
+            HiveMaintenanceModel.list_unresolved_symptoms(hive_id)
+        )
+
+    if new_health != hive.get("health_status"):
+        HiveModel.update_health_status(hive_id, beekeeper_id, new_health)
+
+    result = QueenService.evaluate_hive(hive_id, persist=True)
+    return result.get("health_status") or new_health
+
+
 class YieldService:
 
     # ── Add a real (non-baseline) harvest ───────
@@ -242,6 +285,48 @@ class YieldService:
             "yield_kg":       float(yield_kg),
             "is_baseline":    True,
             "recommendation": recommendation,
+        }
+
+    # ── Delete a harvest (Transaction History -> Harvest) ──
+    @staticmethod
+    def delete_harvest(beekeeper_id: str, hive_id: str, yield_id: str) -> dict:
+        """
+        NEW — removes one harvest. Its kg is taken off every total
+        (Yield This Month, dashboard, charts) because those are always
+        added up from the saved harvests. The "Harvest Inspection" check
+        saved with it on the same date is removed too. Health is then
+        worked out again without it (recompute_health_after_delete).
+        The historical baseline can't be deleted here.
+        """
+        hive = HiveModel.find_by_id_and_beekeeper(hive_id, beekeeper_id)
+        if not hive:
+            raise PermissionError("Hive does not exist or is not owned by this beekeeper.")
+
+        row = YieldModel.find_by_id_for_hive(yield_id, hive_id)
+        if not row:
+            raise LookupError("Harvest not found.")
+        if row.get("is_baseline"):
+            raise ValueError("The historical baseline can't be deleted here.")
+
+        conn = Database.get_connection()
+        try:
+            YieldModel.delete_with_conn(conn, yield_id, hive_id)
+            HiveMaintenanceModel.delete_harvest_inspections_with_conn(
+                conn, hive_id, row["yield_date"]
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        new_health = recompute_health_after_delete(beekeeper_id, hive_id)
+        return {
+            "yield_id":      yield_id,
+            "hive_id":       hive_id,
+            "deleted_kg":    float(row["yield_kg"]),
+            "health_status": new_health,
         }
 
     # ── Read helpers used by routes ─────────────

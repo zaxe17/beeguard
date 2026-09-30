@@ -3,12 +3,12 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Input, Select } from "../ui/Input";
 import { HIVE_SPECIES_OPTIONS } from "@/data/species";
 import { Button, CancelButton } from "../ui/Button";
 import { ModalContainer } from "./Modal";
-import { HiveTrans } from "../HiveContainer";
+import { HiveTrans, hiveStatusColor } from "../HiveContainer";
 import {
 	hiveService,
 	HealthStatus,
@@ -19,6 +19,14 @@ import {
 } from "@/services/hive";
 import { yieldService, YieldRecord } from "@/services/harvest";
 import { queenService } from "@/services/queen";
+import { authService } from "@/services/auth";
+import {
+	formatCoords,
+	parseCoords,
+	reverseGeocode,
+	searchPlace,
+	SUBDIVISION_RE,
+} from "@/services/geocode";
 
 import bee_report from "@/public/assets/bee_report.png";
 import Image from "next/image";
@@ -115,6 +123,327 @@ const Map = dynamic(() => import("../ui/google-maps/Map"), {
 		</div>
 	),
 });
+
+// ─────────────────────────────────────────────
+// HIVE LOCATION (NEW) — Add / Edit Hive map. Works like the citizen
+// report's Location box:
+//   - type a place ("Moonwalk, Parañaque") or "14.49, 121.02" -> after a
+//     short pause it's searched and the pin moves there
+//   - tap the map / "Use current location" -> pin + the place name is
+//     filled in the Location box
+// The beekeeper's other hives are shown as yellow pins.
+// ─────────────────────────────────────────────
+type LatLng = { lat: number; lng: number };
+type LocationLookup = "idle" | "searching" | "found" | "notFound";
+// Same wait as the citizen report's Location box.
+const GEOCODE_DEBOUNCE_MS = 800;
+type HivePin = {
+	id: string;
+	lat: number;
+	lng: number;
+	label?: string;
+	color?: string;
+};
+
+// Same messages as Add Alert's "Use current location".
+const geoErrorMessage = (err: unknown) => {
+	if (typeof window !== "undefined" && !window.isSecureContext) {
+		return "Current location only works on https:// or localhost. Tap the map instead.";
+	}
+	const code = (err as GeolocationPositionError)?.code;
+	if (code === 1) {
+		return "Location permission was denied. Allow it in your browser's site settings, or tap the map instead.";
+	}
+	if (code === 3) return "Getting your location took too long. Try again or tap the map.";
+	return "Couldn't get your location. Tap the map to pin it instead.";
+};
+
+// Parts of an address that are never the barangay or the city.
+const NOT_PLACE_RE =
+	/^(metro manila|ncr|national capital region|philippines|\d{4})$|\bdistrict\b/i;
+
+/**
+ * Any location text -> just "Barangay, City". Drops subdivisions
+ * ("Airport Village"), streets before them, districts, "Metro Manila",
+ * "Philippines" and postal codes, then keeps the last two parts:
+ * "Airport Village, Moonwalk, Parañaque, Metro Manila" -> "Moonwalk, Parañaque".
+ */
+const cleanPlace = (text: string): string => {
+	const parts = text
+		.split(",")
+		.map((p) => p.trim())
+		.filter((p) => p && !NOT_PLACE_RE.test(p));
+	// Everything up to the last subdivision is street / subdivision detail.
+	let lastSub = -1;
+	parts.forEach((p, i) => {
+		if (SUBDIVISION_RE.test(p)) lastSub = i;
+	});
+	const rest = parts.slice(lastSub + 1);
+	return (rest.length ? rest : parts).slice(-2).join(", ");
+};
+
+const hasCoords = (h: Hive) =>
+	h.latitude != null &&
+	h.longitude != null &&
+	!Number.isNaN(Number(h.latitude)) &&
+	!Number.isNaN(Number(h.longitude));
+
+/**
+ * Everything the Add / Edit Hive forms need for the location:
+ * the pin, the Location text, the other hives' pins and where the map
+ * starts. `excludeHiveId` leaves the hive being edited out of the pins
+ * (it's the main pin instead).
+ */
+const useHiveLocation = (isOpen: boolean, excludeHiveId?: string | null) => {
+	const [coords, setCoords] = useState<LatLng | null>(null);
+	// The saved pin when the form opened (Edit) — where the map starts.
+	const [savedCoords, setSavedCoords] = useState<LatLng | null>(null);
+	const [location, setLocation] = useState("");
+	// "Barangay, City" of the current pin — what gets SAVED (and shown on
+	// the cards), whatever was typed to find the place.
+	const [placeLabel, setPlaceLabel] = useState("");
+	const [locating, setLocating] = useState(false);
+	const [lookup, setLookup] = useState<LocationLookup>("idle");
+	const [geoError, setGeoError] = useState<string | null>(null);
+	const [hivePins, setHivePins] = useState<HivePin[]>([]);
+	const [ownLocation, setOwnLocation] = useState<LatLng | null>(null);
+	const lookupId = useRef(0);
+	// Text WE put in the Location box (place name from a pin, or the saved
+	// one) — not searched again, so it can't move the pin away.
+	const autoText = useRef<string | null>(null);
+
+	// Other hives + the beekeeper's farm location (map start point when
+	// there are no hive pins yet).
+	useEffect(() => {
+		if (!isOpen) return;
+		let cancelled = false;
+		hiveService.list().then((res) => {
+			if (cancelled || !res.success || !res.data) return;
+			setHivePins(
+				res.data
+					.filter((h) => h.hive_id !== excludeHiveId && hasCoords(h))
+					.map((h) => ({
+						id: h.hive_id,
+						lat: Number(h.latitude),
+						lng: Number(h.longitude),
+						label: h.hive_name,
+						color: hiveStatusColor(h.health_status),
+					})),
+			);
+		});
+		authService.me().then((res) => {
+			if (cancelled) return;
+			if (res.success && res.data?.latitude != null && res.data?.longitude != null) {
+				setOwnLocation({ lat: res.data.latitude, lng: res.data.longitude });
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [isOpen, excludeHiveId]);
+
+	// Our own text in the box (skips the search below).
+	const setAutoText = (text: string) => {
+		autoText.current = text;
+		setLocation(text);
+	};
+
+	// Pin -> "Barangay, City" (backend place names). `fillBox` also puts
+	// it in the Location box (map tap / current location).
+	const lookUpLabel = (c: LatLng, fillBox: boolean) => {
+		const id = ++lookupId.current;
+		setPlaceLabel("");
+		reverseGeocode(c.lat, c.lng).then((name) => {
+			if (id !== lookupId.current) return; // a newer pin was placed
+			if (!name) return;
+			const clean = cleanPlace(name);
+			setPlaceLabel(clean);
+			if (fillBox) setAutoText(clean);
+		});
+	};
+
+	// ── Typed location -> pin on the map ─────────────
+	useEffect(() => {
+		if (!isOpen) return;
+		const text = location.trim();
+		if (autoText.current !== null && location === autoText.current) return;
+		autoText.current = null;
+
+		if (text.length < 3) {
+			setLookup(coords ? "found" : "idle");
+			return;
+		}
+
+		// "14.49110, 121.01900" typed directly — no lookup needed.
+		const typed = parseCoords(text);
+		if (typed) {
+			setCoords(typed);
+			setLookup("found");
+			lookUpLabel(typed, false);
+			return;
+		}
+
+		let cancelled = false;
+		setLookup("searching");
+		const t = setTimeout(async () => {
+			const place = await searchPlace(text);
+			if (cancelled) return;
+			if (place) {
+				const c = { lat: place.lat, lng: place.lng };
+				setCoords(c);
+				setLookup("found");
+				lookUpLabel(c, false);
+			} else {
+				setLookup("notFound");
+			}
+		}, GEOCODE_DEBOUNCE_MS);
+
+		return () => {
+			cancelled = true;
+			clearTimeout(t);
+		};
+		// Only when the TEXT changes — opening the form doesn't search.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [location]);
+
+	// ── Map tap / current location -> pin + place name in the box ─
+	const pick = (c: LatLng) => {
+		setCoords(c);
+		setGeoError(null);
+		setLookup("found");
+		setAutoText(formatCoords(c.lat, c.lng));
+		lookUpLabel(c, true);
+	};
+
+	// Leaving the Location box -> tidy it to "Barangay, City" of the pin
+	// (e.g. "SM Bicutan, Doña Soledad Ave" -> "Don Bosco, Parañaque").
+	const tidyText = () => {
+		if (placeLabel && lookup === "found") setAutoText(placeLabel);
+	};
+
+	// What to save: "Barangay, City" of the pin; typed text only if the
+	// place name couldn't be found.
+	// NEVER saves coordinates ("14.49656, 121.02713"): if the place name
+	// isn't known yet it's looked up now; if it still can't be found the
+	// location is left empty and the cards look the name up from the pin.
+	const locationToSave = async (): Promise<string | null> => {
+		if (placeLabel) return cleanPlace(placeLabel).slice(0, 100) || null;
+		if (coords) {
+			const name = await reverseGeocode(coords.lat, coords.lng);
+			if (name) return cleanPlace(name).slice(0, 100) || null;
+		}
+		const typed = location.trim();
+		if (!typed || parseCoords(typed)) return null;
+		return cleanPlace(typed).slice(0, 100) || null;
+	};
+
+	const pickCurrentLocation = () => {
+		if (locating) return;
+		setGeoError(null);
+		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			setGeoError("This browser can't get your location. Tap the map instead.");
+			return;
+		}
+		setLocating(true);
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				setLocating(false);
+				pick({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+			},
+			(err) => {
+				setLocating(false);
+				setGeoError(geoErrorMessage(err));
+			},
+			{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+		);
+	};
+
+	// Set the form from a saved hive (Edit) or clear it (Add).
+	const reset = (hive?: Hive | null) => {
+		lookupId.current++;
+		setLocating(false);
+		setGeoError(null);
+		const rawSaved = hive?.location ?? "";
+		// An older save that's just coordinates isn't a place name.
+		const savedText = parseCoords(rawSaved) ? "" : cleanPlace(rawSaved);
+		setAutoText(savedText);
+		setPlaceLabel(savedText);
+		const savedPin =
+			hive && hasCoords(hive)
+				? { lat: Number(hive.latitude), lng: Number(hive.longitude) }
+				: null;
+		setCoords(savedPin);
+		setSavedCoords(savedPin);
+		setLookup(savedPin ? "found" : "idle");
+	};
+
+	// Not the live pin — placing a pin must not remount the map.
+	const startCenter =
+		savedCoords ??
+		(hivePins[0] ? { lat: hivePins[0].lat, lng: hivePins[0].lng } : ownLocation);
+
+	// Same hints as the citizen report's Location box.
+	const hint =
+		lookup === "searching"
+			? "Finding that place on the map…"
+			: lookup === "notFound"
+				? "Couldn't find that place. Try adding the city, or tap the map to drop a pin."
+				: lookup === "found"
+					? "Pin placed. Tap the map to adjust it."
+					: "Type a place (e.g. Moonwalk, Parañaque) or tap the map.";
+
+	return {
+		coords,
+		location,
+		setLocation,
+		tidyText,
+		locationToSave,
+		locating,
+		lookup,
+		hint,
+		geoError,
+		hivePins,
+		startCenter,
+		pick,
+		pickCurrentLocation,
+		reset,
+	};
+};
+
+type HiveLocationMapProps = {
+	loc: ReturnType<typeof useHiveLocation>;
+	disabled?: boolean;
+};
+
+// The map box itself: pin + other hives + "Use current location".
+const HiveLocationMap = ({ loc, disabled }: HiveLocationMapProps) => (
+	<>
+		<Map
+			// Leaflet only reads the start center once — remount when the
+			// hives / farm location arrive so it starts in the right place.
+			key={
+				loc.startCenter
+					? `${loc.hivePins.length}:${loc.startCenter.lat},${loc.startCenter.lng}`
+					: "default-center"
+			}
+			onLocationSelect={loc.pick}
+			initialCenter={loc.startCenter ?? undefined}
+			markerPosition={loc.coords}
+			hivePins={loc.hivePins}
+		/>
+		<button
+			type="button"
+			onClick={loc.pickCurrentLocation}
+			disabled={loc.locating || disabled}
+			className="absolute top-2 right-2 z-1000 flex items-center gap-1.5 bg-white hover:bg-[#fff8e1] text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] cursor-pointer disabled:opacity-60">
+			<Icon
+				icon={loc.locating ? "svg-spinners:ring-resize" : "mdi:crosshairs-gps"}
+				className="w-4 h-4 text-[#ffa004]"
+			/>
+			{loc.locating ? "Locating…" : "Use current location"}
+		</button>
+	</>
+);
 
 const groupByMonth = (data: HistoryEntry[]): Record<string, HistoryEntry[]> => {
 	const groups: Record<string, HistoryEntry[]> = {};
@@ -244,8 +573,11 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 	const [histYieldYear, setHistYieldYear] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+	// NEW — map pin + Location text
+	const loc = useHiveLocation(isOpen);
 
 	const resetForm = () => {
+		loc.reset();
 		setHiveName("");
 		setBeeSpecies("");
 		setDateEstablished("");
@@ -264,6 +596,16 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 		if (!hiveName.trim() || !beeSpecies.trim() || !dateEstablished) {
 			setErrorMsg(
 				"Hive name, bee species, and date established are required.",
+			);
+			return;
+		}
+		if (loc.lookup === "searching") {
+			setErrorMsg("Still finding that place on the map — wait a moment.");
+			return;
+		}
+		if (!loc.coords) {
+			setErrorMsg(
+				"Please type the location, tap the map, or use your current location to pin the hive.",
 			);
 			return;
 		}
@@ -299,6 +641,9 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 			const res = await hiveService.create({
 				hive_name: hiveName.trim(),
 				bee_species: beeSpecies.trim(),
+				location: await loc.locationToSave(), // "Barangay, City"
+				latitude: loc.coords.lat,
+				longitude: loc.coords.lng,
 				date_established: dateEstablished,
 				// blank -> server uses date_established
 				queen_installed_date: queenDate || null,
@@ -356,8 +701,8 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 				className="w-full flex flex-col gap-3">
 				<div className="w-full flex lg:flex-row flex-col gap-3">
 					{/* MAPS */}
-					<div className="w-full aspect-square rounded-lg overflow-hidden">
-						<Map />
+					<div className="w-full aspect-square rounded-lg overflow-hidden relative">
+						<HiveLocationMap loc={loc} disabled={submitting} />
 					</div>
 
 					<div className="w-full flex flex-col gap-3">
@@ -368,11 +713,24 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 							onChange={(e) => setHiveName(e.target.value)}
 						/>
 						{/* HIVE LOCATION */}
-						<Input
-							label="Location"
-							// value={hiveName}
-							// onChange={(e) => setHiveName(e.target.value)}
-						/>
+						{/* onBlur on the wrapper (Input has no onBlur prop) —
+						    tidies the text to "Barangay, City" when leaving */}
+						<div className="w-full" onBlur={loc.tidyText}>
+							<Input
+								label="Location"
+								value={loc.location}
+								onChange={(e) => loc.setLocation(e.target.value)}
+								placeholder="e.g. Moonwalk, Parañaque"
+							/>
+						</div>
+						<span
+							className={`text-xs -mt-2 ${
+								loc.geoError || loc.lookup === "notFound"
+									? "text-red-600"
+									: "text-[#817b70]"
+							}`}>
+							{loc.geoError ?? loc.hint}
+						</span>
 						{/* BEE SPECIES — pick from the list OR type another species */}
 						<SpeciesCombobox
 							value={beeSpecies}
@@ -470,8 +828,8 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 
 // ─────────────────────────────────────────────
 // EDIT HIVE (NEW) — the pencil on the Hive Details card. Same fields and
-// look as Add New Hive, minus health status (that comes from Monitor Hive
-// Health / Add Yield) and historical yield.
+// look as Add New Hive (map + Location included), minus health status
+// (that comes from Monitor Hive Health / Add Yield) and historical yield.
 // ─────────────────────────────────────────────
 type EditHiveProps = ModalProps & {
 	hive?: Hive | null;
@@ -495,6 +853,9 @@ export const EditHiveModal = ({
 	const [hiveState, setHiveState] = useState<HiveState>("Active");
 	const [submitting, setSubmitting] = useState(false);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+	// NEW — map pin + Location text (same as Add New Hive). This hive
+	// is the main pin, so it's left out of the other-hive pins.
+	const loc = useHiveLocation(isOpen, hive?.hive_id);
 
 	// Fill the form with the hive's current details each time it opens.
 	useEffect(() => {
@@ -504,7 +865,9 @@ export const EditHiveModal = ({
 		setDateEstablished(toInputDate(hive.date_established));
 		setQueenDate(toInputDate(hive.queen_installed_date));
 		setHiveState(hive.hive_state ?? "Active");
+		loc.reset(hive);
 		setErrorMsg(null);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen, hive]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -519,6 +882,10 @@ export const EditHiveModal = ({
 			setErrorMsg(
 				"Hive name, bee species, and date established are required.",
 			);
+			return;
+		}
+		if (loc.lookup === "searching") {
+			setErrorMsg("Still finding that place on the map — wait a moment.");
 			return;
 		}
 		if (isFutureDate(dateEstablished)) {
@@ -547,6 +914,10 @@ export const EditHiveModal = ({
 				// blank -> server uses date_established
 				queen_installed_date: queenDate || null,
 				hive_state: hiveState,
+				// NEW — location + pin (no pin -> stays empty)
+				location: await loc.locationToSave(), // "Barangay, City"
+				latitude: loc.coords?.lat ?? null,
+				longitude: loc.coords?.lng ?? null,
 			});
 
 			// OFFLINE MODE — saved on the phone, sent later.
@@ -580,47 +951,80 @@ export const EditHiveModal = ({
 	return (
 		<ModalContainer
 			open={isOpen}
-			width="lg:w-1/3 w-full"
+			width=""
 			height="lg:max-h-full max-h-[80vh]"
 			header="Edit Hive"
 			onClose={onClose}>
 			<form
 				onSubmit={handleSubmit}
 				className="w-full flex flex-col gap-3">
-				<Input
-					label="Hive Name"
-					value={hiveName}
-					onChange={(e) => setHiveName(e.target.value)}
-				/>
-				<SpeciesCombobox value={beeSpecies} onChange={setBeeSpecies} />
-				<div className="flex gap-2 lg:flex-row flex-col">
-					<Input
-						label="Date Established"
-						type="date"
-						value={dateEstablished}
-						onChange={(e) => setDateEstablished(e.target.value)}
-					/>
-					<Input
-						label="Queen Established Date"
-						type="date"
-						value={queenDate}
-						onChange={(e) => setQueenDate(e.target.value)}
-					/>
-				</div>
-				<p className="text-[10px] text-[#817b70] -mt-2">
-					Queen Established Date: when the current queen was put in.
-					Leave blank if she came with the hive (same as Date
-					Established).
-				</p>
+				<div className="w-full flex lg:flex-row flex-col gap-3">
+					{/* MAPS — same as Add New Hive */}
+					<div className="w-full aspect-square rounded-lg overflow-hidden relative">
+						<HiveLocationMap loc={loc} disabled={submitting} />
+					</div>
 
-				<Select
-					label="Hive State"
-					options={HIVE_STATE_OPTIONS}
-					value={hiveState}
-					onSelectChange={(e) =>
-						setHiveState(e.target.value as HiveState)
-					}
-				/>
+					<div className="w-full flex flex-col gap-3">
+						<Input
+							label="Hive Name"
+							value={hiveName}
+							onChange={(e) => setHiveName(e.target.value)}
+						/>
+						{/* HIVE LOCATION */}
+						{/* onBlur on the wrapper (Input has no onBlur prop) —
+						    tidies the text to "Barangay, City" when leaving */}
+						<div className="w-full" onBlur={loc.tidyText}>
+							<Input
+								label="Location"
+								value={loc.location}
+								onChange={(e) => loc.setLocation(e.target.value)}
+								placeholder="e.g. Moonwalk, Parañaque"
+							/>
+						</div>
+						<span
+							className={`text-xs -mt-2 ${
+								loc.geoError || loc.lookup === "notFound"
+									? "text-red-600"
+									: "text-[#817b70]"
+							}`}>
+							{loc.geoError ?? loc.hint}
+						</span>
+						<SpeciesCombobox
+							value={beeSpecies}
+							onChange={setBeeSpecies}
+						/>
+						<div className="flex gap-2 lg:flex-row flex-col">
+							<Input
+								label="Date Established"
+								type="date"
+								value={dateEstablished}
+								onChange={(e) =>
+									setDateEstablished(e.target.value)
+								}
+							/>
+							<Input
+								label="Queen Established Date"
+								type="date"
+								value={queenDate}
+								onChange={(e) => setQueenDate(e.target.value)}
+							/>
+						</div>
+						<p className="text-[10px] text-[#817b70] -mt-2">
+							Queen Established Date: when the current queen was
+							put in. Leave blank if she came with the hive (same
+							as Date Established).
+						</p>
+
+						<Select
+							label="Hive State"
+							options={HIVE_STATE_OPTIONS}
+							value={hiveState}
+							onSelectChange={(e) =>
+								setHiveState(e.target.value as HiveState)
+							}
+						/>
+					</div>
+				</div>
 
 				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 

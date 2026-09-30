@@ -7,6 +7,9 @@
 // once, so the audio is "unlocked" on the first click or key press
 // (unlockNotificationSound, called from components/RegisterSW.tsx).
 // Can be turned off in Profile → Settings → Notification Sound.
+// NEW — never plays when nobody is logged in (after logout).
+
+import { tokenStore } from "@/services/api";
 
 const SETTING_KEY = "beeguard_sound_on";
 // Never ding more than once in this many ms (e.g. push + badge refresh
@@ -72,6 +75,8 @@ const tone = (c: AudioContext, freq: number, start: number, length: number) => {
  */
 export const playNotificationSound = (kind: SoundKind = "notification") => {
 	if (!isSoundOn()) return;
+	// Logged out -> no sound.
+	if (!tokenStore.get()) return;
 	const now = Date.now();
 	if (now - lastPlayed < MIN_GAP_MS) return;
 	const c = getContext();

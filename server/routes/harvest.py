@@ -55,6 +55,26 @@ def list_history(hive_id):
     return success("OK", data=rows, status=200)
 
 
+# ── DELETE A HARVEST (Transaction History) ────
+#    The kg is taken off every total (they're added up from saved harvests).
+@yield_bp.route("/<yield_id>", methods=["DELETE"])
+@token_required
+@role_required("beekeeper")
+def delete_harvest(hive_id, yield_id):
+    try:
+        result = YieldService.delete_harvest(g.user_id, hive_id, yield_id)
+    except PermissionError as e:
+        return error(str(e), status=403)
+    except LookupError as e:
+        return error(str(e), status=404)
+    except ValueError as e:
+        return error(str(e), status=400)
+    except Exception as e:
+        print(f"[YIELD-DELETE] Unhandled error: {e}")
+        return error("Failed to delete the harvest. Please try again.", status=500)
+    return success("Harvest deleted.", data=result, status=200)
+
+
 # ── SET / REPLACE BASELINE ─────────────────────
 @yield_bp.route("/baseline", methods=["POST"])
 @token_required

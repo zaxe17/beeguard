@@ -8,6 +8,7 @@ import {
 	TileLayer,
 	Marker,
 	Circle,
+	Tooltip,
 	AttributionControl,
 	useMap,
 	useMapEvents,
@@ -25,6 +26,9 @@ export type FarmMarker = {
 	lat: number;
 	lng: number;
 	label?: string;
+	// NEW — pin color (e.g. a hive's health: green / yellow / orange /
+	// red). Without it the usual honey-yellow farm pin is used.
+	color?: string;
 };
 
 // NEW — alert overview (admin Alerts page): EVERY alert in the current
@@ -75,6 +79,11 @@ type MapProps = {
 	alertPins?: AlertPin[];
 	selectedAlertId?: string | null;
 	onAlertClick?: (id: string) => void;
+
+	// NEW — Add / Edit Hive: the beekeeper's OTHER hives, drawn as
+	// read-only honey-yellow pins (name on hover/tap) next to the normal
+	// click-to-place pin. With no pin placed yet the map frames them.
+	hivePins?: FarmMarker[];
 };
 
 // Risk-colored alert pin (bigger when selected). Cached per color+size.
@@ -99,6 +108,11 @@ const alertIcon = (color: string, selected: boolean): L.DivIcon => {
 	}
 	return alertIconCache[key];
 };
+
+// NEW — colored farm/hive pin (bigger when selected). Same shape as the
+// alert pins; cached per color+size.
+const coloredPin = (color: string, selected: boolean): L.DivIcon =>
+	alertIcon(color, selected);
 
 // The area an alert covers (its pin + danger radius).
 const alertBounds = (a: AlertPin) =>
@@ -257,6 +271,7 @@ const Map = ({
 	alertPins,
 	selectedAlertId,
 	onAlertClick,
+	hivePins,
 }: MapProps) => {
 	const alertMode = alertPins !== undefined;
 	// Alert overview replaces the single pin, like farm mode does.
@@ -390,6 +405,25 @@ const Map = ({
 			{singlePinMode && !readOnly && <ClickHandler onClick={handleClick} />}
 			{singlePinMode && controlled && <FollowMarker target={markerPosition ?? null} />}
 
+			{/* OTHER HIVES (Add / Edit Hive) — read-only pins */}
+			{singlePinMode &&
+				hivePins?.map((h) => (
+					<Marker
+						key={h.id}
+						position={[h.lat, h.lng]}
+						icon={h.color ? coloredPin(h.color, false) : farmIcon}
+						interactive={!!h.label}>
+						{h.label && (
+							<Tooltip direction="top" offset={[0, -20]}>
+								{h.label}
+							</Tooltip>
+						)}
+					</Marker>
+				))}
+			{singlePinMode && hivePins && (
+				<FitToMarkers markers={hivePins} active={!marker} />
+			)}
+
 			{/* ALERT OVERVIEW — every alert in the tab. The selected one is
 			    drawn last so it sits on top. */}
 			{alertMode &&
@@ -431,7 +465,14 @@ const Map = ({
 					<Marker
 						key={m.id}
 						position={[m.lat, m.lng]}
-						icon={m.id === selectedMarkerId ? farmIconSelected : farmIcon}
+						icon={
+							m.color
+								? coloredPin(m.color, m.id === selectedMarkerId)
+								: m.id === selectedMarkerId
+									? farmIconSelected
+									: farmIcon
+						}
+						zIndexOffset={m.id === selectedMarkerId ? 1000 : 0}
 						eventHandlers={{
 							click: () => onMarkerClick?.(m.id),
 						}}

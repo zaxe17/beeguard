@@ -102,7 +102,40 @@ class HiveMaintenanceModel:
                     symptoms.append(label)
         return symptoms
 
+    @staticmethod
+    def find_for_hive(maintenance_id: str, hive_id: str):
+        """NEW — one monitoring record of this hive (for Delete)."""
+        sql = f"""
+            SELECT * FROM {HiveMaintenanceModel.TABLE}
+            WHERE maintenance_id = %s AND hive_id = %s
+            LIMIT 1
+        """
+        return Database.execute(sql, (maintenance_id, hive_id), fetchone=True)
+
     # ── WRITE ─────────────────────────────────
+    @staticmethod
+    def delete_with_conn(conn, maintenance_id: str, hive_id: str) -> int:
+        """NEW — deletes one monitoring record."""
+        sql = f"""
+            DELETE FROM {HiveMaintenanceModel.TABLE}
+            WHERE maintenance_id = %s AND hive_id = %s
+            LIMIT 1
+        """
+        with conn.cursor() as cur:
+            return cur.execute(sql, (maintenance_id, hive_id))
+
+    @staticmethod
+    def delete_harvest_inspections_with_conn(conn, hive_id: str, activity_date) -> int:
+        """NEW — the "Harvest Inspection" rows saved with a harvest on that
+        date (removed together with the harvest)."""
+        sql = f"""
+            DELETE FROM {HiveMaintenanceModel.TABLE}
+            WHERE hive_id = %s AND activity_type = 'Inspection'
+              AND activity_date = %s AND remarks LIKE %s
+        """
+        with conn.cursor() as cur:
+            return cur.execute(sql, (hive_id, activity_date, "Harvest Inspection: %"))
+
     @staticmethod
     def insert_with_conn(conn, data: dict) -> str:
         mid = HiveMaintenanceModel._gen_id()

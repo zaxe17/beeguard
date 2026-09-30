@@ -22,6 +22,34 @@ the model actually was in that class — e.g. 9 boxes read "Apis cerana" and 1
 stray box reads "Apis mellifera" -> species "Apis cerana", with that one
 mellifera box treated as a likely misclassification rather than a real second
 species.
+
+UNIDENTIFIED BEES (NEW) — e.g. Apis dorsata
+-------------------------------------------
+best.pt (trained 2026-09-29) has 4 classes:
+    0 "Apis Cerana"   1 "Apis Mellifera"   2 "Other Bee"   3 "Tetragonula biroi"
+Apis dorsata (giant honey bee) and other species were trained into
+"Other Bee", so the model RECOGNIZES them instead of mistaking them for
+cerana / mellifera. BeeGuard only names the three species above; any other
+winning class comes back as identified_species = "Unidentified" (with the
+model's confidence), so the app shows "Unidentified Bee" and the citizen can
+still submit the report. The report is saved with
+ai_species_identified = "Unidentified" (notifications say "A bee colony").
+  CV_SCAN_ACCEPTED_CLASSES  comma-separated, matched loosely (any case,
+                            "_" or " ", part of the class name). Default:
+                            "cerana,mellifera,biroi".
+The server log shows "[CVSCAN] Unidentified bee: ..." when this happens.
+
+A bee the model was NOT trained on often gets only low-confidence boxes
+(below CV_SCAN_CONF_THRESHOLD, default 0.4), which used to end up as
+"No bee detected". So the model now runs with a lower floor:
+  CV_SCAN_BEE_MIN_CONF  default 0.15 — any box at or above this means
+                        "there is a bee in the photo".
+  - boxes >= CV_SCAN_CONF_THRESHOLD -> majority vote as before; winner not
+    cerana / mellifera / biroi -> "Unidentified".
+  - only weaker boxes (between the two values) -> "Unidentified".
+  - no box at all -> no species ("No bee detected" + Retake Photo).
+Raise CV_SCAN_BEE_MIN_CONF if non-bee photos start showing as
+"Unidentified Bee"; lower it if real bees still show "No bee detected".
 """
 import os
 import threading
@@ -34,6 +62,25 @@ from config.database import Database
 from models.cv_scan import CVScanModel
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+
+# See "UNIDENTIFIED BEES" above.
+UNIDENTIFIED_SPECIES = "Unidentified"
+ACCEPTED_CLASSES = [
+    c.strip().lower().replace("_", " ")
+    for c in os.getenv("CV_SCAN_ACCEPTED_CLASSES", "cerana,mellifera,biroi").split(",")
+    if c.strip()
+]
+
+
+# Lowest box confidence that still counts as "a bee is in the photo".
+BEE_MIN_CONF = float(os.getenv("CV_SCAN_BEE_MIN_CONF", "0.15"))
+
+
+def _is_accepted_class(name: str | None) -> bool:
+    n = (name or "").lower().replace("_", " ")
+    return any(a in n for a in ACCEPTED_CLASSES)
+
+
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
 
 # Large images take longer to run through the model, so oversized uploads are
@@ -168,7 +215,9 @@ class CVScanService:
             results = model.predict(
                 source=image_path,
                 imgsz=Config.CV_SCAN_IMGSZ,
-                conf=Config.CV_SCAN_CONF_THRESHOLD,
+                # Low floor so weak boxes (a bee the model doesn't know)
+                # are kept; split by CV_SCAN_CONF_THRESHOLD below.
+                conf=min(BEE_MIN_CONF, Config.CV_SCAN_CONF_THRESHOLD),
                 device=Config.CV_SCAN_DEVICE,
                 verbose=False,
             )
@@ -195,6 +244,7 @@ class CVScanService:
                     })
 
         if not predictions:
+            print("[CVSCAN] No bee detected")
             return {
                 "identified_species": None,
                 "confidence_score": None,
@@ -202,22 +252,38 @@ class CVScanService:
                 "species_breakdown": [],
             }
 
-        vote = _majority_vote(predictions)
+        # Confident boxes decide the species; weaker ones only prove a bee
+        # is there (-> "Unidentified").
+        confident = [
+            p for p in predictions
+            if p["confidence"] >= Config.CV_SCAN_CONF_THRESHOLD
+        ]
+        vote = _majority_vote(confident or predictions)
 
         # Diagnostic: shows exactly what the model detected per class before
         # majority-vote picks a winner — check this in the server logs if the
-        # reported species looks wrong. If a species you're testing with
-        # never appears here at all, the model itself isn't detecting it (a
-        # training issue, not something fixable in this file). If it DOES
-        # appear here but loses to a higher-count class, that's the vote
-        # logic doing exactly what it's designed to do — count majority, not
-        # highest single confidence.
-        print(f"[CVSCAN] Detected {len(predictions)} box(es): {vote['species_breakdown']}")
+        # reported species looks wrong.
+        print(
+            f"[CVSCAN] Detected {len(predictions)} box(es), "
+            f"{len(confident)} confident: {vote['species_breakdown']}"
+        )
+
+        # Only weak boxes, or the winner isn't cerana / mellifera / biroi
+        # (e.g. "Other Bee" = Apis dorsata) -> "Unidentified" bee; the
+        # citizen can still submit the report.
+        if not confident or not _is_accepted_class(vote["identified_species"]):
+            print(f"[CVSCAN] Unidentified bee: {vote['identified_species']}")
+            return {
+                "identified_species": UNIDENTIFIED_SPECIES,
+                "confidence_score": vote["confidence_score"],
+                "detections": predictions,
+                "species_breakdown": vote["species_breakdown"],
+            }
 
         return {
             "identified_species": vote["identified_species"],
             "confidence_score": vote["confidence_score"],
-            "detections": predictions,
+            "detections": confident,
             "species_breakdown": vote["species_breakdown"],
         }
 

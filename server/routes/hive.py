@@ -5,6 +5,7 @@ from flask import Blueprint, request, g
 from middleware.auth_middleware import token_required, role_required
 from validators.hive_validator import (
     validate_create_hive,
+    validate_update_hive,
     validate_physical_inspection,
     VALID_STATE,
 )
@@ -62,6 +63,36 @@ def get_hive(hive_id):
     return success("OK", data=hive, status=200)
 
 
+# ── EDIT HIVE (Hive Details -> Edit) ──────────
+#    PATCH /api/hives/<id>  {hive_name?, bee_species?, date_established?,
+#                            queen_installed_date?, hive_state?,
+#                            location?, latitude?, longitude?}
+@hive_bp.route("/<hive_id>", methods=["PATCH"])
+@token_required
+@role_required("beekeeper")
+def update_hive(hive_id):
+    current = HiveService.get_hive_owned(g.user_id, hive_id)
+    if not current:
+        return error("Hive not found.", status=404)
+
+    payload = request.get_json(silent=True) or {}
+    cleaned, field_errors = validate_update_hive(payload, current)
+    if field_errors:
+        return error(
+            "Validation failed.",
+            errors=_field_errors_to_list(field_errors),
+            status=422,
+        )
+    try:
+        hive = HiveService.update_hive(g.user_id, hive_id, cleaned)
+    except PermissionError as e:
+        return error(str(e), status=403)
+    except Exception as e:
+        print(f"[HIVE-UPDATE] Unhandled error: {e}")
+        return error("Failed to update hive. Please try again.", status=500)
+    return success("Hive updated.", data=hive, status=200)
+
+
 # ── UPDATE STATE (Active / Inactive) ───────────
 @hive_bp.route("/<hive_id>/state", methods=["PATCH"])
 @token_required
@@ -110,6 +141,23 @@ def record_inspection(hive_id):
         print(f"[HIVE-INSPECTION] Unhandled error: {e}")
         return error("Failed to record inspection. Please try again.", status=500)
     return success("Inspection recorded.", data=result, status=200)
+
+
+# ── DELETE A MONITORING RECORD (Transaction History) ───
+@hive_bp.route("/<hive_id>/maintenance/<maintenance_id>", methods=["DELETE"])
+@token_required
+@role_required("beekeeper")
+def delete_maintenance(hive_id, maintenance_id):
+    try:
+        result = HiveService.delete_maintenance(g.user_id, hive_id, maintenance_id)
+    except PermissionError as e:
+        return error(str(e), status=403)
+    except LookupError as e:
+        return error(str(e), status=404)
+    except Exception as e:
+        print(f"[HIVE-MAINT-DELETE] Unhandled error: {e}")
+        return error("Failed to delete the record. Please try again.", status=500)
+    return success("Monitoring record deleted.", data=result, status=200)
 
 
 # ── MAINTENANCE HISTORY (ViewHistory modal, Monitoring tab) ───

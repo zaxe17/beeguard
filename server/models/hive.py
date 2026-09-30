@@ -73,16 +73,20 @@ class HiveModel:
         sql = f"""
             INSERT INTO {HiveModel.TABLE}
                 (hive_id, beekeeper_id, hive_name, bee_species,
+                 location, latitude, longitude,
                  date_established, queen_installed_date,
                  historical_yield_kg, historical_yield_year,
                  health_status, hive_state)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         params = (
             hive_id,
             data["beekeeper_id"],
             data["hive_name"],
             data["bee_species"],
+            data.get("location"),
+            data.get("latitude"),
+            data.get("longitude"),
             data["date_established"],
             data.get("queen_installed_date"),
             data.get("historical_yield_kg"),
@@ -124,6 +128,28 @@ class HiveModel:
         """
         with conn.cursor() as cur:
             return cur.execute(sql, (installed_on, hive_id))
+
+    # NEW — Edit Hive. Only these columns can be changed from the form.
+    # (location / latitude / longitude — NEW, migration 027)
+    EDITABLE = (
+        "hive_name", "bee_species", "date_established",
+        "queen_installed_date", "hive_state",
+        "location", "latitude", "longitude",
+    )
+
+    @staticmethod
+    def update_details(hive_id: str, beekeeper_id: str, fields: dict) -> int:
+        cols = [c for c in HiveModel.EDITABLE if c in fields]
+        if not cols:
+            return 0
+        sets = ", ".join(f"{c} = %s" for c in cols)
+        sql = f"""
+            UPDATE {HiveModel.TABLE}
+            SET {sets}
+            WHERE hive_id = %s AND beekeeper_id = %s
+        """
+        params = tuple(fields[c] for c in cols) + (hive_id, beekeeper_id)
+        return Database.execute(sql, params, commit=True)
 
     @staticmethod
     def update_state(hive_id: str, beekeeper_id: str, state: str) -> int:

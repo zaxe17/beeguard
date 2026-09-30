@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import dynamic from "next/dynamic";
 import { SearchBar } from "@/components/ui/Input";
@@ -21,6 +22,9 @@ type RiskStatus = "high" | "medium" | "low";
 // New beekeeper alerts show up without a page refresh.
 const LIST_POLL_MS = 30000;
 const REASON_MAX = 255;
+
+// Same breakpoint as Tailwind's `lg`.
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
 const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 	ssr: false,
@@ -45,29 +49,57 @@ const formatDate = (iso: string | null | undefined) =>
 
 const formatTime = (iso: string | null | undefined) =>
 	iso
-		? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+		? new Date(iso).toLocaleTimeString([], {
+				hour: "2-digit",
+				minute: "2-digit",
+			})
 		: "—";
 
 const isActive = (a: AdminAlertRecord) =>
 	!a.expiration_date || new Date(a.expiration_date).getTime() >= Date.now();
 
+// true on lg screens and up, false on mobile / tablet.
+const useIsDesktop = () => {
+	const [isDesktop, setIsDesktop] = useState(false);
+	useEffect(() => {
+		const mq = window.matchMedia(DESKTOP_QUERY);
+		const update = () => setIsDesktop(mq.matches);
+		update();
+		mq.addEventListener("change", update);
+		return () => mq.removeEventListener("change", update);
+	}, []);
+	return isDesktop;
+};
+
 // One row in the review panel.
-const InfoRow = ({ label, value }: { label: string; value?: string | null }) => (
+const InfoRow = ({
+	label,
+	value,
+}: {
+	label: string;
+	value?: string | null;
+}) => (
 	<div className="flex justify-between items-start gap-3 text-xs">
 		<span className="text-[#817b70] shrink-0">{label}</span>
-		<span className="Poppins-SemiBold text-right wrap-break-word">{value || "—"}</span>
+		<span className="Poppins-SemiBold text-right wrap-break-word">
+			{value || "—"}
+		</span>
 	</div>
 );
 
 // Details of the selected alert + Approve / Reject for pending ones.
+// desktop = under the map (same as before)
+// mobile  = takes the place of the alert list until X is pressed
 const ReviewPanel = ({
 	alert,
 	location,
+	variant,
 	onClose,
 	onReviewed,
 }: {
 	alert: AdminAlertRecord;
 	location: string;
+	variant: "desktop" | "mobile";
 	onClose: () => void;
 	onReviewed: (message: string) => void;
 }) => {
@@ -97,12 +129,17 @@ const ReviewPanel = ({
 
 	const reject = async () => {
 		if (!reason.trim()) {
-			setErrorMsg("Please give a reason so the beekeeper knows what to fix.");
+			setErrorMsg(
+				"Please give a reason so the beekeeper knows what to fix.",
+			);
 			return;
 		}
 		setBusy("reject");
 		setErrorMsg(null);
-		const res = await pesticideService.rejectAlert(alert.alert_id, reason.trim());
+		const res = await pesticideService.rejectAlert(
+			alert.alert_id,
+			reason.trim(),
+		);
 		setBusy(null);
 		if (!res.success) {
 			setErrorMsg(res.message || "Couldn't reject this alert.");
@@ -117,14 +154,26 @@ const ReviewPanel = ({
 			? `${alert.reporter_name ?? "Beekeeper"}${alert.reporter_farm ? ` (${alert.reporter_farm})` : ""}`
 			: `${alert.admin_name ?? "Admin"} (Admin)`;
 
+	const variantClass =
+		variant === "desktop"
+			? "border-t border-[#e2e2e6] max-h-[55%]"
+			: "flex-1 min-h-0";
+
 	return (
-		<div className="w-full bg-white border-t border-[#e2e2e6] p-4 flex flex-col gap-3 max-h-[55%] overflow-y-auto">
+		<motion.div
+			initial={{ opacity: 0, y: 24 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: 24 }}
+			transition={{ duration: 0.22, ease: "easeOut" }}
+			className={`w-full bg-white p-4 flex flex-col gap-3 overflow-y-auto z-10000 ${variantClass}`}>
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<h3 className="Poppins-Bold text-base text-[#4a2f00] line-clamp-1">
 						{alert.title}
 					</h3>
-					<p className="text-xs text-[#817b70] line-clamp-1">{location}</p>
+					<p className="text-xs text-[#817b70] line-clamp-1">
+						{location}
+					</p>
 				</div>
 				<div className="flex items-center gap-2 shrink-0">
 					<span
@@ -159,7 +208,10 @@ const ReviewPanel = ({
 					label="Scheduled"
 					value={`${formatDate(alert.scheduled_date)} • ${formatTime(alert.scheduled_date)}`}
 				/>
-				<InfoRow label="Danger radius" value={`${Number(alert.danger_radius_km)} km`} />
+				<InfoRow
+					label="Danger radius"
+					value={`${Number(alert.danger_radius_km)} km`}
+				/>
 				{/* 14-day validity: after this date the alert moves to History. */}
 				{alert.expiration_date && (
 					<InfoRow
@@ -170,37 +222,60 @@ const ReviewPanel = ({
 				{/* Highest risk any beekeeper faces (each beekeeper sees
 				    their own level based on their farm's distance). */}
 				<InfoRow
-					label={isPending ? "Highest risk (if approved)" : "Highest risk"}
+					label={
+						isPending
+							? "Highest risk (if approved)"
+							: "Highest risk"
+					}
 					value={alert.risk_level}
 				/>
 				<InfoRow
 					label="Submitted"
 					value={`${formatDate(alert.created_at)} • ${formatTime(alert.created_at)}`}
 				/>
-				{alert.description && <InfoRow label="Description" value={alert.description} />}
+				{alert.description && (
+					<InfoRow label="Description" value={alert.description} />
+				)}
 				{alert.approval_status === "Rejected" && (
-					<InfoRow label="Rejection reason" value={alert.rejection_reason} />
+					<InfoRow
+						label="Rejection reason"
+						value={alert.rejection_reason}
+					/>
 				)}
 			</div>
 
 			{isPending && (
 				<div className="flex flex-col gap-2 pt-1">
-					{rejecting && (
-						<div className="flex flex-col gap-1">
-							<textarea
-								value={reason}
-								onChange={(e) => setReason(e.target.value.slice(0, REASON_MAX))}
-								rows={2}
-								placeholder="Why is this alert being rejected? (the beekeeper will see this)"
-								className="w-full text-xs border border-[#e2e2e6] rounded-lg p-2 outline-none focus:border-[#ffce1c] resize-none"
-							/>
-							<span className="text-[10px] text-[#a6a3a3] text-right">
-								{reason.length}/{REASON_MAX}
-							</span>
-						</div>
-					)}
+					<AnimatePresence initial={false}>
+						{rejecting && (
+							<motion.div
+								key="reason"
+								initial={{ opacity: 0, height: 0 }}
+								animate={{ opacity: 1, height: "auto" }}
+								exit={{ opacity: 0, height: 0 }}
+								transition={{ duration: 0.18 }}
+								className="flex flex-col gap-1 overflow-hidden">
+								<textarea
+									value={reason}
+									onChange={(e) =>
+										setReason(
+											e.target.value.slice(0, REASON_MAX),
+										)
+									}
+									rows={2}
+									placeholder="Why is this alert being rejected? (the beekeeper will see this)"
+									className="w-full text-xs border border-[#e2e2e6] rounded-lg p-2 outline-none focus:border-[#ffce1c] resize-none"
+								/>
+								<span className="text-[10px] text-[#a6a3a3] text-right">
+									{reason.length}/{REASON_MAX}
+								</span>
+							</motion.div>
+						)}
+					</AnimatePresence>
 
-					{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
+					{errorMsg && (
+						<p className="text-xs text-red-600">{errorMsg}</p>
+					)}
 
 					<div className="flex items-center gap-2">
 						{rejecting ? (
@@ -220,7 +295,9 @@ const ReviewPanel = ({
 									disabled={!!busy}
 									onClick={reject}
 									className="flex-1 Poppins-SemiBold text-xs py-2 rounded-lg bg-red-600 text-white disabled:opacity-50">
-									{busy === "reject" ? "Rejecting..." : "Confirm Reject"}
+									{busy === "reject"
+										? "Rejecting..."
+										: "Confirm Reject"}
 								</button>
 							</>
 						) : (
@@ -237,18 +314,20 @@ const ReviewPanel = ({
 									disabled={!!busy}
 									onClick={approve}
 									className="flex-1 Poppins-SemiBold text-xs py-2 rounded-lg bg-[#8ac44f] text-white disabled:opacity-50">
-									{busy === "approve" ? "Approving..." : "Approve & Send"}
+									{busy === "approve"
+										? "Approving..."
+										: "Approve & Send"}
 								</button>
 							</>
 						)}
 					</div>
 					<p className="text-[10px] text-[#a6a3a3]">
-						Approving sends this alert to every beekeeper and shows it on their
-						Alerts page.
+						Approving sends this alert to every beekeeper and shows
+						it on their Alerts page.
 					</p>
 				</div>
 			)}
-		</div>
+		</motion.div>
 	);
 };
 
@@ -257,6 +336,7 @@ const AlertInner = () => {
 	const searchParams = useSearchParams();
 	const activeTab = searchParams.get("tab") || "all";
 	const { openModal } = useModal<ModalType>();
+	const isDesktop = useIsDesktop();
 
 	const [alerts, setAlerts] = useState<AdminAlertRecord[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -302,9 +382,13 @@ const AlertInner = () => {
 	const pending = alerts.filter((a) => a.approval_status === "Pending");
 	const rejected = alerts.filter((a) => a.approval_status === "Rejected");
 	// All / High / Medium / Low = approved alerts that haven't expired.
-	const live = alerts.filter((a) => a.approval_status === "Approved" && isActive(a));
+	const live = alerts.filter(
+		(a) => a.approval_status === "Approved" && isActive(a),
+	);
 	// History = approved alerts whose 14-day validity already ended.
-	const history = alerts.filter((a) => a.approval_status === "Approved" && !isActive(a));
+	const history = alerts.filter(
+		(a) => a.approval_status === "Approved" && !isActive(a),
+	);
 
 	const tabs = [
 		{ label: "All", value: "all" },
@@ -327,7 +411,13 @@ const AlertInner = () => {
 		const q = search.trim().toLowerCase();
 		if (q) {
 			list = list.filter((a) =>
-				[a.title, locationOf(a), a.reporter_name, a.pesticide_type, a.admin_name]
+				[
+					a.title,
+					locationOf(a),
+					a.reporter_name,
+					a.pesticide_type,
+					a.admin_name,
+				]
 					.filter(Boolean)
 					.some((v) => String(v).toLowerCase().includes(q)),
 			);
@@ -336,6 +426,19 @@ const AlertInner = () => {
 	}, [activeTab, pending, rejected, live, history, search, locationOf]);
 
 	const selected = alerts.find((a) => a.alert_id === selectedId) ?? null;
+
+	// Mobile only: the review panel replaces the alert list.
+	const showMobileReview = !isDesktop && !!selected;
+
+	const closePanel = useCallback(() => setSelectedId(null), []);
+	const handleReviewed = useCallback(
+		(message: string) => {
+			setNotice(message);
+			setSelectedId(null);
+			load();
+		},
+		[load],
+	);
 
 	// MAP — every alert in the current tab (All = all live alerts, High /
 	// Medium / Low = only that risk, Pending / Rejected = those), each with
@@ -350,7 +453,9 @@ const AlertInner = () => {
 					radiusKm: Number(a.danger_radius_km) || null,
 					color: ALERT_PIN_COLORS[toRisk(a)],
 				}))
-				.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)),
+				.filter(
+					(p) => Number.isFinite(p.lat) && Number.isFinite(p.lng),
+				),
 		[filtered],
 	);
 
@@ -358,7 +463,9 @@ const AlertInner = () => {
 		<SearchBar
 			placeholder="Search Alerts"
 			value={search}
-			onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+			onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+				setSearch(e.target.value)
+			}
 		/>
 	);
 
@@ -371,81 +478,126 @@ const AlertInner = () => {
 	);
 
 	return (
-		<div className="w-full h-full flex items-start lg:flex-row flex-col-reverse">
-			{/* CONTAINER FOR ALERT LIST */}
-			<Container
-				borderNone
-				className="lg:w-[35%] w-full flex-1 lg:flex-none lg:h-full">
-				<div className="relative w-full pt-5 px-2 lg:flex hidden items-center justify-end gap-3 mb-3">
-					<div className="flex items-center gap-3">
-						{/* ADD BUTTON */}
-						{addButton}
+		<div className="w-full h-full flex items-start lg:flex-row flex-col-reverse overflow-hidden">
+			<AnimatePresence mode="wait" initial={false}>
+				{showMobileReview && selected ? (
+					/* MOBILE: DETAILS + APPROVE / REJECT (in place of the list) */
+					<ReviewPanel
+						key="mobile-review"
+						variant="mobile"
+						alert={selected}
+						location={locationOf(selected)}
+						onClose={closePanel}
+						onReviewed={handleReviewed}
+					/>
+				) : (
+					/* CONTAINER FOR ALERT LIST */
+					<motion.div
+						key="alert-list"
+						initial={{ opacity: 0, y: 24 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: 24 }}
+						transition={{ duration: 0.22, ease: "easeOut" }}
+						className="lg:w-[35%] w-full flex-1 lg:flex-none lg:h-full min-h-0 flex flex-col">
+						<Container
+							borderNone
+							className="w-full flex-1 min-h-0 lg:h-full">
+							<div className="relative w-full pt-5 px-2 lg:flex hidden items-center justify-end gap-3 mb-3">
+								<div className="flex items-center gap-3">
+									{/* ADD BUTTON */}
+									{addButton}
 
-						{/* SEARCHBAR ALERTS */}
-						{searchBar}
-					</div>
-				</div>
+									{/* SEARCHBAR ALERTS */}
+									{searchBar}
+								</div>
+							</div>
 
-				<NavTab tabs={tabs} hasBg />
+							<NavTab tabs={tabs} hasBg />
 
-				{/* Beekeeper alerts waiting for review */}
-				{pending.length > 0 && activeTab !== "pending" && (
-					<div className="mx-2 mt-2 bg-[#FAEEDA] border-2 border-[#FAC775] rounded-lg p-2 flex items-center gap-2">
-						<Icon icon="mdi:clock-alert-outline" className="w-5 h-5 shrink-0 text-[#854F0B]" />
-						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
-							{pending.length} alert{pending.length === 1 ? " is" : "s are"} waiting
-							for approval.
-						</p>
-						<span
-							onClick={() => router.push("/admin/alert?tab=pending")}
-							className="Poppins-SemiBold text-xs text-[#854F0B] underline cursor-pointer ml-auto shrink-0">
-							Review now
-						</span>
-					</div>
+							{/* Beekeeper alerts waiting for review */}
+							{pending.length > 0 && activeTab !== "pending" && (
+								<div className="mx-2 mt-2 bg-[#FAEEDA] border-2 border-[#FAC775] rounded-lg p-2 flex items-center gap-2">
+									<Icon
+										icon="mdi:clock-alert-outline"
+										className="w-5 h-5 shrink-0 text-[#854F0B]"
+									/>
+									<p className="Poppins-SemiBold text-[#854F0B] text-xs">
+										{pending.length} alert
+										{pending.length === 1
+											? " is"
+											: "s are"}{" "}
+										waiting for approval.
+									</p>
+									<span
+										onClick={() =>
+											router.push(
+												"/admin/alert?tab=pending",
+											)
+										}
+										className="Poppins-SemiBold text-xs text-[#854F0B] underline cursor-pointer ml-auto shrink-0">
+										Review now
+									</span>
+								</div>
+							)}
+
+							<AnimatePresence>
+								{notice && (
+									<motion.p
+										key="notice"
+										initial={{ opacity: 0, y: -8 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -8 }}
+										className="mx-2 mt-2 text-xs text-[#1f6f5f] bg-[#8ac44f]/20 rounded-md p-2">
+										{notice}
+									</motion.p>
+								)}
+							</AnimatePresence>
+
+							{/* SCROLLABLE ALERT CARDS */}
+							<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
+								{loading ? (
+									<p className="text-center text-sm text-[#a6a3a3] py-4">
+										Loading alerts…
+									</p>
+								) : errorMsg ? (
+									<p className="text-center text-sm text-red-600 py-4">
+										{errorMsg}
+									</p>
+								) : filtered.length > 0 ? (
+									filtered.map((a) => (
+										<PesticideAlert
+											key={a.alert_id}
+											location={locationOf(a)}
+											date={formatDate(a.scheduled_date)}
+											time={formatTime(a.scheduled_date)}
+											status={toRisk(a)}
+											approvalStatus={a.approval_status}
+											selected={a.alert_id === selectedId}
+											onClick={() =>
+												setSelectedId(a.alert_id)
+											}
+										/>
+									))
+								) : (
+									<div className="w-full h-full flex flex-col items-center justify-center text-center opacity-40">
+										<Icon
+											icon="famicons:notifications-off"
+											className="w-20 h-20 text-[#a6a3a3]"
+										/>
+										<h2 className="w-1/2 Poppins-SemiBold text-x text-[#817b70]">
+											{activeTab === "pending"
+												? "No alerts waiting for approval"
+												: activeTab === "history"
+													? "No ended alerts yet"
+													: "No alerts"}
+										</h2>
+									</div>
+								)}
+							</div>
+						</Container>
+					</motion.div>
 				)}
-
-				{notice && (
-					<p className="mx-2 mt-2 text-xs text-[#1f6f5f] bg-[#8ac44f]/20 rounded-md p-2">
-						{notice}
-					</p>
-				)}
-
-				{/* SCROLLABLE ALERT CARDS */}
-				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
-					{loading ? (
-						<p className="text-center text-sm text-[#a6a3a3] py-4">Loading alerts…</p>
-					) : errorMsg ? (
-						<p className="text-center text-sm text-red-600 py-4">{errorMsg}</p>
-					) : filtered.length > 0 ? (
-						filtered.map((a) => (
-							<PesticideAlert
-								key={a.alert_id}
-								location={locationOf(a)}
-								date={formatDate(a.scheduled_date)}
-								time={formatTime(a.scheduled_date)}
-								status={toRisk(a)}
-								approvalStatus={a.approval_status}
-								selected={a.alert_id === selectedId}
-								onClick={() => setSelectedId(a.alert_id)}
-							/>
-						))
-					) : (
-						<div className="w-full h-full flex flex-col items-center justify-center text-center opacity-40">
-							<Icon
-								icon="famicons:notifications-off"
-								className="w-20 h-20 text-[#a6a3a3]"
-							/>
-							<h2 className="w-1/2 Poppins-SemiBold text-x text-[#817b70]">
-								{activeTab === "pending"
-									? "No alerts waiting for approval"
-									: activeTab === "history"
-										? "No ended alerts yet"
-										: "No alerts"}
-							</h2>
-						</div>
-					)}
-				</div>
-			</Container>
+			</AnimatePresence>
 
 			{/* min-w-0 + overflow-hidden: the map can never push the page
 			    wider than the screen (no sideways scrolling). */}
@@ -467,7 +619,8 @@ const AlertInner = () => {
 							// Medium, green = Low. Tap a pin to open it.
 							alertPins={mapPins}
 							selectedAlertId={
-								selected && mapPins.some((p) => p.id === selected.alert_id)
+								selected &&
+								mapPins.some((p) => p.id === selected.alert_id)
 									? selected.alert_id
 									: null
 							}
@@ -475,19 +628,19 @@ const AlertInner = () => {
 						/>
 					</div>
 
-					{/* DETAILS + APPROVE / REJECT */}
-					{selected && (
-						<ReviewPanel
-							alert={selected}
-							location={locationOf(selected)}
-							onClose={() => setSelectedId(null)}
-							onReviewed={(message) => {
-								setNotice(message);
-								setSelectedId(null);
-								load();
-							}}
-						/>
-					)}
+					{/* DESKTOP: DETAILS + APPROVE / REJECT (under the map) */}
+					<AnimatePresence>
+						{isDesktop && selected && (
+							<ReviewPanel
+								key="desktop-review"
+								variant="desktop"
+								alert={selected}
+								location={locationOf(selected)}
+								onClose={closePanel}
+								onReviewed={handleReviewed}
+							/>
+						)}
+					</AnimatePresence>
 				</div>
 			</div>
 		</div>

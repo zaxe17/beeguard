@@ -14,6 +14,10 @@ import {
 	filterAlerts,
 	useAlertFilter,
 } from "@/context/AlertFilterContext";
+import { PesticideAlertSkeleton } from "@/components/loading/SkeletonLoading";
+
+// How many placeholder cards to show while alerts are loading.
+const SKELETON_COUNT = 5;
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -32,6 +36,8 @@ const Alert = () => {
 	// Search bar + filter icon in app/beekeeper/alert/layout.tsx
 	const { filter, search } = useAlertFilter();
 	const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+	// true only until the first load finishes — refetches after that
+	// update the list quietly instead of flashing the skeletons again.
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -40,13 +46,12 @@ const Alert = () => {
 	const resolvedLocations = useAlertLocations(alerts);
 
 	const loadAlerts = useCallback(async () => {
-		setLoading(true);
-		setErrorMsg(null);
 		// All tab = alerts still within their 14-day validity. Once an
 		// alert's validity ends it moves to History (listExpiredAlerts).
 		const res = await pesticideService.listActiveAlerts();
 		if (res.success && res.data) {
 			setAlerts(res.data);
+			setErrorMsg(null);
 		} else if (!res.success) {
 			setErrorMsg(res.message);
 		}
@@ -81,11 +86,16 @@ const Alert = () => {
 	);
 
 	return (
-		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
+		<div
+			aria-busy={loading}
+			className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
-				<p className="text-center text-sm text-[#817b70] p-4">
-					Loading alerts...
-				</p>
+				<>
+					<span className="sr-only">Loading alerts...</span>
+					{Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+						<PesticideAlertSkeleton key={i} />
+					))}
+				</>
 			) : errorMsg ? (
 				<p className="text-center text-sm text-red-600 p-4">
 					{errorMsg}

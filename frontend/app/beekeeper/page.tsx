@@ -383,7 +383,7 @@ const Beekeeper = () => {
 			<div className="w-full lg:flex-1 flex lg:flex-row flex-col items-stretch lg:gap-3 gap-0 lg:min-h-0 min-h-200 px-0">
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
-						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
+						<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Operations{" "}
 							<span
 								className={`text-xs text-[#ffce1c] cursor-pointer ${operations.length > 0 ? "block" : "hidden"}`}
@@ -444,7 +444,7 @@ const Beekeeper = () => {
 
 				<Container width="100%" height="100%" scroll>
 					<div className="w-full h-full flex flex-col items-start">
-						<span className="sticky top-0 bg-white w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
+						<span className="sticky top-0 w-full text-lg text-[#817b70] font-bold capitalize flex justify-between items-center px-2">
 							Recent Alerts{" "}
 							<span
 								className={`text-xs text-[#ffce1c] cursor-pointer ${recentAlerts.length > 0 ? "block" : "hidden"}`}

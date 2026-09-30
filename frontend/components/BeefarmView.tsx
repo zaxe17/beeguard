@@ -123,7 +123,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 	};
 
 	return (
-		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none">
+		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none pb-5">
 			<div className="relative w-full lg:h-60 h-50">
 				{/* COVER PHOTO — the beekeeper's farm photo, or the default */}
 				{mediaSrc(farm.image) ? (

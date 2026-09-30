@@ -10,6 +10,7 @@ import { AlertContainer } from "@/components/ui/Alert";
 import { pesticideService, AlertDetail } from "@/services/pesticide";
 import { useAlertLocations, getAlertLocation } from "@/hooks/useAlertLocation";
 import Link from "next/link";
+import { BackButton } from "@/components/ui/Button";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx. This
@@ -189,7 +190,10 @@ const ValidityProgress = ({
 		headline = "Alert period ended";
 		sub = "This alert is now in History.";
 	} else {
-		percent = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+		percent = Math.min(
+			100,
+			Math.max(0, ((now - start) / (end - start)) * 100),
+		);
 		const day = Math.min(totalDays, Math.floor((now - start) / DAY_MS) + 1);
 		const left = Math.ceil((end - now) / DAY_MS);
 		headline = `Day ${day} of ${totalDays}`;
@@ -207,7 +211,9 @@ const ValidityProgress = ({
 		<AlertContainer title="Alert Validity">
 			<div className="w-full flex flex-col gap-2 text-sm normal-case">
 				<div className="flex justify-between items-end">
-					<span className="Poppins-SemiBold text-[#020101]">{headline}</span>
+					<span className="Poppins-SemiBold text-[#020101]">
+						{headline}
+					</span>
 					<span className="text-xs text-[#817b70]">{sub}</span>
 				</div>
 
@@ -230,11 +236,12 @@ const ValidityProgress = ({
 				</div>
 
 				<p className="text-[11px] leading-4 text-[#817b70] mt-1">
-					BeeGuard keeps pesticide alerts active for {ALERT_VALIDITY_DAYS} days
-					as a precaution, so nearby beekeepers can still see the hazard. This
-					is not the actual residual toxicity of every pesticide — that
-					depends on the active ingredient, formulation, application rate,
-					crop and weather.
+					BeeGuard keeps pesticide alerts active for{" "}
+					{ALERT_VALIDITY_DAYS} days as a precaution, so nearby
+					beekeepers can still see the hazard. This is not the actual
+					residual toxicity of every pesticide — that depends on the
+					active ingredient, formulation, application rate, crop and
+					weather.
 				</p>
 			</div>
 		</AlertContainer>
@@ -488,26 +495,39 @@ const AlertDetailsInner = () => {
 				</span>
 			</div>
 
+			<div className="fixed top-5 left-50 lg:block hidden">
+				<BackButton label="Go Back" />
+			</div>
+
 			{/* LEFT */}
 			<div className="lg:w-1/2 w-full capitalize flex flex-col gap-8 px-4 lg:px-0">
 				{/* Your own alert that the admin hasn't approved (yet). */}
 				{alert.approval_status === "Pending" && (
 					<div className="normal-case w-full bg-[#FAEEDA] border-2 border-[#FAC775] rounded-lg p-3 flex items-center gap-2">
-						<Icon icon="mdi:clock-outline" className="w-5 h-5 shrink-0 text-[#854F0B]" />
+						<Icon
+							icon="mdi:clock-outline"
+							className="w-5 h-5 shrink-0 text-[#854F0B]"
+						/>
 						<p className="Poppins-SemiBold text-[#854F0B] text-xs">
-							Waiting for admin approval — other beekeepers can&apos;t see
-							this alert yet. You&apos;ll be notified once it&apos;s reviewed.
+							Waiting for admin approval — other beekeepers
+							can&apos;t see this alert yet. You&apos;ll be
+							notified once it&apos;s reviewed.
 						</p>
 					</div>
 				)}
 				{alert.approval_status === "Rejected" && (
 					<div className="normal-case w-full bg-red-50 border-2 border-red-200 rounded-lg p-3 flex items-start gap-2">
-						<Icon icon="mdi:close-circle-outline" className="w-5 h-5 shrink-0 text-red-600" />
+						<Icon
+							icon="mdi:close-circle-outline"
+							className="w-5 h-5 shrink-0 text-red-600"
+						/>
 						<p className="text-red-600 text-xs">
 							<span className="Poppins-SemiBold">
 								This alert was not approved by the admin.
 							</span>
-							{alert.rejection_reason && <> Reason: {alert.rejection_reason}</>}
+							{alert.rejection_reason && (
+								<> Reason: {alert.rejection_reason}</>
+							)}
 						</p>
 					</div>
 				)}

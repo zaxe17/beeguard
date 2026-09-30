@@ -7,6 +7,8 @@
 //   disablePush()  — unsubscribes this device
 //   syncPush()     — permission already given: re-saves this device for
 //                    whoever is logged in now (e.g. after switching account)
+//   stopPushOnLogout() — NEW: logging out stops push on this device, so
+//                    no more pop-ups / sounds for the account that left
 //
 // Works in Chrome / Edge / Firefox (computer + Android). On iPhone, BeeGuard
 // must first be added to the Home Screen (iOS 16.4+). Needs HTTPS when
@@ -239,6 +241,29 @@ export const disablePush = async (): Promise<void> => {
 	if (!sub) return;
 	await api.post("/push/unsubscribe", { endpoint: sub.endpoint });
 	await sub.unsubscribe().catch(() => undefined);
+};
+
+/**
+ * NEW — called on logout (context/AuthContext.tsx). Unsubscribes this
+ * browser first (instant, works offline — the server then gets "gone"
+ * the next time it tries and forgets the device), then tells the server
+ * to delete it right away. Runs after the login token is already
+ * cleared, so /push/unsubscribe doesn't need a login. Never throws.
+ * Permission stays granted, so logging in again turns push back on by
+ * itself (syncPush).
+ */
+export const stopPushOnLogout = async (): Promise<void> => {
+	if (!pushSupported()) return;
+	try {
+		const reg = await navigator.serviceWorker.getRegistration("/");
+		const sub = reg ? await reg.pushManager.getSubscription() : null;
+		if (!sub) return;
+		const endpoint = sub.endpoint;
+		await sub.unsubscribe().catch(() => undefined);
+		await api.post("/push/unsubscribe", { endpoint });
+	} catch {
+		// Not fatal — the browser side is already unsubscribed.
+	}
 };
 
 /**

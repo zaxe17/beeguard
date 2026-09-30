@@ -16,7 +16,9 @@
 # Barangay = Nominatim's "quarter" (cities) or "village" (provinces).
 # "neighbourhood" is a subdivision INSIDE a barangay (e.g. "Airport
 # Village" inside Moonwalk) and city_district is bigger than a barangay
-# ("Parañaque District 2") — neither is used as the barangay.
+# ("Parañaque District 2") — neither is used as the barangay. NEW: a
+# subdivision name ("... Village", "... Subdivision") tagged as
+# village / suburb / hamlet is skipped too.
 #
 # Never raises: returns None if the name can't be found right now
 # (no internet, Nominatim blocking us) — it's simply tried again later.
@@ -50,6 +52,21 @@ _cache_loaded = False
 # "Parañaque District 2", "District IV" — never shown as the barangay.
 _DISTRICT_RE = re.compile(r"\bdistrict\b", re.IGNORECASE)
 
+# NEW — subdivisions ("Airport Village", "Merville Subdivision",
+# "Sun Valley Homes"...) that OpenStreetMap sometimes tags as "village" /
+# "suburb" / "hamlet" inside a city. Never shown as the barangay. A real
+# barangay with such a word in its name (e.g. "BF Homes") is tagged
+# "quarter" in the cities, so "quarter" is always trusted.
+_SUBDIVISION_RE = re.compile(
+    r"\b(village|subdivision|subd|homes|heights|phase|compound|residences?"
+    r"|estates?|townhomes|condominium|condo)\b",
+    re.IGNORECASE,
+)
+
+# NEW — names saved by the older version (could be a subdivision) are
+# ignored when the saved file is read, and looked up again.
+_CACHE_VERSION = 2
+
 
 # ── saved names (shared by every user) ─────────
 def _load_cache() -> None:
@@ -60,8 +77,10 @@ def _load_cache() -> None:
     try:
         with open(_CACHE_FILE, encoding="utf-8") as f:
             saved = json.load(f)
-        if isinstance(saved, dict):
-            _cache.update({k: v for k, v in saved.items() if isinstance(v, str) and v})
+        # Old file = plain {key: name}; new = {"_version": 2, "names": {...}}.
+        if isinstance(saved, dict) and saved.get("_version") == _CACHE_VERSION:
+            names = saved.get("names") or {}
+            _cache.update({k: v for k, v in names.items() if isinstance(v, str) and v})
     except FileNotFoundError:
         pass
     except Exception as e:
@@ -73,7 +92,8 @@ def _save_cache() -> None:
         os.makedirs(os.path.dirname(_CACHE_FILE), exist_ok=True)
         tmp = _CACHE_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(_cache, f, ensure_ascii=False, indent=1)
+            json.dump({"_version": _CACHE_VERSION, "names": _cache},
+                      f, ensure_ascii=False, indent=1)
         os.replace(tmp, _CACHE_FILE)
     except Exception as e:
         print(f"[PLACE-NAME] Couldn't save {_CACHE_FILE}: {e}")
@@ -90,15 +110,15 @@ def _label(address: dict) -> str | None:
     no barangay (a city-only name is never saved; it's tried again later).
     """
     barangay = None
-    for c in (
-        address.get("quarter"),
-        address.get("village"),
-        address.get("suburb"),
-        address.get("hamlet"),
-    ):
-        if c and not _DISTRICT_RE.search(c):
-            barangay = c
-            break
+    for key in ("quarter", "village", "suburb", "hamlet"):
+        c = address.get(key)
+        if not c or _DISTRICT_RE.search(c):
+            continue
+        # A subdivision tagged as village/suburb/hamlet -> not the barangay.
+        if key != "quarter" and _SUBDIVISION_RE.search(c):
+            continue
+        barangay = c
+        break
     if not barangay:
         return None
 

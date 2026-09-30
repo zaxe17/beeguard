@@ -23,6 +23,10 @@ export interface Hive {
 	beekeeper_id: string;
 	hive_name: string;
 	bee_species: string;
+	// NEW — where the hive is (Add / Edit Hive map). null for older hives.
+	location?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 	date_established: string;
 	queen_installed_date: string | null;
 	historical_yield_kg: number | null;
@@ -53,6 +57,10 @@ export interface CreateHivePayload {
 	hive_state?: HiveState;
 	historical_yield_kg?: number | null;
 	historical_yield_year?: number | null;
+	// NEW — location text + map pin
+	location?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 }
 
 // NEW — Edit Hive (PATCH /api/hives/<id>). Health isn't edited here.
@@ -62,6 +70,10 @@ export interface UpdateHivePayload {
 	date_established?: string; // YYYY-MM-DD
 	queen_installed_date?: string | null; // blank -> same as date_established
 	hive_state?: HiveState;
+	// NEW — location text + map pin (null clears them)
+	location?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 }
 
 export type InspectionObservation =

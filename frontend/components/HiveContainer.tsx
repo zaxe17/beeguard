@@ -7,6 +7,8 @@ import Image from "next/image";
 import { Button } from "./ui/Button";
 import { Icon } from "@iconify/react";
 import { HealthStatus } from "@/services/hive";
+import { usePlaceName } from "@/hooks/usePlaceName";
+import { parseCoords } from "@/services/geocode";
 
 const HiveIcon = {
 	healthy: {
@@ -27,10 +29,22 @@ const HiveIcon = {
 	},
 };
 
+/** NEW — the health tag's color, e.g. for the hive's map pin. */
+export function hiveStatusColor(health: HealthStatus): string {
+	return HiveIcon[getHiveIconKey(mapHealthStatusToUi(health))].color;
+}
+
 export type HiveProps = {
 	hiveId?: string;
 	hive?: string;
+	// NOTE: `location` holds the bee SPECIES (old naming). The hive's real
+	// location is `place` (NEW — hives.location from Add / Edit Hive).
 	location?: string;
+	place?: string | null;
+	// NEW — the hive's pin. Used to look up the place name when `place`
+	// is empty or is only coordinates.
+	placeLat?: number | null;
+	placeLng?: number | null;
 	lastCheck?: string;
 	status: "healthy" | "weak" | "needs attention" | "diseased";
 	yieldThisMonth?: string;
@@ -62,6 +76,27 @@ function formatQueenAge(days?: number | null): string | null {
 	if (months) parts.push(`${months} mo`);
 	return parts.join(" ");
 }
+
+// NEW — the hive's location as a place name ("Moonwalk, Parañaque"),
+// never raw coordinates: a missing / coordinates-only location is looked
+// up from the pin.
+const HivePlace = ({
+	place,
+	lat,
+	lng,
+}: {
+	place?: string | null;
+	lat?: number | null;
+	lng?: number | null;
+}) => {
+	const text = (place ?? "").trim();
+	const needsLookup = !text || !!parseCoords(text);
+	const looked = usePlaceName(
+		needsLookup ? lat : null,
+		needsLookup ? lng : null,
+	);
+	return <>{needsLookup ? looked || "—" : text}</>;
+};
 
 function getHiveIconKey(status: HiveProps["status"]) {
 	return status.replace(" ", "_") as keyof typeof HiveIcon;
@@ -109,6 +144,9 @@ export const HiveDetailsContainer = ({
 	replacement,
 	hive,
 	location,
+	place,
+	placeLat,
+	placeLng,
 	lastCheck,
 	status,
 	yieldThisMonth,
@@ -210,7 +248,11 @@ export const HiveDetailsContainer = ({
 						<span className="text-[#817b70] text-sm">
 							Location:{" "}
 							<span className="Poppins-SemiBold">
-								Sto. Cristo, Quezon City
+								<HivePlace
+									place={place}
+									lat={placeLat}
+									lng={placeLng}
+								/>
 							</span>
 						</span>
 
@@ -300,6 +342,9 @@ export const HiveDetailsContainer = ({
 export const HiveTabs = ({
 	hive,
 	location,
+	place,
+	placeLat,
+	placeLng,
 	lastCheck,
 	status,
 	yieldThisMonth,
@@ -360,7 +405,11 @@ export const HiveTabs = ({
 					<span className="text-[#817b70] text-xs">
 						Location:{" "}
 						<span className="Poppins-SemiBold">
-							Sto. Cristo, Quezon City
+							<HivePlace
+								place={place}
+								lat={placeLat}
+								lng={placeLng}
+							/>
 						</span>
 					</span>
 

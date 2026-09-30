@@ -2,7 +2,7 @@
 #
 #   GET  /api/push/public-key    -> {"public_key": "...", "enabled": true}
 #   POST /api/push/subscribe     {"subscription": {endpoint, keys: {p256dh, auth}}}
-#   POST /api/push/unsubscribe   {"endpoint": "..."}
+#   POST /api/push/unsubscribe   {"endpoint": "..."}   (no login needed — NEW)
 #   POST /api/push/test          -> sends "notifications are on" to my devices
 
 from flask import Blueprint, request, g
@@ -42,8 +42,10 @@ def subscribe():
     return success("Notifications turned on for this device.")
 
 
+# NEW — no login needed: it's called on LOGOUT, after the login token is
+# already gone. Only removes the device whose (secret, unguessable) push
+# endpoint is sent, so it can't be used to switch off anyone else.
 @push_bp.route("/unsubscribe", methods=["POST"])
-@token_required
 def unsubscribe():
     payload = request.get_json(silent=True) or {}
     PushService.unsubscribe(payload.get("endpoint") or "")

@@ -39,6 +39,33 @@ DOCUMENT_TYPES = [
 ]
 assert all(len(t) <= 60 for t in DOCUMENT_TYPES), "Document type label too long"
 
+# NEW — "Other": the beekeeper can also type a document that isn't in the
+# list above (e.g. "LGU Certification"). Saved as typed, same column.
+DOCUMENT_TYPE_MIN_LEN = 3
+DOCUMENT_TYPE_MAX_LEN = 60
+
+
+def _clean_document_type(value) -> str:
+    """A listed type (any upper/lower case -> standard spelling), or a
+    typed "Other" document name. Raises ValueError if it's not usable."""
+    text = " ".join(str(value or "").split())
+    if not text:
+        raise ValueError("Please choose or type the type of document.")
+    listed = next((t for t in DOCUMENT_TYPES if t.lower() == text.lower()), None)
+    if listed:
+        return listed
+    if text.lower() == "other":
+        raise ValueError("Please type the name of your document.")
+    if len(text) < DOCUMENT_TYPE_MIN_LEN:
+        raise ValueError(
+            f"Document name must be at least {DOCUMENT_TYPE_MIN_LEN} characters."
+        )
+    if len(text) > DOCUMENT_TYPE_MAX_LEN:
+        raise ValueError(
+            f"Document name must be {DOCUMENT_TYPE_MAX_LEN} characters or fewer."
+        )
+    return text
+
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "pdf"}
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
 REJECTION_REASON_MAX_LEN = 255
@@ -127,8 +154,8 @@ class VerificationService:
         if row.get("verification_status") == "Verified":
             raise ValueError("Your account is already verified.")
 
-        if document_type not in DOCUMENT_TYPES:
-            raise ValueError("Please choose a valid document type.")
+        # From the list, or typed under "Other".
+        document_type = _clean_document_type(document_type)
 
         filename = file_storage.filename or ""
         ext = _ext(filename)

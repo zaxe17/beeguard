@@ -14,6 +14,11 @@ signals that stay exactly as before:
   R1 — Queen age: regardless of health_status, once the queen has
        been installed for >= Config.QUEEN_MAX_AGE_DAYS, automatic
        Replace.
+       NEW — the hive's health is ALSO set to "Needs Attention" then,
+       even if it was Healthy (2+ year old queen = the hive needs
+       attention). A Weak / Diseased hive keeps its worse status. After
+       "Replace Queen" (confirm_replacement) the new queen is young, so
+       the hive goes back to Healthy.
   R_DECLINING_AFTER_WARN — a hive already flagged "Needs Attention"
        whose latest harvest is LOWER than the one before it: automatic
        Replace (confirmed: this still applies even though the
@@ -48,6 +53,9 @@ R_DECLINING_AFTER_WARN = "DECLINING_AFTER_ATTENTION"
 R_HEALTH_DISEASED      = "HEALTH_STATUS_DISEASED"
 R_HEALTH_FLAGGED       = "HEALTH_STATUS_FLAGGED"
 R_NORMAL               = "NORMAL"
+
+# Health given to a Healthy hive whose queen is past the age limit.
+QUEEN_TOO_OLD_HEALTH = "Needs Attention"
 
 
 def _queen_age_days(hive: dict, today: dt.date | None = None) -> int | None:
@@ -91,7 +99,13 @@ class QueenService:
 
         level, code, reason = "Normal", R_NORMAL, "Hive is performing within expected parameters."
 
-        if queen_age is not None and queen_age >= Config.QUEEN_MAX_AGE_DAYS:
+        queen_too_old = (
+            queen_age is not None and queen_age >= Config.QUEEN_MAX_AGE_DAYS
+        )
+        # Healthy hive + too-old queen -> Needs Attention (saved below).
+        bump_health = queen_too_old and current_health == "Healthy"
+
+        if queen_too_old:
             level = "Replace"
             code  = R_QUEEN_TOO_OLD
             reason = (
@@ -131,6 +145,7 @@ class QueenService:
             "yield_current_kg":   current_kg,
             "yield_pct":          pct,
             "queen_age_days":     queen_age,
+            "health_status":      QUEEN_TOO_OLD_HEALTH if bump_health else current_health,
         }
 
         if not persist:
@@ -144,6 +159,13 @@ class QueenService:
             # directly by YieldService.add_harvest (via harvest_health)
             # or HiveService.record_physical_inspection. This step only
             # manages the recommendation row.
+            # EXCEPTION (NEW): a too-old queen turns a Healthy hive into
+            # "Needs Attention" — see R1 in the module docstring.
+            if bump_health:
+                HiveModel.update_health_status(
+                    hive_id, beekeeper_id, QUEEN_TOO_OLD_HEALTH, conn=conn
+                )
+
             latest_open = QueenRecommendationModel.latest_open_for_hive(hive_id, conn=conn)
             same = (
                 latest_open

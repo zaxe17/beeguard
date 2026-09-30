@@ -53,6 +53,39 @@ def _nonempty(v, max_len=None):
     return True
 
 
+LOCATION_MAX = 100
+
+
+def _clean_location(payload: dict, errors: dict, cleaned: dict) -> None:
+    """
+    NEW — hive location (all optional):
+      location   text shown on the cards, max 100 characters
+      latitude / longitude   the map pin — both or neither
+    Blank / null clears it. Only the keys that were sent are touched.
+    """
+    if "location" in payload:
+        loc = " ".join((payload.get("location") or "").split())
+        if len(loc) > LOCATION_MAX:
+            errors["location"] = f"Location is too long (max {LOCATION_MAX} characters)."
+        else:
+            cleaned["location"] = loc or None
+
+    if "latitude" in payload or "longitude" in payload:
+        lat_raw, lng_raw = payload.get("latitude"), payload.get("longitude")
+        if lat_raw in (None, "") and lng_raw in (None, ""):
+            cleaned["latitude"] = None
+            cleaned["longitude"] = None
+            return
+        try:
+            lat, lng = float(lat_raw), float(lng_raw)
+            if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+                raise ValueError()
+            cleaned["latitude"] = round(lat, 7)
+            cleaned["longitude"] = round(lng, 7)
+        except (TypeError, ValueError):
+            errors["latitude"] = "Pin the hive on the map (valid latitude and longitude)."
+
+
 def validate_create_hive(payload: dict) -> tuple[dict, dict]:
     errors: dict[str, str] = {}
     cleaned: dict = {}
@@ -139,6 +172,102 @@ def validate_create_hive(payload: dict) -> tuple[dict, dict]:
                 cleaned["historical_yield_year"] = hyy
             except (TypeError, ValueError):
                 errors["historical_yield_year"] = f"historical_yield_year must be between 1970 and {ph_today().year}."
+
+    # NEW — location + map pin
+    _clean_location(payload, errors, cleaned)
+
+    return cleaned, errors
+
+
+def _as_date(v):
+    if isinstance(v, dt.datetime):
+        return v.date()
+    return v
+
+
+def validate_update_hive(payload: dict, current: dict) -> tuple[dict, dict]:
+    """
+    NEW — Edit Hive (PATCH /api/hives/<id>). Every field is optional;
+    only what's sent is changed. `current` is the hive as saved now, used
+    to check the dates against each other.
+      hive_name, bee_species, date_established, queen_installed_date,
+      hive_state, location, latitude, longitude
+    (health_status isn't edited here — it comes from Monitor Hive Health,
+    Add Yield and the queen-age rule.)
+    """
+    errors: dict[str, str] = {}
+    cleaned: dict = {}
+
+    if "hive_name" in payload:
+        hn = (payload.get("hive_name") or "").strip()
+        if not _nonempty(hn, 15):
+            errors["hive_name"] = "Hive name is required (max 15 characters)."
+        else:
+            cleaned["hive_name"] = hn
+
+    if "bee_species" in payload:
+        bs = " ".join((payload.get("bee_species") or "").split())
+        if not _nonempty(bs, 50):
+            errors["bee_species"] = "Bee species is required (max 50 characters)."
+        else:
+            match = next((sp for sp in HIVE_SPECIES if sp.lower() == bs.lower()), None)
+            cleaned["bee_species"] = match or bs
+
+    if "date_established" in payload:
+        de = _parse_date(payload.get("date_established"))
+        if de is None:
+            errors["date_established"] = "date_established must be an ISO date (YYYY-MM-DD)."
+        elif de > ph_today():
+            errors["date_established"] = "date_established cannot be in the future."
+        else:
+            cleaned["date_established"] = de
+
+    if "queen_installed_date" in payload:
+        raw = payload.get("queen_installed_date")
+        if raw in (None, ""):
+            # Blank -> same as the hive's date established.
+            cleaned["queen_installed_date"] = None
+        else:
+            qid = _parse_date(raw)
+            if qid is None:
+                errors["queen_installed_date"] = "queen_installed_date must be YYYY-MM-DD."
+            elif qid > ph_today():
+                errors["queen_installed_date"] = "queen_installed_date cannot be in the future."
+            else:
+                cleaned["queen_installed_date"] = qid
+
+    if "hive_state" in payload:
+        st = payload.get("hive_state")
+        if st not in VALID_STATE:
+            errors["hive_state"] = f"hive_state must be one of {sorted(VALID_STATE)}."
+        else:
+            cleaned["hive_state"] = st
+
+    # NEW — location + map pin
+    _clean_location(payload, errors, cleaned)
+
+    # Blank queen date -> date established (the new one if it changed).
+    new_de = cleaned.get("date_established") or _as_date(current.get("date_established"))
+    if "queen_installed_date" in cleaned and cleaned["queen_installed_date"] is None:
+        cleaned["queen_installed_date"] = new_de
+
+    # The queen can't be installed before the hive existed.
+    new_q = (
+        cleaned.get("queen_installed_date")
+        if "queen_installed_date" in cleaned
+        else _as_date(current.get("queen_installed_date"))
+    )
+    if (
+        "queen_installed_date" not in errors
+        and "date_established" not in errors
+        and new_de and new_q and new_q < new_de
+    ):
+        errors["queen_installed_date"] = (
+            "Queen cannot be installed before the hive was established."
+        )
+
+    if not cleaned and not errors:
+        errors["_"] = "Nothing to update."
 
     return cleaned, errors
 

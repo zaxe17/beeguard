@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/Container";
 import {
 	HiveDetailsContainer,
 	HiveTabs,
+	hiveStatusColor,
 	mapHealthStatusToUi,
 } from "@/components/HiveContainer";
 import { SearchBar } from "@/components/ui/Input";
@@ -61,11 +62,13 @@ const Map = dynamic(() => import("@/components/ui/google-maps/Map"), {
 	),
 });
 
-const farmMarkers = [
-	{ id: "farm-1", lat: 14.6507, lng: 120.9672, label: "Caloocan Bee Farm" },
-	{ id: "farm-2", lat: 14.5995, lng: 120.9842, label: "Manila Apiary" },
-	{ id: "farm-3", lat: 14.676, lng: 121.0437, label: "QC Honey Farm" },
-];
+// NEW — a hive's map pin (from Add / Edit Hive). Hives without a pin
+// yet are just not drawn.
+const hasPin = (h: Hive) =>
+	h.latitude != null &&
+	h.longitude != null &&
+	!Number.isNaN(Number(h.latitude)) &&
+	!Number.isNaN(Number(h.longitude));
 
 const HivesInner = () => {
 	const { openModal } = useModal<ModalType, HivePayload>();
@@ -167,11 +170,23 @@ const HivesInner = () => {
 		}
 	};
 
-	const [selectedFarmParam, setSelectedFarmParam] = useState<string | null>(
-		null,
-	);
+	// HIVE MAP (NEW) — the real hives (was sample farms). Follows the
+	// search, each pin has the color of the hive's health tag (Healthy
+	// green, Weak yellow, Needs Attention orange, Diseased red), the
+	// selected hive's pin is bigger, and tapping a pin opens that hive
+	// like tapping its card.
+	const hiveMarkers = filteredHives.filter(hasPin).map((h) => ({
+		id: h.hive_id,
+		lat: Number(h.latitude),
+		lng: Number(h.longitude),
+		label: h.hive_name,
+		color: hiveStatusColor(h.health_status),
+	}));
 
-	const openFarmParam = (id: string) => setSelectedFarmParam(id);
+	const handleMarkerClick = (id: string) => {
+		const hive = hives.find((h) => h.hive_id === id);
+		if (hive) handleSelectHive(hive);
+	};
 
 	return (
 		<div className="w-full h-full flex items-start relative">
@@ -215,9 +230,9 @@ const HivesInner = () => {
 				{/* HIVE MAPS */}
 				<div className="relative flex-1 min-h-40 min-w-0 overflow-hidden isolate rounded-xl mx-1.5">
 					<Map
-						markers={farmMarkers}
-						selectedMarkerId={selectedFarmParam}
-						onMarkerClick={(id) => openFarmParam(id)}
+						markers={hiveMarkers}
+						selectedMarkerId={selectedId}
+						onMarkerClick={handleMarkerClick}
 					/>
 				</div>
 
@@ -246,6 +261,9 @@ const HivesInner = () => {
 								hiveId={h.hive_id}
 								hive={h.hive_name}
 								location={h.bee_species}
+								place={h.location}
+								placeLat={h.latitude}
+								placeLng={h.longitude}
 								lastCheck={h.date_established}
 								status={mapHealthStatusToUi(h.health_status)}
 								yieldThisMonth={formatKg(
@@ -276,6 +294,9 @@ const HivesInner = () => {
 							hiveId={selectedHive.hive_id}
 							hive={selectedHive.hive_name}
 							location={selectedHive.bee_species}
+							place={selectedHive.location}
+							placeLat={selectedHive.latitude}
+							placeLng={selectedHive.longitude}
 							lastCheck={selectedHive.date_established}
 							hiveState={selectedHive.hive_state}
 							status={mapHealthStatusToUi(
@@ -337,6 +358,9 @@ const HivesInner = () => {
 									hiveId={selectedHive.hive_id}
 									hive={selectedHive.hive_name}
 									location={selectedHive.bee_species}
+									place={selectedHive.location}
+									placeLat={selectedHive.latitude}
+									placeLng={selectedHive.longitude}
 									lastCheck={selectedHive.date_established}
 									hiveState={selectedHive.hive_state}
 									status={mapHealthStatusToUi(

@@ -6,6 +6,7 @@ from middleware.auth_middleware import token_required, role_required
 from validators.pesticide_validator import validate_create_alert
 from services.pesticide_service import PesticideService
 from models.alert import AlertModel
+from config.database import Database
 from utils.responses import success, error
 
 
@@ -16,6 +17,24 @@ def _field_errors_to_list(fe: dict) -> list[str]:
     return [f"{k}: {v}" if k != "_" else v for k, v in fe.items()]
 
 
+# NEW — only VERIFIED beekeepers can report pesticide alerts (admins can
+# always). Checked on the server too, not just by hiding the form.
+UNVERIFIED_ALERT_MESSAGE = (
+    "Verify your account first to add pesticide alerts. "
+    "Go to Profile > Verify Your Account."
+)
+
+
+def _beekeeper_is_verified(beekeeper_id: str) -> bool:
+    row = Database.execute(
+        "SELECT verification_status FROM beekeepers "
+        "WHERE beekeeperID = %s AND deleted_at IS NULL LIMIT 1",
+        (beekeeper_id,),
+        fetchone=True,
+    )
+    return bool(row) and row.get("verification_status") == "Verified"
+
+
 # ── CREATE ALERT (admin OR beekeeper) ─────────
 #    Admin alerts go out right away. A beekeeper's alert is saved as
 #    Pending and only goes out once an admin approves it.
@@ -23,6 +42,9 @@ def _field_errors_to_list(fe: dict) -> list[str]:
 @token_required
 @role_required("admin", "beekeeper")
 def create_alert():
+    if g.role == "beekeeper" and not _beekeeper_is_verified(g.user_id):
+        return error(UNVERIFIED_ALERT_MESSAGE, status=403)
+
     payload = request.get_json(silent=True) or {}
     cleaned, field_errors = validate_create_alert(payload)
     if field_errors:

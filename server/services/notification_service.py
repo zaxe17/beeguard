@@ -18,8 +18,34 @@ Report-related notifications are sent with notify_many(), AFTER the
 main action has committed, on their own connection. A notification
 failing to save must never undo the citizen's report or response.
 """
+import datetime as dt
+
 from config.database import Database
 from models.notification import NotificationModel
+
+# FIX — notification times were 8 hours off in the app.
+# The DB connection runs in Philippine time (config/database.py sets
+# time_zone '+08:00'), so created_at comes back as PH time WITHOUT a
+# timezone. Flask then sent it as "... GMT", the browser added 8 hours,
+# and a brand-new notification looked 8 hours in the FUTURE -> it said
+# "just now" for 8 hours, and older ones showed 8 hours too little.
+# Now the time is sent with its real offset, e.g. 2026-09-30T14:13:05+08:00.
+PH_TZ = dt.timezone(dt.timedelta(hours=8))
+
+
+def _with_ph_offset(value):
+    if isinstance(value, dt.datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=PH_TZ)
+        return value.isoformat()
+    return value
+
+
+def _serialize_times(rows: list[dict]) -> list[dict]:
+    for r in rows:
+        if "created_at" in r:
+            r["created_at"] = _with_ph_offset(r["created_at"])
+    return rows
 
 # notifications.notification_type values (VARCHAR(20)) — the frontend's
 # components/popup/Notification.tsx picks the icon and click target
@@ -247,7 +273,9 @@ class NotificationService:
     # ── Read-side (any role — routes/notification.py) ──
     @staticmethod
     def list_for_user(role: str, user_id: str, unread_only: bool = False, limit: int = 50):
-        return NotificationModel.list_for(role, user_id, unread_only=unread_only, limit=limit)
+        return _serialize_times(
+            NotificationModel.list_for(role, user_id, unread_only=unread_only, limit=limit)
+        )
 
     @staticmethod
     def unread_count_for_user(role: str, user_id: str) -> int:
@@ -264,8 +292,10 @@ class NotificationService:
     # ── Read-side (beekeeper only — kept for existing callers) ──
     @staticmethod
     def list_for_beekeeper(beekeeper_id: str, unread_only: bool = False, limit: int = 50):
-        return NotificationModel.list_for_beekeeper(
-            beekeeper_id, unread_only=unread_only, limit=limit
+        return _serialize_times(
+            NotificationModel.list_for_beekeeper(
+                beekeeper_id, unread_only=unread_only, limit=limit
+            )
         )
 
     @staticmethod

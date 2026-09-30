@@ -14,6 +14,7 @@ import { authService, AuthUser, Role } from "@/services/auth";
 import { currentUserKey, tokenStore } from "@/services/api";
 import { responseCache } from "@/lib/offlineDb";
 import { AUTH_REFRESH_EVENT } from "@/services/verification";
+import { stopPushOnLogout } from "@/services/push";
 
 // While a beekeeper is waiting on verification, re-check their account
 // this often so the Report tab unlocks as soon as an admin approves —
@@ -45,10 +46,14 @@ const isLoginRejected = (message?: string) =>
 // offline viewing, so the next person using it can't see it. Changes
 // still waiting to sync are KEPT and sent the next time this same user
 // signs in.
+// NEW — also stops push notifications on this device, so a logged-out
+// phone / computer gets no more pop-ups or sounds. (Runs in the
+// background; the login token is cleared right away.)
 const signOut = () => {
 	const key = currentUserKey();
 	if (key !== "anon") responseCache.clearUser(key);
 	authService.logout();
+	stopPushOnLogout();
 };
 
 // ROUTE GUARD — which role may open which part of the app. Typing

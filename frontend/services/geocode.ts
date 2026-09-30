@@ -45,6 +45,11 @@ const throttled = <T>(fn: () => Promise<T>): Promise<T> => {
 
 // "Parañaque District 2", "District IV" — a city DISTRICT, never the barangay.
 const DISTRICT_RE = /\bdistrict\b/i;
+// NEW — subdivisions ("Airport Village", "Merville Subdivision") that
+// OpenStreetMap sometimes tags as village / suburb / hamlet. Same list as
+// the backend's utils/place_name.py. "quarter" is always a barangay.
+export const SUBDIVISION_RE =
+	/\b(village|subdivision|subd|homes|heights|phase|compound|residences?|estates?|townhomes|condominium|condo)\b/i;
 
 // "Barangay, City" for the place SEARCH (report step 2). In Nominatim's
 // Philippine data the BARANGAY is "quarter" (cities) or "village"
@@ -53,7 +58,10 @@ const DISTRICT_RE = /\bdistrict\b/i;
 const shortLabel = (r: NominatimResult): string => {
 	const a = r.address ?? {};
 	const barangay = [a.quarter, a.village, a.suburb, a.hamlet].find(
-		(c) => !!c && !DISTRICT_RE.test(c),
+		(c, i) =>
+			!!c &&
+			!DISTRICT_RE.test(c) &&
+			(i === 0 || !SUBDIVISION_RE.test(c)),
 	);
 	const city = a.city || a.town || a.municipality || a.county || a.state;
 	const parts = [barangay, city].filter(Boolean) as string[];
@@ -98,8 +106,8 @@ export const searchPlace = (query: string): Promise<Place | null> =>
 // ── Coordinates -> "Barangay, City" (from our backend) ──
 // Names are also remembered in the browser so they show instantly on
 // the next visit. Not-found ones aren't remembered (tried again later).
-// v4: drops names saved by older versions ("… District 2", "Airport Village").
-const STORAGE_KEY = "beeguard:place-names:v4";
+// v5: drops names saved by older versions ("… District 2", "… Village").
+const STORAGE_KEY = "beeguard:place-names:v5";
 const RETRY_DELAY_MS = 3000;
 
 const reverseCache = new Map<string, string>();

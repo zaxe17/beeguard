@@ -606,9 +606,14 @@ export const BeeIdentify = ({
 }: BeeIdentifyProps) => {
 	const { payload } = useModal<BeeIdentifyModalType, BeeIdentifyPayload>();
 	const species = payload?.species ?? null;
-	const confidencePercent = payload?.confidencePercent ?? null;
+	// Unidentified = may bee pero hindi cerana / mellifera / biroi -> retake din.
+	const isUnidentified = species === "Unidentified";
+	const confidencePercent = isUnidentified
+		? null
+		: (payload?.confidencePercent ?? null);
 
-	const hasMatch = species !== null && confidencePercent !== null;
+	const hasMatch =
+		species !== null && !isUnidentified && confidencePercent !== null;
 	const displaySpecies = species ? speciesLabel(species) : "No bee detected";
 	const pctLabel =
 		confidencePercent !== null ? `${Math.round(confidencePercent)}%` : "—";
@@ -650,11 +655,12 @@ export const BeeIdentify = ({
 					</div>
 				</div>
 
-				{/* No bee detected -> nothing to submit: offer a retake. */}
+				{/* No bee / unidentified bee -> nothing to submit: offer a retake. */}
 				{!hasMatch && (
 					<p className="text-xs text-[#817b70] text-center mt-3">
-						We couldn&apos;t find a bee in this photo. Try again
-						with the bees clearly in view.
+						{isUnidentified
+							? "We couldn't identify this bee species. Try again with the bees clearly in view."
+							: "We couldn't find a bee in this photo. Try again with the bees clearly in view."}
 					</p>
 				)}
 

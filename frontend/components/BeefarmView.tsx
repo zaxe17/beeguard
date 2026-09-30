@@ -130,7 +130,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 	};
 
 	return (
-		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none">
+		<div className="w-full flex-1 overflow-scroll scrollbar-none lg:pb-10 pb-0">
 			<div className="relative w-full lg:h-60 h-50">
 				{/* COVER PHOTO — the beekeeper's farm photo, or the default */}
 				{mediaSrc(farm.image) ? (
@@ -162,7 +162,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 					{/* NAME, VERIFY STATUS */}
 					<div className="flex justify-start items-center gap-3 w-full lg:pl-33 pl-0">
 						{/* PROFILE PICTURE */}
-						<div className="block lg:hidden lg:w-30 w-20 lg:h-30 h-20 rounded-full overflow-hidden border-4 border-white shadow-md">
+						<div className="block lg:hidden w-20 h-20 shrink-0 aspect-square rounded-full overflow-hidden border-4 border-white shadow-md">
 							<ProfilePhoto src={farm.profile_photo} />
 						</div>
 						{/* DISPLAY NAME AND VERIFY STATUS */}
@@ -171,9 +171,15 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 								{farm.name}
 							</span>
 
-							{farm.verification_status === "Verified" && (
+							{/* VERIFY STATUS TO ONLY VISIBLE IF NOT VERIFY TO FIX THE BLOCK */}
+							<div
+								className={
+									farm.verification_status === "Verified"
+										? ""
+										: "invisible"
+								}>
 								<VerifyStatus />
-							)}
+							</div>
 						</div>
 					</div>
 
@@ -209,11 +215,20 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 							total={farm.rating_avg.toFixed(1)}
 							title="Ratings"
 						/>
+						<RateCard
+							total={String(farm.follower_count)}
+							title={
+								farm.follower_count === 0 ||
+								farm.follower_count === 1
+									? "Follower"
+									: "Followers"
+							}
+						/>
 					</div>
 				</div>
 
 				{/* RIGHT SIDE */}
-				<div className="lg:w-1/3 w-full">
+				<div className="lg:w-2/3 w-full">
 					{/* BUTTONS — citizens only (hidden on the beekeeper's own profile) */}
 					{showActions && (
 						<div className="flex gap-2 mt-3">
@@ -247,11 +262,6 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 							{actionError}
 						</p>
 					)}
-
-					<p className="text-xs text-[#a6a3a3] mt-2">
-						{farm.follower_count} follower
-						{farm.follower_count === 1 ? "" : "s"}
-					</p>
 
 					{/* ABOUT */}
 					<div className="flex flex-col mt-3 pl-2">

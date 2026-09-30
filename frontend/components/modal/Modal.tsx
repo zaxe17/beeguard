@@ -52,7 +52,7 @@ export const Modal = ({
 
 	return (
 		<div
-			className="fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center backdrop-blur-sm"
+			className="fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center backdrop-blur-xs"
 			onClick={handleBackdrop}>
 			<div
 				className="w-1/3 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5"
@@ -109,7 +109,7 @@ export const ModalContainer = ({
 
 	return createPortal(
 		<div
-			className="fixed w-full h-full bg-black/50 z-10000 flex justify-center items-center capitalize p-5 backdrop-blur-sm"
+			className="fixed w-full h-full bg-black/50 z-10000 flex justify-center items-center capitalize p-5 backdrop-blur-xs"
 			onClick={onClose}>
 			{/* CONTAINER */}
 			<div

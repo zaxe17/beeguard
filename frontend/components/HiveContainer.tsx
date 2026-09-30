@@ -206,6 +206,15 @@ export const HiveDetailsContainer = ({
 
 					{/* LOCATION AND DATE CHECK */}
 					<div className="flex flex-col mb-8 lg:mb-15">
+						{/* LOCATION */}
+						<span className="text-[#817b70] text-sm">
+							Location:{" "}
+							<span className="Poppins-SemiBold">
+								Sto. Cristo, Quezon City
+							</span>
+						</span>
+
+						{/* BEE SPECIES NAME */}
 						{location && (
 							<span className="text-[#817b70] text-sm">
 								Species:{" "}
@@ -214,12 +223,16 @@ export const HiveDetailsContainer = ({
 								</span>
 							</span>
 						)}
+
+						{/* ESTABLISHED DATE */}
 						<span className="text-[#817b70] text-sm">
 							Established:{" "}
 							<span className="Poppins-SemiBold">
 								{formatDateOnly(lastCheck)}
 							</span>
 						</span>
+
+						{/* QUEEN BEE AGE */}
 						{queenAge && (
 							<span className="text-[#817b70] text-sm normal-case">
 								Queen age:{" "}
@@ -343,12 +356,23 @@ export const HiveTabs = ({
 
 				{/* LOCATION AND DATE CHECK */}
 				<div className="flex flex-col">
+					{/* LOCATION */}
+					<span className="text-[#817b70] text-xs">
+						Location:{" "}
+						<span className="Poppins-SemiBold">
+							Sto. Cristo, Quezon City
+						</span>
+					</span>
+
+					{/* BEE SPECIES NAME */}
 					{location && (
 						<span className="text-[#817b70] text-xs">
 							Species:{" "}
 							<span className="Poppins-SemiBold">{location}</span>
 						</span>
 					)}
+
+					{/* ESTABLISH DATE */}
 					<span className="text-[#817b70] text-xs">
 						Established:{" "}
 						<span className="Poppins-SemiBold">

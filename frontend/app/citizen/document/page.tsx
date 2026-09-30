@@ -17,12 +17,33 @@ import {
 	toUiStatus,
 } from "@/services/citizenReport";
 import { speciesLabel } from "@/data/species";
-import { OfferSkeleton, ReportDetailsSkeleton } from "@/components/loading/SkeletonLoading";
+import {
+	OfferSkeleton,
+	ReportDetailsSkeleton,
+} from "@/components/loading/SkeletonLoading";
 
 // New offers from beekeepers show up without a page refresh.
 const OFFER_POLL_MS = 10000;
 // Two-tap confirm window for Cancel Report.
 const CONFIRM_MS = 4000;
+
+// Page title — rendered while loading AND after, so nothing jumps.
+const PageTitle = () => (
+	<h1 className="Poppins-SemiBold text-xl pb-5 lg:block hidden">
+		Report Details
+	</h1>
+);
+
+// Loading state — used by both the Suspense fallback and DocumentContent.
+const DocumentSkeleton = () => (
+	<>
+		<PageTitle />
+		<div className="w-full flex flex-col gap-4">
+			<ReportDetailsSkeleton />
+			<OfferSkeleton />
+		</div>
+	</>
+);
 
 // Cancel button shown while the report is still waiting for offers.
 // (Once a beekeeper is assigned, Cancel Report lives on their card.)
@@ -231,12 +252,7 @@ const DocumentContent = () => {
 	};
 
 	if (loading) {
-		return (
-			<div className="w-full flex flex-col gap-4">
-				<ReportDetailsSkeleton />
-				<OfferSkeleton />
-			</div>
-		);
+		return <DocumentSkeleton />;
 	}
 
 	if (!report) {
@@ -262,9 +278,7 @@ const DocumentContent = () => {
 
 	return (
 		<>
-			<h1 className="Poppins-SemiBold text-xl pb-5 lg:block hidden">
-				Report Details
-			</h1>
+			<PageTitle />
 
 			<ReportDetails
 				status={toUiStatus(report.status)}
@@ -305,7 +319,7 @@ const DocumentContent = () => {
 
 const Document = () => {
 	return (
-		<Suspense fallback={<div>Loading...</div>}>
+		<Suspense fallback={<DocumentSkeleton />}>
 			<DocumentContent />
 		</Suspense>
 	);

@@ -11,6 +11,7 @@ import { pesticideService, PesticideType } from "@/services/pesticide";
 import { authService } from "@/services/auth";
 import { useAuth } from "@/context/AuthContext";
 import { Icon } from "@iconify/react";
+import { useRouter } from "next/navigation";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — load it client-side only. AddAlert stays mounted
@@ -80,7 +81,12 @@ const geoErrorMessage = (err: unknown) => {
 export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 	// Beekeepers' alerts wait for admin approval; admins' go out right away.
 	const { user } = useAuth();
+	const router = useRouter();
 	const needsApproval = user?.role === "beekeeper";
+	// NEW — only VERIFIED beekeepers can add alerts (the server refuses
+	// them too). Admins always can.
+	const blockedUnverified =
+		user?.role === "beekeeper" && user.verification_status !== "Verified";
 	// Shows the "sent for approval" message after a beekeeper submits.
 	const [submittedForReview, setSubmittedForReview] = useState(false);
 
@@ -275,6 +281,42 @@ export const AddAlert = ({ open, onClose, onConfirm }: AddAlertProps) => {
 		setSubmittedForReview(false);
 		onClose();
 	};
+
+	// Unverified beekeeper -> explain instead of showing the form.
+	if (blockedUnverified) {
+		return (
+			<ModalContainer
+				open={open}
+				width="lg:w-1/3 w-full"
+				header="Verify Your Account"
+				onClose={handleClose}>
+				<div className="flex flex-col items-center text-center gap-3 py-4">
+					<div className="w-16 h-16 rounded-full bg-[#ffdb4f]/40 flex items-center justify-center">
+						<Icon icon="mdi:shield-lock" className="w-9 h-9 text-[#854F0B]" />
+					</div>
+					<h2 className="Poppins-SemiBold text-[#4a2f00]">
+						Only verified beekeepers can add alerts
+					</h2>
+					<p className="text-sm text-[#817b70]">
+						{user?.verification_status === "Pending"
+							? "Your document is still being reviewed. You can add pesticide alerts once an admin verifies your account."
+							: "Verify your account first to report pesticide spraying to other beekeepers."}
+					</p>
+					<div className="flex items-center gap-3 w-full">
+						<CancelButton onClick={handleClose} />
+						<Button
+							buttonType="button"
+							label="Verify Now"
+							onClick={() => {
+								handleClose();
+								router.push("/beekeeper/profile?view=main&detail=verify");
+							}}
+						/>
+					</div>
+				</div>
+			</ModalContainer>
+		);
+	}
 
 	if (submittedForReview) {
 		return (

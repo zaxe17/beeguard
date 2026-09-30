@@ -55,6 +55,15 @@ export interface CreateHivePayload {
 	historical_yield_year?: number | null;
 }
 
+// NEW — Edit Hive (PATCH /api/hives/<id>). Health isn't edited here.
+export interface UpdateHivePayload {
+	hive_name?: string;
+	bee_species?: string;
+	date_established?: string; // YYYY-MM-DD
+	queen_installed_date?: string | null; // blank -> same as date_established
+	hive_state?: HiveState;
+}
+
 export type InspectionObservation =
 	| "Normal / Healthy"
 	| "Presence of Queen Cells"
@@ -104,6 +113,12 @@ export const hiveService = {
 
 	getOne: (hiveId: string) => api.get<Hive>(`/hives/${hiveId}`),
 
+	// NEW — Edit Hive. Works offline too (sent when back online).
+	update: (hiveId: string, payload: UpdateHivePayload) =>
+		api.patchOrQueue<Hive>(`/hives/${hiveId}`, payload, {
+			label: `Edit hive "${payload.hive_name ?? hiveId}"`,
+		}) as Promise<ApiEnvelopeWithFields<Hive>>,
+
 	updateState: (hiveId: string, hiveState: HiveState) =>
 		api.patchOrQueue<Hive>(
 			`/hives/${hiveId}/state`,
@@ -117,6 +132,13 @@ export const hiveService = {
 			// dated the day it was done, not the day it syncs
 			stampDateField: "activity_date",
 		}) as Promise<ApiEnvelopeWithFields<InspectionResult>>,
+
+	// NEW — Transaction History -> Monitoring -> delete. The hive's health
+	// is worked out again without it. Online only.
+	deleteMaintenance: (hiveId: string, maintenanceId: string) =>
+		api.delete<{ maintenance_id: string; health_status: HealthStatus }>(
+			`/hives/${hiveId}/maintenance/${maintenanceId}`,
+		),
 
 	listMaintenance: (hiveId: string, limit?: number) =>
 		api.get<MaintenanceRecord[]>(

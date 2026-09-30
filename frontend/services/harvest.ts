@@ -68,6 +68,13 @@ export const yieldService = {
 	listHistory: (hiveId: string) =>
 		api.get<YieldRecord[]>(`/hives/${hiveId}/yields`),
 
+	// NEW — Transaction History -> Harvest -> delete. The kg is taken off
+	// every total, and the hive's health is worked out again. Online only.
+	deleteHarvest: (hiveId: string, yieldId: string) =>
+		api.delete<{ yield_id: string; deleted_kg: number; health_status: HealthStatus }>(
+			`/hives/${hiveId}/yields/${yieldId}`,
+		),
+
 	setBaseline: (hiveId: string, payload: SetBaselinePayload) =>
 		api.postOrQueue<HarvestResult>(`/hives/${hiveId}/yields/baseline`, payload, {
 			label: `Set ${payload.yield_year} baseline ${payload.yield_kg} kg — hive ${hiveId}`,

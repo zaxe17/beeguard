@@ -4,7 +4,7 @@
 
 import { Icon } from "@iconify/react";
 import React, { useEffect, useState } from "react";
-import { Input } from "../ui/Input";
+import { Input, Select } from "../ui/Input";
 import { HIVE_SPECIES_OPTIONS } from "@/data/species";
 import { Button, CancelButton } from "../ui/Button";
 import { ModalContainer } from "./Modal";
@@ -12,6 +12,7 @@ import { HiveTrans } from "../HiveContainer";
 import {
 	hiveService,
 	HealthStatus,
+	Hive,
 	HiveState,
 	InspectionObservation,
 	MaintenanceRecord,
@@ -66,6 +67,19 @@ const localToday = () => {
 // "YYYY-MM-DD" strings compare correctly as plain text.
 const isFutureDate = (value: string) => !!value && value > localToday();
 
+// A saved date from the backend -> "YYYY-MM-DD" for <input type="date">.
+// The backend sends "2026-04-01", "2026-04-01T00:00:00" or
+// "Wed, 01 Apr 2026 00:00:00 GMT" (midnight UTC) depending on the route.
+const toInputDate = (value?: string | null): string => {
+	if (!value) return "";
+	if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return "";
+	const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+	const dd = String(d.getUTCDate()).padStart(2, "0");
+	return `${d.getUTCFullYear()}-${mm}-${dd}`;
+};
+
 // ── Shared "hives changed" signal ──────────────────────────
 // Dispatched after ANY successful create/update that affects hive
 // data, yields, or recommendations. Any screen (Hives list,
@@ -84,6 +98,8 @@ type HistoryEntry = {
 	date: string;
 	status?: string;
 	yield?: string;
+	// NEW — the record's id, for Delete.
+	id?: string;
 };
 
 const groupByMonth = (data: HistoryEntry[]): Record<string, HistoryEntry[]> => {
@@ -399,6 +415,174 @@ export const AddHiveModal = ({ isOpen, onClose, onConfirm }: ModalProps) => {
 					label={submitting ? "Adding..." : "Add"}
 					disabled={submitting}
 				/>
+			</form>
+		</ModalContainer>
+	);
+};
+
+// ─────────────────────────────────────────────
+// EDIT HIVE (NEW) — the pencil on the Hive Details card. Same fields and
+// look as Add New Hive, minus health status (that comes from Monitor Hive
+// Health / Add Yield) and historical yield.
+// ─────────────────────────────────────────────
+type EditHiveProps = ModalProps & {
+	hive?: Hive | null;
+};
+
+const HIVE_STATE_OPTIONS: { label: string; value: HiveState }[] = [
+	{ label: "Active", value: "Active" },
+	{ label: "Inactive", value: "Inactive" },
+];
+
+export const EditHiveModal = ({
+	isOpen,
+	onClose,
+	onConfirm,
+	hive,
+}: EditHiveProps) => {
+	const [hiveName, setHiveName] = useState("");
+	const [beeSpecies, setBeeSpecies] = useState("");
+	const [dateEstablished, setDateEstablished] = useState("");
+	const [queenDate, setQueenDate] = useState("");
+	const [hiveState, setHiveState] = useState<HiveState>("Active");
+	const [submitting, setSubmitting] = useState(false);
+	const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+	// Fill the form with the hive's current details each time it opens.
+	useEffect(() => {
+		if (!isOpen || !hive) return;
+		setHiveName(hive.hive_name ?? "");
+		setBeeSpecies(hive.bee_species ?? "");
+		setDateEstablished(toInputDate(hive.date_established));
+		setQueenDate(toInputDate(hive.queen_installed_date));
+		setHiveState(hive.hive_state ?? "Active");
+		setErrorMsg(null);
+	}, [isOpen, hive]);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setErrorMsg(null);
+
+		if (!hive) {
+			setErrorMsg("No hive selected.");
+			return;
+		}
+		if (!hiveName.trim() || !beeSpecies.trim() || !dateEstablished) {
+			setErrorMsg(
+				"Hive name, bee species, and date established are required.",
+			);
+			return;
+		}
+		if (isFutureDate(dateEstablished)) {
+			setErrorMsg("Date established can't be in the future.");
+			return;
+		}
+		if (queenDate) {
+			if (isFutureDate(queenDate)) {
+				setErrorMsg("Queen established date can't be in the future.");
+				return;
+			}
+			if (queenDate < dateEstablished) {
+				setErrorMsg(
+					"Queen established date can't be before the hive was established.",
+				);
+				return;
+			}
+		}
+
+		setSubmitting(true);
+		try {
+			const res = await hiveService.update(hive.hive_id, {
+				hive_name: hiveName.trim(),
+				bee_species: beeSpecies.trim(),
+				date_established: dateEstablished,
+				// blank -> server uses date_established
+				queen_installed_date: queenDate || null,
+				hive_state: hiveState,
+			});
+
+			// OFFLINE MODE — saved on the phone, sent later.
+			if (res.queued) {
+				setSubmitting(false);
+				onClose();
+				return;
+			}
+
+			if (!res.success) {
+				setErrorMsg(
+					res.errors && res.errors.length > 0
+						? res.errors.join(", ")
+						: res.message,
+				);
+				setSubmitting(false);
+				return;
+			}
+
+			setSubmitting(false);
+			// Name / state / queen age may have changed everywhere.
+			notifyHivesChanged();
+			onConfirm?.();
+			onClose();
+		} catch {
+			setErrorMsg("Network error. Please try again.");
+			setSubmitting(false);
+		}
+	};
+
+	return (
+		<ModalContainer
+			open={isOpen}
+			width="lg:w-1/3 w-full"
+			height="lg:max-h-full max-h-[80vh]"
+			header="Edit Hive"
+			onClose={onClose}>
+			<form
+				onSubmit={handleSubmit}
+				className="w-full flex flex-col gap-3">
+				<Input
+					label="Hive Name"
+					value={hiveName}
+					onChange={(e) => setHiveName(e.target.value)}
+				/>
+				<SpeciesCombobox value={beeSpecies} onChange={setBeeSpecies} />
+				<div className="flex gap-2 lg:flex-row flex-col">
+					<Input
+						label="Date Established"
+						type="date"
+						value={dateEstablished}
+						onChange={(e) => setDateEstablished(e.target.value)}
+					/>
+					<Input
+						label="Queen Established Date"
+						type="date"
+						value={queenDate}
+						onChange={(e) => setQueenDate(e.target.value)}
+					/>
+				</div>
+				<p className="text-[10px] text-[#817b70] -mt-2">
+					Queen Established Date: when the current queen was put in. Leave
+					blank if she came with the hive (same as Date Established).
+				</p>
+
+				<Select
+					label="Hive State"
+					options={HIVE_STATE_OPTIONS}
+					value={hiveState}
+					onSelectChange={(e) =>
+						setHiveState(e.target.value as HiveState)
+					}
+				/>
+
+				{errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
+
+				<div className="flex items-center gap-3 w-full mt-2">
+					<CancelButton onClick={onClose} disabled={submitting} />
+					<Button
+						buttonType="submit"
+						label={submitting ? "Saving..." : "Save Changes"}
+						disabled={submitting}
+					/>
+				</div>
 			</form>
 		</ModalContainer>
 	);
@@ -825,6 +1009,8 @@ type ViewHistoryProps = ModalProps & {
 		species: string;
 		status: "healthy" | "weak" | "needs attention" | "diseased";
 		hiveState: string;
+		// NEW — shown as "Established:" (was always blank).
+		dateEstablished?: string;
 	};
 };
 
@@ -839,6 +1025,17 @@ export const ViewHistory = ({
 	const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([]);
 	const [harvests, setHarvests] = useState<YieldRecord[]>([]);
 	const [loading, setLoading] = useState(false);
+	// DELETE (NEW) — the row asking "Delete?", the one being deleted, and
+	// a small message. Reloads the list after a delete.
+	const [confirmId, setConfirmId] = useState<string | null>(null);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
+	const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+	const [reloadKey, setReloadKey] = useState(0);
+
+	useEffect(() => {
+		setConfirmId(null);
+		setDeleteMsg(null);
+	}, [activeTab, isOpen]);
 
 	useEffect(() => {
 		if (!isOpen || !hiveSummary?.hiveId) return;
@@ -861,15 +1058,41 @@ export const ViewHistory = ({
 		return () => {
 			cancelled = true;
 		};
-	}, [isOpen, hiveSummary?.hiveId]);
+	}, [isOpen, hiveSummary?.hiveId, reloadKey]);
+
+	const handleDelete = async (id: string) => {
+		if (!hiveSummary?.hiveId || deletingId) return;
+		setDeletingId(id);
+		setDeleteMsg(null);
+		const res =
+			activeTab === "monitoring"
+				? await hiveService.deleteMaintenance(hiveSummary.hiveId, id)
+				: await yieldService.deleteHarvest(hiveSummary.hiveId, id);
+		setDeletingId(null);
+		setConfirmId(null);
+		if (!res.success) {
+			setDeleteMsg(res.message || "Couldn't delete it. Please try again.");
+			return;
+		}
+		setDeleteMsg(
+			activeTab === "monitoring"
+				? "Monitoring record deleted."
+				: "Harvest deleted — it was taken off the totals.",
+		);
+		setReloadKey((k) => k + 1);
+		// Yield totals / health changed -> refresh Hives, Dashboard, History.
+		notifyHivesChanged();
+	};
 
 	const monitoringEntries: HistoryEntry[] = maintenance.map((m) => ({
+		id: m.maintenance_id,
 		date: m.activity_date,
 		status: m.remarks || m.activity_type,
 	}));
 	const harvestEntries: HistoryEntry[] = harvests
 		.filter((h) => !h.is_baseline)
 		.map((h) => ({
+			id: h.yield_id,
 			date: h.yield_date,
 			yield: `${h.yield_kg.toFixed(2)}kg`,
 		}));
@@ -912,13 +1135,17 @@ export const ViewHistory = ({
 
 				{hiveSummary && (
 					<HiveTrans
-						hiveId={hiveSummary.hiveId}
 						hive={hiveSummary.hive}
 						location={hiveSummary.species}
-						lastCheck=""
+						// FIXED — was lastCheck="" so Established was blank.
+						lastCheck={hiveSummary.dateEstablished ?? ""}
 						status={hiveSummary.status}
 						hiveState={hiveSummary.hiveState}
 					/>
+				)}
+
+				{deleteMsg && (
+					<p className="text-xs text-center text-[#817b70]">{deleteMsg}</p>
 				)}
 
 				<div className="border-2 border-[#e2e2e6] rounded-xl p-2 flex-1 flex flex-col gap-5 overflow-y-auto overflow-x-hidden min-h-0">
@@ -942,7 +1169,7 @@ export const ViewHistory = ({
 										<React.Fragment key={month}>
 											<tr className="border-b border-[#e0e0e0]">
 												<td
-													colSpan={2}
+													colSpan={3}
 													className="Poppins-Bold text-sm px-4 py-3 uppercase text-[#4A2F00]">
 													{month}
 												</td>
@@ -959,6 +1186,40 @@ export const ViewHistory = ({
 														"monitoring"
 															? entry.status
 															: entry.yield}
+													</td>
+													{/* DELETE (NEW) */}
+													<td className="pr-2 py-3 text-right w-px whitespace-nowrap">
+														{entry.id &&
+															(confirmId === entry.id ? (
+																<span className="flex items-center justify-end gap-2 text-xs">
+																	<button
+																		type="button"
+																		onClick={() => handleDelete(entry.id!)}
+																		disabled={deletingId !== null}
+																		className="Poppins-SemiBold text-red-600 cursor-pointer disabled:opacity-60">
+																		{deletingId === entry.id ? "Deleting…" : "Delete"}
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => setConfirmId(null)}
+																		disabled={deletingId !== null}
+																		className="text-[#817b70] cursor-pointer">
+																		Cancel
+																	</button>
+																</span>
+															) : (
+																<button
+																	type="button"
+																	onClick={() => setConfirmId(entry.id!)}
+																	aria-label="Delete"
+																	title="Delete"
+																	className="w-7 h-7 p-1 rounded-full hover:bg-red-50 inline-flex items-center justify-center cursor-pointer">
+																	<Icon
+																		icon="mdi:trash-can-outline"
+																		className="w-full h-full text-red-500"
+																	/>
+																</button>
+															))}
 													</td>
 												</tr>
 											))}

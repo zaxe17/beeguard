@@ -11,6 +11,16 @@ import MobileOverlay from "@/components/MobileOverlay";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useModal } from "@/context/ModalContext";
 import { NotifCardSkeleton } from "../loading/SkeletonLoading";
+import { PUSH_MESSAGE_EVENT, pushSupported } from "@/services/push";
+
+// REALTIME (NEW) — while the notification list is open:
+//   - the "just now / 5m ago / 1h ago" labels update by themselves
+//     (every 30 s, so the minutes go up one by one, then the hours)
+//     (before, they were worked out once and stayed "just now"), and
+//   - new notifications appear without closing and reopening it
+//     (re-checked every 15 s, and right away when a push arrives).
+const TIME_LABEL_TICK_MS = 30000;
+const LIST_REFRESH_MS = 15000;
 
 // Opens the same Report Details modal the Report tab uses
 // (<BeeReport /> in app/beekeeper/layout.tsx reads this payload).
@@ -75,6 +85,7 @@ function timeAgo(iso: string): string {
 	const mins = Math.floor(diffMs / 60000);
 	if (mins < 1) return "just now";
 	if (mins < 60) return `${mins}m ago`;
+	// Minutes first (1m … 59m ago), then whole hours (1h, 2h … ago).
 	const hrs = Math.floor(mins / 60);
 	if (hrs < 24) return `${hrs}h ago`;
 	return `${Math.floor(hrs / 24)}d ago`;
@@ -139,20 +150,46 @@ const useNotifications = (onNotificationRead?: () => void) => {
 	const { openModal } = useModal<ModalType, BeeReportPayload>();
 	const [notifs, setNotifs] = useState<NotificationRecord[]>([]);
 	const [loading, setLoading] = useState(true);
+	// Changes every 30 s only so the time labels are worked out again.
+	const [, setClockTick] = useState(0);
 
 	useEffect(() => {
 		let cancelled = false;
+		let first = true;
 		const load = async () => {
-			setLoading(true);
+			// Skeleton only on the first load, not on every refresh.
+			if (first) setLoading(true);
 			const res = await notificationService.list({ limit: 30 });
 			if (cancelled) return;
 			if (res.success && res.data) setNotifs(res.data);
-			setLoading(false);
+			if (first) {
+				first = false;
+				setLoading(false);
+			}
 		};
 		load();
+		const refresh = setInterval(load, LIST_REFRESH_MS);
+
+		// A push arrived while this is open -> show it now.
+		const onPush = (e: MessageEvent) => {
+			if (e.data?.type === PUSH_MESSAGE_EVENT) load();
+		};
+		if (pushSupported()) {
+			navigator.serviceWorker.addEventListener("message", onPush);
+		}
 		return () => {
 			cancelled = true;
+			clearInterval(refresh);
+			if (pushSupported()) {
+				navigator.serviceWorker.removeEventListener("message", onPush);
+			}
 		};
+	}, []);
+
+	// Keep "just now / 5m ago" up to date.
+	useEffect(() => {
+		const t = setInterval(() => setClockTick((n) => n + 1), TIME_LABEL_TICK_MS);
+		return () => clearInterval(t);
 	}, []);
 
 	const handleClick = async (notif: NotificationRecord) => {

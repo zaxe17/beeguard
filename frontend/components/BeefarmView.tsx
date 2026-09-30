@@ -43,6 +43,10 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 	// uses to build role-scoped routes. Message redirects to
 	// `/${role}/messages`, not a bare `/messages` (which 404s).
 	const role = pathname.split("/")[1] || "citizen";
+	// NEW — a beekeeper only sees this on THEIR OWN farm (Profile -> View
+	// Profile -> My Bee Farm), so Message / Follow are hidden there.
+	// Citizens (Bee Farm page) still get both buttons.
+	const showActions = role === "citizen";
 
 	const [farm, setFarm] = useState<FarmDetail | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -123,7 +127,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 	};
 
 	return (
-		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none pb-5">
+		<div className="w-full flex-1 overflow-scroll lg:scrollbar-auto scrollbar-none">
 			<div className="relative w-full lg:h-60 h-50">
 				{/* COVER PHOTO — the beekeeper's farm photo, or the default */}
 				{mediaSrc(farm.image) ? (
@@ -198,7 +202,8 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 
 				{/* RIGHT SIDE */}
 				<div className="lg:w-1/3 w-full">
-					{/* BUTTONS */}
+					{/* BUTTONS — citizens only (hidden on the beekeeper's own profile) */}
+					{showActions && (
 					<div className="flex gap-2 mt-3">
 						<Button
 							width="100%"
@@ -217,6 +222,7 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 							onClick={handleFollowToggle}
 						/>
 					</div>
+					)}
 
 					{actionError && (
 						<p className="text-xs text-red-600 mt-2">{actionError}</p>

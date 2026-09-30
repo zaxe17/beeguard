@@ -993,7 +993,7 @@ export const EditHiveModal = ({
 							value={beeSpecies}
 							onChange={setBeeSpecies}
 						/>
-						<div className="flex gap-2 lg:flex-row flex-col items-end">
+						<div className="flex gap-2 lg:flex-row flex-col">
 							<Input
 								label="Date Established"
 								type="date"

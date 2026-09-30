@@ -677,7 +677,7 @@ export const BeefarmViewSkeleton = ({
 			</div>
 
 			{/* RIGHT SIDE */}
-			<div className="lg:w-1/3 w-full">
+			<div className="lg:w-2/3 w-full">
 				{/* BUTTONS */}
 				{showActions && (
 					<div className="flex gap-2 mt-3">

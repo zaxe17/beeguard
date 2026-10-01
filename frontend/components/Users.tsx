@@ -232,7 +232,7 @@ export const ProfileDisplay = ({
 
 			{/* NAME AND EMAIL */}
 			<div className="">
-				<h3 className="Poppins-SemiBold text-xl capitalize">{name}</h3>
+				<h3 className="Poppins-SemiBold lg:text-xl text-base capitalize">{name}</h3>
 				<p className="text-xs text-[#817b70]">{email}</p>
 
 				{/* BEEKEEPER VERIFICATION (own profile page only) */}

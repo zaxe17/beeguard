@@ -64,7 +64,10 @@ export const UserNav = () => {
 		const res = await notificationService.unreadCount();
 		if (res.success && res.data) {
 			const count = res.data.count;
-			if (lastUnreadRef.current !== null && count > lastUnreadRef.current) {
+			if (
+				lastUnreadRef.current !== null &&
+				count > lastUnreadRef.current
+			) {
 				playNotificationSound("notification");
 			}
 			lastUnreadRef.current = count;
@@ -104,7 +107,8 @@ export const UserNav = () => {
 			if (e.data?.type === PUSH_MESSAGE_EVENT) refreshUnreadCount();
 		};
 		navigator.serviceWorker.addEventListener("message", onMessage);
-		return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+		return () =>
+			navigator.serviceWorker.removeEventListener("message", onMessage);
 	}, [refreshUnreadCount]);
 
 	// Hide the "turned on" / error note after a few seconds.
@@ -119,7 +123,11 @@ export const UserNav = () => {
 		const res = await enablePush();
 		setPushBusy(false);
 		setPushState(res.state);
-		setPushMsg(res.ok ? "Notifications are on for this device." : (res.message ?? null));
+		setPushMsg(
+			res.ok
+				? "Notifications are on for this device."
+				: (res.message ?? null),
+		);
 	};
 
 	useEffect(() => {
@@ -139,7 +147,8 @@ export const UserNav = () => {
 			document.removeEventListener("mousedown", handleClickOutside);
 	}, [isDesktop]);
 
-	const displayName = user?.name ? getDisplayName(user.name) : "";
+	const displayName =
+		user?.username || (user?.name ? getDisplayName(user.name) : "");
 
 	const location = usePathname();
 	// NEW — the admin has no Messages button next to the bell.

@@ -42,12 +42,17 @@ type UserMessCardProp = {
 	name?: string;
 	location?: string;
 	message?: string;
+	// The other person's profile photo path ("/uploads/profile/...").
+	photo?: string | null;
 	onMarkUnread?: () => void;
 };
 
 type BubbleChatProps = {
 	sender: "user" | "client";
 	messages: ChatMessage[];
+	// The other person's profile photo path. (Your own photo comes from
+	// the logged-in user, so it updates as soon as you change it.)
+	otherPhoto?: string | null;
 	onStopLive?: (messageId: number) => void;
 	// Tap a "Not sent" message to send it again.
 	onRetry?: (message: ChatMessage) => void;
@@ -62,6 +67,7 @@ export const UserMessageCard = ({
 	name,
 	location,
 	message,
+	photo,
 	onMarkUnread,
 }: UserMessCardProp) => {
 	const [menuPos, setMenuPos] = useState<{
@@ -122,7 +128,7 @@ export const UserMessageCard = ({
 			onContextMenu={(e) => e.preventDefault()}>
 			<div className="relative">
 				<div className="relative w-15 h-15">
-					<ProfilePhoto />
+					<ProfilePhoto src={photo} />
 				</div>
 				<div
 					className={`absolute bottom-0 right-0 ${active ? "bg-[#8ac44f]" : "bg-[#e2e2e6]"} w-4 h-4 rounded-full border-2 border-white`}></div>
@@ -143,7 +149,9 @@ export const UserMessageCard = ({
 				</span>
 			</div>
 
-			<div className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100" ref={buttonRef}>
+			<div
+				className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100"
+				ref={buttonRef}>
 				<div
 					onClick={toggleMenu}
 					className="relative w-7 h-7 p-1.5 bg-amber-200 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
@@ -195,12 +203,16 @@ const formatChatDate = (iso?: string) => {
 	if (!iso) return "";
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return "";
-	const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+	const time = d.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	});
 	const now = new Date();
 	const yesterday = new Date(now);
 	yesterday.setDate(now.getDate() - 1);
 	if (d.toDateString() === now.toDateString()) return `Today • ${time}`;
-	if (d.toDateString() === yesterday.toDateString()) return `Yesterday • ${time}`;
+	if (d.toDateString() === yesterday.toDateString())
+		return `Yesterday • ${time}`;
 	const day = d.toLocaleDateString([], {
 		month: "short",
 		day: "numeric",
@@ -260,7 +272,8 @@ const LocationBubble = ({
 			: "Shared a location";
 
 	let status = "Pinned location";
-	if (live) status = `Live · ${formatTimeLeft(message.live_seconds_left)} left`;
+	if (live)
+		status = `Live · ${formatTimeLeft(message.live_seconds_left)} left`;
 	else if (ended) status = "Live location ended";
 
 	// Sender's device stopped sending updates (tab closed, no signal…).
@@ -273,7 +286,8 @@ const LocationBubble = ({
 		<div
 			className={`w-64 overflow-hidden rounded-2xl shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"}`}>
 			{/* MAP — `isolate` keeps Leaflet's z-indexes inside the bubble */}
-			<div className={`relative w-full h-36 isolate ${ended ? "grayscale opacity-70" : ""}`}>
+			<div
+				className={`relative w-full h-36 isolate ${ended ? "grayscale opacity-70" : ""}`}>
 				<LocationMap latitude={lat} longitude={lng} live={live} />
 				{live && (
 					<span className="absolute top-2 left-2 z-500 flex items-center gap-1 bg-[#ffa004] text-white text-[10px] Poppins-SemiBold px-2 py-0.5 rounded-full">
@@ -289,11 +303,14 @@ const LocationBubble = ({
 						icon={live ? "mdi:crosshairs-gps" : "mdi:map-marker"}
 						className="w-4 h-4 text-[#4a2f00] shrink-0"
 					/>
-					<span className="text-sm Poppins-SemiBold text-[#4a2f00]">{title}</span>
+					<span className="text-sm Poppins-SemiBold text-[#4a2f00]">
+						{title}
+					</span>
 				</div>
 				<span className="text-[11px] text-[#6b5a2e]">
 					{status}
-					{stale && ` · updated ${formatAgo(message.location_age_seconds as number)}`}
+					{stale &&
+						` · updated ${formatAgo(message.location_age_seconds as number)}`}
 				</span>
 
 				<div className="flex gap-2 mt-1">
@@ -337,6 +354,7 @@ const ImageBubble = ({ message }: { message: ChatMessage }) => (
 export const BubbleChat = ({
 	sender,
 	messages,
+	otherPhoto,
 	onStopLive,
 	onRetry,
 }: BubbleChatProps) => {
@@ -346,7 +364,11 @@ export const BubbleChat = ({
 		<div
 			className={`flex items-end gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
 			<div className="relative w-8 h-8 shrink-0">
-				<ProfilePhoto />
+				{isUser ? (
+					<ProfilePhoto me />
+				) : (
+					<ProfilePhoto src={otherPhoto} />
+				)}
 			</div>
 			<div
 				className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
@@ -354,8 +376,8 @@ export const BubbleChat = ({
 					msg.message_type === "image" && msg.image_url ? (
 						<ImageBubble key={msg.message_id} message={msg} />
 					) : msg.message_type === "location" &&
-					msg.latitude !== null &&
-					msg.longitude !== null ? (
+					  msg.latitude !== null &&
+					  msg.longitude !== null ? (
 						<LocationBubble
 							key={msg.message_id}
 							message={msg}
@@ -373,10 +395,14 @@ export const BubbleChat = ({
 										: undefined
 								}
 								className={`max-w-[75vw] lg:max-w-100 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] ${isUser ? "bg-linear-to-br from-amber-300 to-amber-400" : "bg-linear-to-br from-yellow-100 to-amber-200"} py-2 px-3 rounded-2xl transition-opacity duration-150 ${msg.client_status === "sending" ? "opacity-60" : ""} ${msg.client_status === "failed" ? "opacity-70 cursor-pointer ring-1 ring-red-400" : ""}`}>
-								<p className="text-sm whitespace-pre-wrap wrap-break-word">{msg.content}</p>
+								<p className="text-sm whitespace-pre-wrap wrap-break-word">
+									{msg.content}
+								</p>
 							</div>
 							{msg.client_status === "sending" && (
-								<span className="text-[10px] text-[#a6a3a3] mt-0.5">Sending…</span>
+								<span className="text-[10px] text-[#a6a3a3] mt-0.5">
+									Sending…
+								</span>
 							)}
 							{msg.client_status === "failed" && (
 								<span className="text-[10px] text-red-600 mt-0.5">

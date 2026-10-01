@@ -39,10 +39,14 @@ class ChatModel:
         sql = f"SELECT 1 FROM {ChatModel.TABLE} WHERE chat_id = %s AND {col} = %s LIMIT 1"
         return Database.execute(sql, (chat_id, user_id), fetchone=True) is not None
 
+    # NOTE: `profile_photo` is the column that holds the profile picture
+    # path ("/uploads/profile/..."). If your column has another name, change
+    # it in the two queries below (bk.profile_photo / cz.profile_photo).
     @staticmethod
     def list_for_citizen(citizen_id: str):
         sql = f"""
-            SELECT c.*, bk.name AS other_name, bk.address AS other_location
+            SELECT c.*, bk.name AS other_name, bk.address AS other_location,
+                   bk.profile_photo AS other_photo
             FROM {ChatModel.TABLE} c
             JOIN beekeepers bk ON bk.beekeeperID = c.beekeeperID
             WHERE c.citizenID = %s
@@ -53,7 +57,8 @@ class ChatModel:
     @staticmethod
     def list_for_beekeeper(beekeeper_id: str):
         sql = f"""
-            SELECT c.*, cz.name AS other_name, cz.address AS other_location
+            SELECT c.*, cz.name AS other_name, cz.address AS other_location,
+                   cz.profile_photo AS other_photo
             FROM {ChatModel.TABLE} c
             JOIN citizens cz ON cz.citizenID = c.citizenID
             WHERE c.beekeeperID = %s

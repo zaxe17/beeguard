@@ -142,6 +142,8 @@ export const UserNav = () => {
 	const displayName = user?.name ? getDisplayName(user.name) : "";
 
 	const location = usePathname();
+	// NEW — the admin has no Messages button next to the bell.
+	const isAdminSide = location.startsWith("/admin");
 	const messagesRoute = location.startsWith("/citizen")
 		? "/citizen"
 		: location.startsWith("/beekeeper")
@@ -225,14 +227,17 @@ export const UserNav = () => {
 					)}
 				</div>
 
-				<Link
-					href={`${messagesRoute}/messages`}
-					className="lg:w-10 w-8 lg:h-10 h-8">
-					<Icon
-						icon="flowbite:messages-solid"
-						className="w-full h-full text-[#ffdb4f] cursor-pointer"
-					/>
-				</Link>
+				{/* MESSAGES — citizens and beekeepers only (not shown for admin) */}
+				{!isAdminSide && (
+					<Link
+						href={`${messagesRoute}/messages`}
+						className="lg:w-10 w-8 lg:h-10 h-8">
+						<Icon
+							icon="flowbite:messages-solid"
+							className="w-full h-full text-[#ffdb4f] cursor-pointer"
+						/>
+					</Link>
+				)}
 			</div>
 		</div>
 	);

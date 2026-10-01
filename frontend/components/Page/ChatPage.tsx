@@ -33,6 +33,7 @@ type ChatUser = {
 	name: string;
 	location: string;
 	message: string;
+	photo?: string | null;
 	active?: boolean;
 	read?: boolean;
 };
@@ -923,6 +924,7 @@ const ChatPage = () => {
 					<DateTimeMessage key={entry.key} date={entry.date} />
 				) : (
 					<BubbleChat
+						otherPhoto={selectedUser?.photo}
 						key={entry.key}
 						sender={entry.sender}
 						messages={entry.messages}
@@ -1017,7 +1019,7 @@ const ChatPage = () => {
 			<div className="flex items-center bg-[#ffdb4f] p-2 gap-3 shrink-0">
 				<div className="relative">
 					<div className="relative w-10 h-10">
-						<ProfilePhoto />
+						<ProfilePhoto src={selectedUser?.photo} />
 					</div>
 					<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white" />
 				</div>
@@ -1062,6 +1064,7 @@ const ChatPage = () => {
 								key={u.chat_id}
 								onClick={() => handleSelectUser(u)}>
 								<UserMessageCard
+									photo={u.photo}
 									chatId={u.chat_id}
 									active={u.active}
 									read={u.read}
@@ -1120,7 +1123,7 @@ const ChatPage = () => {
 
 							<div className="relative">
 								<div className="relative w-10 h-10">
-									<ProfilePhoto />
+									<ProfilePhoto src={selectedUser.photo} />
 								</div>
 								<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white" />
 							</div>

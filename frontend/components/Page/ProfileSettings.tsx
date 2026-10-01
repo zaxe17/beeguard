@@ -367,7 +367,7 @@ const PushNotificationSwitch = () => {
 				onChange={toggle}
 				disabled={on === null || busy}
 			/>
-			{on &&
+			{/* {on &&
 				device !== undefined &&
 				(device === "off" || device === "on") && (
 					<button
@@ -395,7 +395,7 @@ const PushNotificationSwitch = () => {
 					className={`text-xs ${note.isError ? "text-red-600" : "text-[#1f6f5f]"}`}>
 					{note.text}
 				</p>
-			)}
+			)} */}
 		</div>
 	);
 };

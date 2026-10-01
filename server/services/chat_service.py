@@ -25,11 +25,10 @@ def _sender_role(role: str) -> str:
 
 def _push_new_message(role: str, user_id: str, chat_id: int, preview: str) -> None:
     """
-    NEW — phone/computer pop-up for the OTHER person in the chat when a
-    message is sent (before, chat messages never sent a push at all —
-    only bell notifications did). Tapping it opens that chat. Uses the
-    same tag per chat, so several messages replace each other instead of
-    stacking. Never raises: a failed push must not fail the message.
+    Phone/computer pop-up for the OTHER person in the chat when a
+    message is sent. Tapping it opens that chat. Uses the same tag per
+    chat, so several messages replace each other instead of stacking.
+    Never raises: a failed push must not fail the message.
     """
     try:
         from services.push_service import PushService  # lazy: avoids import cycle
@@ -66,10 +65,9 @@ def _push_new_message(role: str, user_id: str, chat_id: int, preview: str) -> No
 
 def _push_new_message_bg(role: str, user_id: str, chat_id: int, preview: str) -> None:
     """
-    FASTER SEND — the push pop-up needs 3+ database lookups, and the
-    sender doesn't need to wait for any of them. Run it in a background
-    thread so the request returns as soon as the message is saved.
-    (_push_new_message already catches every error.)
+    The push pop-up needs 3+ database lookups, and the sender doesn't
+    need to wait for any of them. Run it in a background thread so the
+    request returns as soon as the message is saved.
     """
     threading.Thread(
         target=_push_new_message,
@@ -93,6 +91,15 @@ def _image_url(filename):
     if has_request_context():
         return request.host_url.rstrip("/") + path
     return path
+
+
+def _profile_photo_path(value):
+    """DB may store just the file name; the frontend needs /uploads/profile/..."""
+    if not value:
+        return None
+    if value.startswith(("http://", "https://", "/")):
+        return value
+    return f"/uploads/profile/{value}"
 
 
 def _serialize_message(row: dict) -> dict:
@@ -177,6 +184,7 @@ class ChatService:
                 "chat_id":  chat_id,
                 "name":     r.get("other_name"),
                 "location": r.get("other_location") or "",
+                "photo":    _profile_photo_path(r.get("other_photo")),
                 "message":  latest["message_content"] if latest else "",
                 "active":   True,
                 "read":     unread == 0 and not marked_unread,
@@ -194,10 +202,9 @@ class ChatService:
           before_id -> the page of messages just before that message.
         Loading an older page doesn't mark anything as read.
 
-        FASTER POLLING — the chat is polled every few seconds, so this
-        used to run an UPDATE + commit on every single poll even when
-        nothing was unread. Now the UPDATE only runs when this page really
-        contains unread messages from the other person.
+        The chat is polled every few seconds, so the UPDATE only runs
+        when this page really contains unread messages from the other
+        person.
         """
         if not ChatModel.is_participant(chat_id, role, user_id):
             raise PermissionError("You are not a participant of this chat.")

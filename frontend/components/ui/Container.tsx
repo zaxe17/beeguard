@@ -61,7 +61,7 @@ export const Container = ({
 				height: height,
 			}}>
 			<div
-				className={`p-1.5 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 ${scroll ? "scroll" : ""}`}>
+				className={`p-1.5 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none ${scroll ? "scroll" : ""}`}>
 				{children}
 			</div>
 		</div>

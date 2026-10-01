@@ -289,7 +289,7 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 					<>
 						<Button
 							label={offerLabel}
-							width="w-40"
+							width="lg:w-40 w-full"
 							onClick={
 								report.can_offer
 									? () => {
@@ -303,7 +303,7 @@ const BeeReportContent = ({ reportId }: { reportId: string }) => {
 						/>
 						<Button
 							label={busy ? "…" : "Message"}
-							width="w-40"
+							width="lg:w-40 w-full"
 							onClick={handleMessage}
 							disabled={busy}
 						/>

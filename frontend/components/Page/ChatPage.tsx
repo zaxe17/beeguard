@@ -64,8 +64,9 @@ const CHATS_CHANGED_EVENT = "beeguard:chats-changed";
 const SHARE_LOCATION_EVENT = "beeguard:share-location";
 const PICK_IMAGE_EVENT = "beeguard:pick-image";
 
-const IMAGE_MAX_SIDE = 1600;
-const IMAGE_QUALITY = 0.82;
+// Smaller photos upload faster (base64 JSON is ~33% bigger than the file).
+const IMAGE_MAX_SIDE = 1280;
+const IMAGE_QUALITY = 0.7;
 const IMAGE_PICK_MAX_BYTES = 20 * 1024 * 1024;
 
 const KEYBOARD_MIN_PX = 120;
@@ -390,11 +391,24 @@ const ChatPage = () => {
 		setChatsLoading(false);
 	}, []);
 
+	// Polls the chat list. Skips the request while the tab is hidden and
+	// refreshes right away when the tab becomes visible again.
 	useEffect(() => {
 		loadChats();
-		const interval = setInterval(loadChats, LIST_POLL_MS);
 
-		return () => clearInterval(interval);
+		const tick = () => {
+			if (document.visibilityState === "visible") {
+				loadChats();
+			}
+		};
+
+		const interval = setInterval(tick, LIST_POLL_MS);
+		document.addEventListener("visibilitychange", tick);
+
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener("visibilitychange", tick);
+		};
 	}, [loadChats]);
 
 	useEffect(() => {
@@ -522,12 +536,22 @@ const ChatPage = () => {
 			}
 		};
 
+		// Polls the open conversation. Skips the request while the tab is
+		// hidden and refreshes right away when the tab becomes visible.
+		const tick = () => {
+			if (document.visibilityState === "visible") {
+				loadLatest();
+			}
+		};
+
 		loadLatest();
-		const interval = setInterval(loadLatest, MESSAGE_POLL_MS);
+		const interval = setInterval(tick, MESSAGE_POLL_MS);
+		document.addEventListener("visibilitychange", tick);
 
 		return () => {
 			cancelled = true;
 			clearInterval(interval);
+			document.removeEventListener("visibilitychange", tick);
 		};
 	}, [selectedId, closeChat, mySenderRole, scrollToLatest]);
 
@@ -677,7 +701,17 @@ const ChatPage = () => {
 				return [...savedOnes, saved].sort(byId).concat(local);
 			});
 
-			loadChats();
+			// Update the sidebar preview locally instead of re-fetching the
+			// whole chat list (one less slow request per message). The next
+			// regular list poll corrects anything else.
+			lastPreviewRef.current?.set(chatAtStart, content);
+			setUsers((prev) =>
+				prev.map((u) =>
+					u.chat_id === chatAtStart
+						? { ...u, message: content, read: true }
+						: u,
+				),
+			);
 		} else {
 			setMessages((prev) =>
 				prev.map((m) =>

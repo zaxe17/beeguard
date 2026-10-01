@@ -1,5 +1,8 @@
 # app.py
-from flask import Flask, jsonify, send_from_directory
+import os
+import time
+
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 
@@ -69,6 +72,10 @@ def create_app() -> Flask:
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
         supports_credentials=False,
+        # FASTER — let the browser remember the CORS "preflight" answer
+        # (Chrome caps this at 2 hours) instead of asking before almost
+        # every request.
+        max_age=7200,
     )
 
     # DB pool init
@@ -102,14 +109,32 @@ def create_app() -> Flask:
 
     # Daily automatic backup (More → Backup & Restore). Checked at most
     # every 30 minutes; the backup itself runs in the background.
+    # CORS preflight (OPTIONS) requests are skipped — they never need it.
     @app.before_request
     def _auto_backup_check():
+        if request.method == "OPTIONS":
+            return
         maybe_run_auto_backup()
 
     # Health check (kept for backwards compatibility with your original stub)
     @app.route("/api/home", methods=["GET"])
     def home():
         return jsonify({"message": "BeeGuard API is running"})
+
+    # TEMPORARY speed test — only exists when ENABLE_DBPING=1 is set in the
+    # service Variables. Open /api/dbping and read "ms_per_query":
+    #   a few ms   -> database is close and fast
+    #   100+ ms    -> database is far away (check MySQL region / DB_HOST)
+    # Remove the variable when you're done (the route has no login).
+    if os.getenv("ENABLE_DBPING") == "1":
+        @app.route("/api/dbping", methods=["GET"])
+        def dbping():
+            timings = []
+            for _ in range(3):
+                started = time.perf_counter()
+                Database.execute("SELECT 1", fetchone=True)
+                timings.append(round((time.perf_counter() - started) * 1000, 1))
+            return jsonify({"ms_per_query": timings})
 
     # Serve saved scan images back out at Config.CV_SCAN_URL_PREFIX
     @app.route(f"{Config.CV_SCAN_URL_PREFIX}/<path:filename>")

@@ -1,5 +1,6 @@
 # config/database.py
 import os
+import time
 
 import pymysql
 from dbutils.pooled_db import PooledDB
@@ -19,6 +20,13 @@ _INIT_COMMAND = (
     "collation_connection = 'utf8mb4_unicode_ci'"
 )
 
+# Pool size can be changed from Railway Variables without editing code.
+DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
+
+# Any query slower than this is printed to the logs as "[SLOW SQL]".
+# Set SLOW_SQL_MS=0 in Railway Variables to turn the logging off.
+SLOW_SQL_MS = int(os.getenv("SLOW_SQL_MS", "150"))
+
 
 class Database:
     """MySQL connection pool wrapper. All queries use parameterized statements."""
@@ -30,7 +38,7 @@ class Database:
         if cls._pool is None:
             cls._pool = PooledDB(
                 creator=pymysql,
-                maxconnections=10,
+                maxconnections=DB_POOL_MAX,
                 mincached=2,
                 maxcached=5,
                 blocking=True,
@@ -56,6 +64,7 @@ class Database:
 
     @classmethod
     def execute(cls, sql: str, params: tuple = None, fetchone: bool = False, fetchall: bool = False, commit: bool = False):
+        started = time.perf_counter()
         conn = cls.get_connection()
         try:
             with conn.cursor() as cur:
@@ -72,3 +81,7 @@ class Database:
             raise
         finally:
             conn.close()
+            if SLOW_SQL_MS:
+                elapsed_ms = (time.perf_counter() - started) * 1000
+                if elapsed_ms >= SLOW_SQL_MS:
+                    print(f"[SLOW SQL] {elapsed_ms:.0f} ms :: {' '.join(sql.split())[:100]}")

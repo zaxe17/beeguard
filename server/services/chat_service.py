@@ -2,6 +2,7 @@
 import datetime as dt
 import io
 import os
+import threading
 import uuid
 
 from flask import has_request_context, request
@@ -61,6 +62,21 @@ def _push_new_message(role: str, user_id: str, chat_id: int, preview: str) -> No
         )
     except Exception as e:
         print(f"[PUSH] Chat push failed for chat {chat_id}: {e}")
+
+
+def _push_new_message_bg(role: str, user_id: str, chat_id: int, preview: str) -> None:
+    """
+    FASTER SEND — the push pop-up needs 3+ database lookups, and the
+    sender doesn't need to wait for any of them. Run it in a background
+    thread so the request returns as soon as the message is saved.
+    (_push_new_message already catches every error.)
+    """
+    threading.Thread(
+        target=_push_new_message,
+        args=(role, user_id, chat_id, preview),
+        name="beeguard-chat-push",
+        daemon=True,
+    ).start()
 
 
 def _to_float(value):
@@ -145,6 +161,8 @@ class ChatService:
     # ── LIST (ChatPage sidebar) ──────────────
     @staticmethod
     def list_chats(role: str, user_id: str) -> list[dict]:
+        # NOTE: still 2 queries per chat (latest message + unread count).
+        # Fixing that needs a JOIN in models/chat.py + models/message.py.
         rows = (
             ChatModel.list_for_citizen(user_id) if role == "citizen"
             else ChatModel.list_for_beekeeper(user_id)
@@ -175,16 +193,34 @@ class ChatService:
         latest ones first, older ones loaded when you scroll up).
           before_id -> the page of messages just before that message.
         Loading an older page doesn't mark anything as read.
+
+        FASTER POLLING — the chat is polled every few seconds, so this
+        used to run an UPDATE + commit on every single poll even when
+        nothing was unread. Now the UPDATE only runs when this page really
+        contains unread messages from the other person.
         """
         if not ChatModel.is_participant(chat_id, role, user_id):
             raise PermissionError("You are not a participant of this chat.")
+
+        rows = MessageModel.list_by_chat(chat_id, limit=limit, before_id=before_id)
+
         if before_id is None:
-            MessageModel.mark_read_for_role(chat_id, role)
+            me = _sender_role(role)
+            incoming_unread = [
+                m for m in rows
+                if m["sender_role"] != me and not m["is_read"]
+            ]
+            if incoming_unread:
+                MessageModel.mark_read_for_role(chat_id, role)
+                # Show them as read in this response, like before.
+                for m in incoming_unread:
+                    m["is_read"] = 1
+
             # Opening the conversation clears "Mark as unread".
             chat = ChatModel.find_by_id(chat_id)
             if chat and ChatModel.is_marked_unread(chat, role):
                 ChatModel.set_marked_unread(chat_id, role, False)
-        rows = MessageModel.list_by_chat(chat_id, limit=limit, before_id=before_id)
+
         return [_serialize_message(m) for m in rows]
 
     @staticmethod
@@ -192,7 +228,7 @@ class ChatService:
         if not ChatModel.is_participant(chat_id, role, user_id):
             raise PermissionError("You are not a participant of this chat.")
         message_id = MessageModel.insert(chat_id, _sender_role(role), content)
-        _push_new_message(role, user_id, chat_id, content)
+        _push_new_message_bg(role, user_id, chat_id, content)
         return _serialize_message(MessageModel.find_by_id(message_id))
 
     @staticmethod
@@ -209,7 +245,7 @@ class ChatService:
             except OSError:
                 pass
             raise
-        _push_new_message(role, user_id, chat_id, "📷 Sent a photo")
+        _push_new_message_bg(role, user_id, chat_id, "📷 Sent a photo")
         return _serialize_message(MessageModel.find_by_id(message_id))
 
     @staticmethod
@@ -254,7 +290,7 @@ class ChatService:
             payload["longitude"],
             payload["live_minutes"],
         )
-        _push_new_message(
+        _push_new_message_bg(
             role, user_id, chat_id,
             "📍 Is sharing their live location" if payload.get("live_minutes")
             else "📍 Shared a location",

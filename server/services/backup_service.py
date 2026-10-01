@@ -12,11 +12,16 @@
 #                                                    restore, so a restore
 #                                                    can always be undone
 #
-# Every backup ALSO gets an Excel copy with the same name (.xlsx): a
+# Every MANUAL backup ALSO gets an Excel copy with the same name (.xlsx): a
 # "Summary" sheet + one sheet per table, for opening / sharing / checking
 # the data. The download button gives the Excel file. Restore always uses
 # the .sql file (Excel can't hold table structure, so it can't restore).
 # Passwords / codes are hidden in the Excel copy (they stay in the .sql).
+#
+# FASTER SERVER — automatic and pre-restore backups no longer build the
+# Excel copy up front (it is heavy on CPU/RAM while the app is serving
+# chat). If someone downloads the Excel of one of those, file_path()
+# builds it from the .sql at that moment, so nothing is lost.
 #
 # Restore replaces ALL current data with the backup's. Uploaded images
 # (report photos, chat photos, verification documents) are files, not
@@ -35,7 +40,12 @@ from pymysql.converters import escape_item
 from config.database import Database
 
 BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BACKUP_FOLDER = os.path.join(BACKEND_ROOT, "backups")
+
+# CHANGE 1 — On Railway the container's own disk is wiped on every
+# redeploy, so backups saved there disappear. Set BACKUP_DIR in the
+# service Variables to a folder INSIDE the mounted volume to keep them.
+# Not set = same folder as before (server/backups/).
+BACKUP_FOLDER = os.getenv("BACKUP_DIR") or os.path.join(BACKEND_ROOT, "backups")
 
 KINDS = ("manual", "auto", "pre-restore")
 NAME_RE = re.compile(
@@ -352,6 +362,9 @@ class BackupService:
         path = os.path.join(BACKUP_FOLDER, name)
         tmp = path + ".tmp"
 
+        # CHANGE 3 — only manual backups get the Excel copy up front.
+        make_excel = kind == "manual"
+
         conn = Database.get_connection()
         try:
             with conn.cursor() as cur:
@@ -381,7 +394,8 @@ class BackupService:
                         col_list = ", ".join(f"`{c}`" for c in columns)
                         batch = []
                         rows = cur.fetchall()
-                        excel_tables.append((table, columns, rows))
+                        if make_excel:
+                            excel_tables.append((table, columns, rows))
                         for row in rows:
                             values = ", ".join(_sql_value(row[c]) for c in columns)
                             batch.append(f"({values})")
@@ -403,11 +417,12 @@ class BackupService:
             conn.close()
 
         # Excel copy — best-effort: the .sql backup is what counts.
-        try:
-            _write_excel(os.path.join(BACKUP_FOLDER, _excel_name(name)),
-                         db_name, kind, excel_tables)
-        except Exception as e:
-            print(f"[BACKUP] Excel copy failed for {name}: {e}")
+        if make_excel:
+            try:
+                _write_excel(os.path.join(BACKUP_FOLDER, _excel_name(name)),
+                             db_name, kind, excel_tables)
+            except Exception as e:
+                print(f"[BACKUP] Excel copy failed for {name}: {e}")
 
         if kind == "auto":
             BackupService._prune_auto()
@@ -482,8 +497,12 @@ class BackupService:
 
 
 _auto_check_lock = threading.Lock()
-_next_auto_check = 0.0
 AUTO_CHECK_EVERY_S = 30 * 60
+
+# CHANGE 2 — wait 10 minutes after the server starts before the first
+# check. Before, the very first request after every deploy/restart could
+# start a heavy backup right while people were opening the chat.
+_next_auto_check = time.monotonic() + 10 * 60
 
 
 def maybe_run_auto_backup() -> None:

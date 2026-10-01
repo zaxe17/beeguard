@@ -367,7 +367,7 @@ const PushNotificationSwitch = () => {
 				onChange={toggle}
 				disabled={on === null || busy}
 			/>
-			{/* {on &&
+			{on &&
 				device !== undefined &&
 				(device === "off" || device === "on") && (
 					<button
@@ -383,7 +383,7 @@ const PushNotificationSwitch = () => {
 								? "Sending…"
 								: "Send a test notification"}
 					</button>
-				)} */}
+				)}
 			{on && device === "blocked" && (
 				<p className="text-xs text-red-600">
 					Notifications are blocked in this browser. Allow them in the

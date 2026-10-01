@@ -9,4 +9,4 @@ node_modules/
 .next/
 server/data/place_names.json
 
-# server/uploads/
+server/uploads/

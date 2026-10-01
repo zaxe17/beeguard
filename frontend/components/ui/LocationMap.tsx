@@ -41,6 +41,7 @@ const LocationMap = ({ latitude, longitude, live }: LocationMapProps) => {
 			<TileLayer
 				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 				attribution="&copy; OpenStreetMap"
+				referrerPolicy="origin"
 			/>
 			{/* Accuracy halo + dot. CircleMarker avoids Leaflet's default
 			    marker PNGs, which break under Next's bundler. */}

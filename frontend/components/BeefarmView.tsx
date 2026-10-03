@@ -141,14 +141,10 @@ const BeefarmView = ({ farmId }: BeefarmViewProps) => {
 						className="absolute inset-0 w-full h-full object-cover"
 					/>
 				) : (
-					<Image
-						src={beefarm}
-						alt="cover_photo"
-						fill
-						className="object-cover"
-						priority
-					/>
+					<div className="absolute bg-[#ffdb4f]/20 w-full h-full"></div>
 				)}
+
+				<div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 
 				{/* PROFILE PICTURE */}
 				<div className="hidden lg:block absolute left-4 lg:-bottom-15 -bottom-15 lg:w-30 w-20 lg:h-30 h-20 rounded-full overflow-hidden border-4 border-white shadow-md">

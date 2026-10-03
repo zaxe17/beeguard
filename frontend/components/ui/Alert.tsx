@@ -88,13 +88,13 @@ export const PesticideAlert = ({
 			className="group relative pb-1">
 			{/* PEEK BORDER */}
 			<div
-				className="absolute inset-x-0 top-1 bottom-0 rounded-2xl transition-all duration-150 ease-in group-hover:scale-102 cursor-pointer"
+				className="absolute inset-x-0 top-1 bottom-0 rounded-2xl transition-all duration-150 ease-in group-hover:scale-101 cursor-pointer"
 				style={{ backgroundColor: alertLevels[status].bg }}
 			/>
 
 			{/* FRONT CARD */}
 			<div
-				className="relative px-3 flex items-start rounded-2xl border overflow-hidden transition-all duration-150 ease-in group-hover:scale-102 cursor-pointer shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] bg-(--idle-bg) group-hover:bg-(--hover-bg)"
+				className="relative px-3 flex items-start rounded-2xl border overflow-hidden transition-all duration-150 ease-in group-hover:scale-101 cursor-pointer shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] bg-(--idle-bg) group-hover:bg-(--hover-bg)"
 				style={
 					{
 						borderColor: alertLevels[status].bg,

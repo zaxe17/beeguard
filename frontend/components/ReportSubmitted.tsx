@@ -76,7 +76,7 @@ const ReportSubmitted = ({ reportId, onReportAnother }: ReportSubmittedProps) =>
 			{/* BACK HOME FOR HOME */}
 			<Link
 				href="/citizen"
-				className="Poppins-Bold underline text-[#a6a3a3] hover:text-[#817b70] transition-colors duration-130">
+				className="Poppins-Bold underline text-[#a6a3a3] hover:text-[#817b70] transition-colors duration-150">
 				Back to Home
 			</Link>
 		</div>

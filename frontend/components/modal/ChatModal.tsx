@@ -57,12 +57,14 @@ export const Delete = ({ isOpen, onClose }: ModalProps) => {
 			header="Are you sure you want to delete this conversation?"
 			onClose={onClose}>
 			<p className="lg:text-sm text-xs text-center mb-5">
-				Once deleted, this entire conversation and its messages will
-				be permanently removed and you will no longer be able to view
-				them. This action cannot be undone.
+				Once deleted, this entire conversation and its messages will be
+				permanently removed and you will no longer be able to view them.
+				This action cannot be undone.
 			</p>
 			{errorMsg && (
-				<p className="text-xs text-red-600 mb-3 text-center">{errorMsg}</p>
+				<p className="text-xs text-red-600 mb-3 text-center">
+					{errorMsg}
+				</p>
 			)}
 			<div className="flex gap-3">
 				<CancelButton onClick={onClose} />
@@ -122,12 +124,18 @@ export const Report = ({ isOpen, onClose }: ModalProps) => {
 			<Select
 				label="Select a problem to report"
 				options={reportChatCateg}
-				onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-					setCategory(e.target.value)
-				}
+				value={category}
+				placeholder="Select a problem"
+				error={Boolean(errorMsg)}
+				onSelectChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+					setCategory(e.target.value);
+					setErrorMsg(null);
+				}}
 			/>
 			{errorMsg && (
-				<p className="text-xs text-red-600 mt-2 text-center">{errorMsg}</p>
+				<p className="text-xs text-red-600 mt-2 text-center">
+					{errorMsg}
+				</p>
 			)}
 			<div className="flex gap-3 mt-5">
 				<CancelButton onClick={onClose} />

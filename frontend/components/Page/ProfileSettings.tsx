@@ -148,7 +148,7 @@ const FarmPhotoEditor = ({
 	const [msg, setMsg] = useState<{ text: string; isError?: boolean } | null>(
 		null,
 	);
-	const src = mediaSrc(photo) ?? "/assets/farms/farm1.jpg";
+	const src = mediaSrc(photo);
 
 	const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -192,12 +192,19 @@ const FarmPhotoEditor = ({
 		<div className="flex flex-col gap-1">
 			<span className="text-sm text-[#817b70]">Bee Farm Photo</span>
 			<div className="relative w-full h-40 rounded-xl overflow-hidden border border-[#e2e2e6] bg-[#f3eed8]">
-				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img
-					src={src}
-					alt="Bee farm"
-					className="w-full h-full object-cover"
-				/>
+				{src ? (
+					<>
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img
+							src={src}
+							alt="Bee farm"
+							className="w-full h-full object-cover"
+						/>
+					</>
+				) : (
+					<div className="absolute bg-[#ffdb4f]/20 w-full h-full"></div>
+				)}
+
 				<div className="absolute bottom-2 right-2 flex gap-2">
 					{photo && (
 						<button

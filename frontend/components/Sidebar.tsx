@@ -182,7 +182,7 @@ const Sidebar = () => {
 								{isAdmin || tab.tabName !== "profile" ? (
 									<Icon
 										icon={tab.icon}
-										className={`w-full h-full mb-1 transition-all duration-130 ease-in ${
+										className={`w-full h-full mb-1 transition-all duration-150 ease-in ${
 											locked
 												? "text-white/50"
 												: `group-hover:text-[#ffc95f] ${activeTab ? "text-[#ffc95f]" : "text-white"}`
@@ -229,7 +229,7 @@ const Sidebar = () => {
 										}}>
 										<Icon
 											icon={tab.icon}
-											className={`w-full h-full mb-1 transition-all duration-130 ease-in ${
+											className={`w-full h-full mb-1 transition-all duration-150 ease-in ${
 												locked ? "text-white/50" : "text-white"
 											}`}
 										/>
@@ -246,7 +246,7 @@ const Sidebar = () => {
 							</div>
 
 							<span
-								className={`lg:block hidden Poppins-Medium capitalize lg:text-base text-sm transition-all duration-130 ease-in ${
+								className={`lg:block hidden Poppins-Medium capitalize lg:text-base text-sm transition-all duration-150 ease-in ${
 									locked
 										? "text-white/50"
 										: `group-hover:text-[#ffc95f] ${activeTab ? "text-[#ffc95f]" : "text-white"}`
@@ -267,7 +267,7 @@ const Sidebar = () => {
 							) : (
 								<Link
 									href={tab.route}
-									className={`flex lg:flex-row flex-col lg:gap-2 gap-1 items-center lg:p-2.5 p-0 lg:rounded-l-xl lg:rounded-none rounded-full group-hover:bg-white transition-all duration-130 ease-in ${activeTab ? "lg:bg-white" : ""}`}>
+									className={`flex lg:flex-row flex-col lg:gap-2 gap-1 items-center lg:p-2.5 p-0 lg:rounded-l-xl lg:rounded-none rounded-full group-hover:bg-white transition-all duration-150 ease-in ${activeTab ? "lg:bg-white" : ""}`}>
 									{tabInner}
 								</Link>
 							)}

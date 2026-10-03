@@ -71,7 +71,7 @@ export const LocationShareModal = ({
 										key={opt.minutes}
 										disabled={busy}
 										onClick={() => onShare(opt.minutes)}
-										className="text-xs Poppins-Medium rounded-full py-2 bg-[#ffdb4f] hover:bg-[#ffc95f] disabled:opacity-50 transition-all duration-130 ease-in">
+										className="text-xs Poppins-Medium rounded-full py-2 bg-[#ffdb4f] hover:bg-[#ffc95f] disabled:opacity-50 transition-all duration-150 ease-in">
 										{opt.label}
 									</button>
 								))}
@@ -82,7 +82,7 @@ export const LocationShareModal = ({
 						<button
 							disabled={busy}
 							onClick={() => onShare(0)}
-							className="w-full mt-3 flex items-center gap-2 rounded-xl p-3 text-left hover:bg-[#fff1ad]/60 disabled:opacity-50 transition-all duration-130 ease-in">
+							className="w-full mt-3 flex items-center gap-2 rounded-xl p-3 text-left hover:bg-[#fff1ad]/60 disabled:opacity-50 transition-all duration-150 ease-in">
 							<Icon icon="mdi:map-marker" className="w-5 h-5 text-[#4a2f00] shrink-0" />
 							<div className="flex flex-col">
 								<span className="Poppins-SemiBold text-sm">Send current location</span>
@@ -104,7 +104,7 @@ export const LocationShareModal = ({
 						<button
 							disabled={busy}
 							onClick={onClose}
-							className="w-full mt-4 text-sm Poppins-Medium rounded-full py-2 bg-[#d9d9d9] hover:bg-[#cfcfcf] disabled:opacity-50 transition-all duration-130 ease-in">
+							className="w-full mt-4 text-sm Poppins-Medium rounded-full py-2 bg-[#d9d9d9] hover:bg-[#cfcfcf] disabled:opacity-50 transition-all duration-150 ease-in">
 							Cancel
 						</button>
 					</motion.div>

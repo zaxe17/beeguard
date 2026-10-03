@@ -121,7 +121,7 @@ export const UserMessageCard = ({
 
 	return (
 		<div
-			className="group flex items-center gap-3 rounded-lg p-2 cursor-pointer select-none transition-all duration-130 ease-in hover:bg-[#fff1ad]/60 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]"
+			className="group flex items-center gap-3 rounded-lg p-2 cursor-pointer select-none transition-all duration-150 ease-in hover:bg-[#fff1ad]/60 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]"
 			onTouchStart={startPress}
 			onTouchEnd={cancelPress}
 			onTouchMove={cancelPress}
@@ -150,7 +150,7 @@ export const UserMessageCard = ({
 			</div>
 
 			<div
-				className="relative opacity-0 transition-all duration-130 ease-in group-hover:opacity-100"
+				className="relative opacity-0 transition-all duration-150 ease-in group-hover:opacity-100"
 				ref={buttonRef}>
 				<div
 					onClick={toggleMenu}
@@ -318,13 +318,13 @@ const LocationBubble = ({
 						href={mapsUrl}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="flex-1 text-center text-xs Poppins-Medium bg-white/70 hover:bg-white rounded-full py-1.5 transition-all duration-130 ease-in">
+						className="flex-1 text-center text-xs Poppins-Medium bg-white/70 hover:bg-white rounded-full py-1.5 transition-all duration-150 ease-in">
 						Open in Maps
 					</a>
 					{isUser && live && onStopLive && (
 						<button
 							onClick={() => onStopLive(message.message_id)}
-							className="flex-1 text-xs Poppins-Medium text-white bg-red-600 hover:bg-red-700 rounded-full py-1.5 transition-all duration-130 ease-in">
+							className="flex-1 text-xs Poppins-Medium text-white bg-red-600 hover:bg-red-700 rounded-full py-1.5 transition-all duration-150 ease-in">
 							Stop sharing
 						</button>
 					)}

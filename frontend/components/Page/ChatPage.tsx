@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 
 import {
@@ -23,6 +23,7 @@ import {
 	ChatMessagesSkeleton,
 	UserMessageCardSkeleton,
 } from "@/components/loading/SkeletonLoading";
+import { BackButton } from "../ui/Button";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -299,6 +300,11 @@ const useVisibleViewport = (active: boolean) => {
 	return box;
 };
 
+const useProfileRoute = () => {
+	const pathname = usePathname();
+	return pathname.startsWith("/beekeeper") ? "/beekeeper" : "/citizen";
+};
+
 /* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
@@ -309,6 +315,9 @@ const ChatPage = () => {
 	const apiRole: "citizen" | "beekeeper" =
 		role === "beekeeper" ? "beekeeper" : "citizen";
 	const mySenderRole = apiRole === "citizen" ? "Citizen" : "Beekeeper";
+	const router = useRouter();
+	const profileRoute = useProfileRoute();
+	const messagesRoute = `${profileRoute}/messages`;
 
 	/* ------------------------------- State -------------------------------- */
 
@@ -327,6 +336,8 @@ const ChatPage = () => {
 	const [locationModalOpen, setLocationModalOpen] = useState(false);
 	const [locationBusy, setLocationBusy] = useState(false);
 	const [locationError, setLocationError] = useState<string | null>(null);
+
+	const [search, setSearch] = useState("");
 
 	/* -------------------------------- Refs -------------------------------- */
 
@@ -911,6 +922,16 @@ const ChatPage = () => {
 		await api.post(`/chats/messages/${messageId}/location/stop`, {});
 	};
 
+	const q = search.trim().toLowerCase();
+	const filteredUsers = q
+		? users.filter(
+				(u) =>
+					u.name.toLowerCase().includes(q) ||
+					u.location.toLowerCase().includes(q) ||
+					u.message.toLowerCase().includes(q),
+			)
+		: users;
+
 	/* ------------------------------ Render -------------------------------- */
 
 	const activeConversation = buildEntries(messages, apiRole);
@@ -1040,10 +1061,19 @@ const ChatPage = () => {
 				borderNone
 				className="lg:w-[30%] w-full flex-1 lg:flex-none lg:h-full">
 				<div className="relative w-full px-2 flex flex-col items-center gap-4">
+					<div className="fixed left-2 top-4">
+						<BackButton route={profileRoute} />
+					</div>
 					<h3 className="relative Poppins-SemiBold text-xl text-[#020101]">
 						Messages
 					</h3>
-					<SearchBar placeholder="Search Messages" />
+					<SearchBar
+						placeholder="Search Messages"
+						value={search}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+							setSearch(e.target.value)
+						}
+					/>
 				</div>
 
 				<div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none px-1">
@@ -1052,14 +1082,16 @@ const ChatPage = () => {
 							<UserMessageCardSkeleton key={i} />
 						))}
 
-					{!chatsLoading && users.length === 0 && (
+					{!chatsLoading && filteredUsers.length === 0 && (
 						<div className="text-center text-sm text-[#a6a3a3] py-4">
-							No conversations yet.
+							{users.length === 0
+								? "No conversations yet."
+								: "No matching conversations."}
 						</div>
 					)}
 
 					{!chatsLoading &&
-						users.map((u) => (
+						filteredUsers.map((u) => (
 							<div
 								key={u.chat_id}
 								onClick={() => handleSelectUser(u)}>
@@ -1111,9 +1143,10 @@ const ChatPage = () => {
 						}>
 						{/* Header */}
 						<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
+							{/* BACK BUTON */}
 							<button
 								type="button"
-								onClick={closeChat}
+								onClick={() => router.replace(messagesRoute)}
 								className="flex items-center shrink-0">
 								<Icon
 									icon="bx:arrow-back"

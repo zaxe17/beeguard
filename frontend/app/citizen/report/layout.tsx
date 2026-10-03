@@ -70,17 +70,17 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 
 						{/* BUTTON */}
 						<div
-							className={`w-full shrink-0 justify-center gap-3 ${location ? "hidden" : "flex"}`}>
+							className={`lg:w-1/2 w-full shrink-0 justify-center items-center gap-3 ${location ? "hidden" : "flex"}`}>
 							{/* BACK — steps 2 and 3 keep everything entered so far */}
 							{step > 1 && (
 								<CancelButton
 									label="Back"
-									width="30%"
+									width="w-full"
 									onClick={submitting ? undefined : goBack}
 								/>
 							)}
 							<Button
-								width="50%"
+								width="w-full"
 								label={
 									scanning
 										? "Identifying..."

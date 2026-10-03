@@ -102,8 +102,8 @@ export const BackButton = ({
 			type="button"
 			onClick={handleClick}
 			aria-label={label ?? "Go back"}
-			className="flex items-center gap-1 cursor-pointer text-base text-[#ffa004]">
-			<Icon icon="bx:arrow-back" className="text-xl text-[#ffa004]" />
+			className="ml-3 flex items-center gap-1 cursor-pointer text-base text-[#ffa004]">
+			<Icon icon="bx:arrow-back" className="text-2xl text-[#ffa004]" />
 			{label}
 		</button>
 	);

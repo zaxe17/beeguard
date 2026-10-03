@@ -1,3 +1,4 @@
+import { Icon } from "@iconify/react";
 import Image, { StaticImageData } from "next/image";
 import React from "react";
 
@@ -91,21 +92,16 @@ export const BeefarmContainer = ({
 							className="w-full h-full object-cover"
 						/>
 					) : (
-						<Image
-							src={image}
-							alt="nearby_beekeeper"
-							width={100}
-							height={100}
-							className="w-full h-full object-cover"
-							priority
-						/>
+						<div className="bg-[#ffdb4f]/50 w-full h-full flex items-center justify-center">
+							<Icon icon="lucide-lab:bee-hive" className="text-[#ffd426] text-5xl" />
+						</div>
 					)}
 				</div>
 
 				{/* BEEFARM NAME & LOCATION */}
 				<div className="w-full flex-1 flex flex-col justify-between">
 					<div>
-						<h3 className="Poppins-Bold text-lg line-clamp-2">
+						<h3 className="Poppins-Bold text-lg line-clamp-1">
 							{farmName}
 						</h3>
 						<p className="text-xs text-[#a6a3a3] font-bold line-clamp-1">

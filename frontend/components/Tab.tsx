@@ -33,7 +33,7 @@ export const NavTab = ({ tabs, hasBg }: TabProps) => {
 	};
 
 	return (
-		<ul className="flex justify-around lg:gap-3 gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-width:thin [scrollbar-color:#e5a93a_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#e5a93a]">
+		<ul className="flex justify-around lg:gap-3 gap-2 overflow-x-auto whitespace-nowrap scrollbar-width:thin [scrollbar-color:#e5a93a_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#e5a93a]">
 			{" "}
 			{tabs.map((tab) => {
 				const isActive = activeStatus === tab.value;
@@ -41,7 +41,7 @@ export const NavTab = ({ tabs, hasBg }: TabProps) => {
 					<li
 						key={tab.value}
 						onClick={() => handleTabClick(tab.value)}
-						className={`Poppins-SemiBold text-center lg:text-sm text-xs cursor-pointer w-full px-1 transition-all duration-150 ease-in ${
+						className={`Poppins-SemiBold text-center lg:text-sm text-xs cursor-pointer w-full px-2 transition-all duration-150 ease-in ${
 							hasBg
 								? `py-1.5 rounded-lg ${
 										isActive

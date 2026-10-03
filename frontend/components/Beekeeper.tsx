@@ -51,27 +51,33 @@ const BUTTON_CONFIG: Record<ButtonVariant, React.FC<ButtonsProps>> = {
 		</>
 	),
 	message: ({ busy, armed, onMessage, onCancelReport, onResolve }) => (
-		<>
+		<div className="w-full flex flex-col gap-3 items-end">
+			<div className="w-full flex flex-row gap-3">
+				<CancelButton
+					BGcolor={
+						armed === "resolve" ? "bg-[#1f6f5f]" : "bg-[#e2e2e6]"
+					}
+					textColor={armed === "resolve" ? "white" : "#1f6f5f"}
+					width="lg:w-37.5 w-full"
+					label={
+						armed === "resolve" ? "Tap to confirm" : "Mark Resolved"
+					}
+					onClick={busy ? undefined : onResolve}
+				/>
+				<Button
+					label={busy ? "…" : "Message"}
+					onClick={busy ? undefined : onMessage}
+					width="lg:w-37.5 w-full"
+				/>
+			</div>
 			<CancelButton
 				BGcolor={armed === "cancel" ? "bg-red-600" : "bg-[#e2e2e6]"}
 				textColor={armed === "cancel" ? "white" : "#ff3131"}
-				width="150px"
+				width="lg:w-37.5 w-full"
 				label={armed === "cancel" ? "Tap to confirm" : "Cancel Report"}
 				onClick={busy ? undefined : onCancelReport}
 			/>
-			<CancelButton
-				BGcolor={armed === "resolve" ? "bg-[#1f6f5f]" : "bg-[#e2e2e6]"}
-				textColor={armed === "resolve" ? "white" : "#1f6f5f"}
-				width="150px"
-				label={armed === "resolve" ? "Tap to confirm" : "Mark Resolved"}
-				onClick={busy ? undefined : onResolve}
-			/>
-			<Button
-				label={busy ? "…" : "Message"}
-				onClick={busy ? undefined : onMessage}
-				width="150px"
-			/>
-		</>
+		</div>
 	),
 	resolved: () => null, // handled separately below (needs rating state)
 };
@@ -214,7 +220,9 @@ export const Beekeeper = ({
 		if (res.success && res.data) {
 			onUpdated?.(res.data);
 		} else {
-			setErrorMsg(res.message || "Couldn't mark this rescue as resolved.");
+			setErrorMsg(
+				res.message || "Couldn't mark this rescue as resolved.",
+			);
 		}
 	};
 
@@ -242,9 +250,9 @@ export const Beekeeper = ({
 
 	return (
 		<div
-			className={`w-full flex flex-col gap-1 p-2 transition-all duration-150 ease-in rounded-xl ${button === "message" ? "bg-[#fff1ad]/40 shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]" : "hover:bg-[#fff1ad]/40"}`}>
+			className={`w-full flex flex-col gap-1 p-2 transition-all duration-150 ease-in rounded-xl ${button === "message" ? "" : "hover:bg-[#fff1ad]/40"}`}>
 			<div className="w-full flex lg:flex-row flex-col items-center gap-3">
-				<div className="flex items-center justify-start w-full gap-2">
+				<div className="flex items-start justify-start w-full gap-3">
 					{/* PROFILE */}
 					<div className="w-15 h-15">
 						<ProfilePhoto />
@@ -283,7 +291,10 @@ export const Beekeeper = ({
 									</span>
 								</div>
 							) : (
-								<StarRating value={rating} onChange={setRating} />
+								<StarRating
+									value={rating}
+									onChange={setRating}
+								/>
 							))}
 					</div>
 				</div>

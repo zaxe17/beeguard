@@ -165,7 +165,7 @@ export const HiveDetailsContainer = ({
 		status === "diseased";
 
 	return (
-		<div className="flex flex-col gap-4 w-full max-w-md">
+		<div className="flex flex-col gap-4 w-full max-w-lg">
 			{/* QUEEN BEE REPLACEMENT WARNING — unhealthy hive OR an open
 			    Replace recommendation (e.g. queen too old) */}
 			{showReplace && (
@@ -236,8 +236,7 @@ export const HiveDetailsContainer = ({
 
 				{/* RIGHT */}
 				<div className="w-full">
-					{/* HIVE NAME — takes the place of the hive number (HV-000006),
-					    which isn't shown anymore. pr-8 leaves room for the pencil. */}
+					{/* HIVE NAME */}
 					<h1 className="Poppins-Bold text-2xl mb-4 pr-8 normal-case wrap-break-word">
 						{hive}
 					</h1>

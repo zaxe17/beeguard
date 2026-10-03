@@ -25,6 +25,8 @@ import {
 	HiveTabSkeleton,
 } from "@/components/loading/SkeletonLoading";
 import dynamic from "next/dynamic";
+import { NavTab } from "@/components/Tab";
+import { useSearchParams } from "next/navigation";
 
 type ModalType =
 	| "addHive"
@@ -70,20 +72,27 @@ const hasPin = (h: Hive) =>
 	!Number.isNaN(Number(h.latitude)) &&
 	!Number.isNaN(Number(h.longitude));
 
+const tabs = [
+	{ label: "All", value: "all" },
+	{ label: "Healthy", value: "Healthy" },
+	{ label: "Weak", value: "Weak" },
+	{ label: "Needs Attention", value: "Needs Attention" },
+	{ label: "Diseased", value: "Diseased" },
+];
+
 const HivesInner = () => {
 	const { openModal } = useModal<ModalType, HivePayload>();
 
 	const [hives, setHives] = useState<Hive[]>([]);
-	// `selectedId` — laging may value pag may laman ang list (desktop
-	// default). Hindi ito URL-driven kasi hindi natin gustong ma-reset
-	// ang desktop selection tuwing sasara ang mobile overlay.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [thisMonthKg, setThisMonthKg] = useState<Record<string, number>>({});
-	// True LANG hanggang matapos ang UNANG load. Hindi na ito ginagawang
-	// true ulit kapag may HIVES_CHANGED event, kaya hindi kikislap ang
-	// skeleton at hindi mawawala ang listahan tuwing may update.
+	// LOADING STATE
 	const [loading, setLoading] = useState(true);
+	// FOR SEARCH BAR
 	const [search, setSearch] = useState("");
+	// FOR NAVTABS FILTER HIVES
+	const searchParams = useSearchParams();
+	const statusFilter = searchParams.get("tab") || "all";
 
 	// Queen-alert popup state — separate from `selectedId` so it can
 	// be dismissed without losing the current selection.
@@ -142,8 +151,10 @@ const HivesInner = () => {
 
 	const selectedHive = hives.find((h) => h.hive_id === selectedId) ?? null;
 
-	const filteredHives = hives.filter((h) =>
-		h.hive_name.toLowerCase().includes(search.trim().toLowerCase()),
+	const filteredHives = hives.filter(
+		(h) =>
+			h.hive_name.toLowerCase().includes(search.trim().toLowerCase()) &&
+			(statusFilter === "all" || h.health_status === statusFilter),
 	);
 
 	const openHiveModal = (
@@ -228,13 +239,16 @@ const HivesInner = () => {
 				</div>
 
 				{/* HIVE MAPS */}
-				<div className="relative flex-1 min-h-40 min-w-0 overflow-hidden isolate rounded-xl mx-1.5">
+				<div className="relative flex-1 h-20 min-w-0 overflow-hidden isolate rounded-xl mx-1.5">
 					<Map
 						markers={hiveMarkers}
 						selectedMarkerId={selectedId}
 						onMarkerClick={handleMarkerClick}
 					/>
 				</div>
+
+				{/* TABS FOR HIVES STATUS */}
+				<NavTab tabs={tabs} hasBg />
 
 				{/* SCROLLABLE HIVE LIST */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">

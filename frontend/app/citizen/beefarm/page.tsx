@@ -14,6 +14,7 @@ import { api } from "@/services/api";
 import { mediaSrc } from "@/services/profile";
 import type { FarmMarker } from "@/components/ui/google-maps/Map";
 import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
+import { getCitizenCoords } from "@/utils/geo";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -65,30 +66,38 @@ const BeefarmPage = () => {
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 
+	const handleFarmClick = (beekeeperID: string) => {
+		openFarmParam(beekeeperID);
+	};
+
 	useEffect(() => {
 		let cancelled = false;
 
 		const loadFarms = async () => {
 			setLoading(true);
-			const query = search ? `?search=${encodeURIComponent(search)}` : "";
-			const res = await api.get<Farm[]>(`/farms${query}`);
-			if (!cancelled) {
-				if (res.success && res.data) setFarms(res.data);
-				setLoading(false);
+			const coords = await getCitizenCoords();
+			if (cancelled) return;
+
+			const params = new URLSearchParams();
+			if (search) params.set("search", search);
+			if (coords) {
+				params.set("lat", String(coords.lat));
+				params.set("lng", String(coords.lng));
 			}
+			const qs = params.toString();
+			const res = await api.get<Farm[]>(`/farms${qs ? `?${qs}` : ""}`);
+			if (cancelled) return;
+
+			if (res.success && res.data) setFarms(res.data);
+			setLoading(false);
 		};
 
-		// Debounce search typing so we don't fire a request per keystroke.
 		const t = setTimeout(loadFarms, search ? 300 : 0);
 		return () => {
 			cancelled = true;
 			clearTimeout(t);
 		};
 	}, [search]);
-
-	const handleFarmClick = (beekeeperID: string) => {
-		openFarmParam(beekeeperID);
-	};
 
 	// Only farms with a set location can be pinned — a beekeeper who
 	// never dropped a map pin (beekeepers.latitude/longitude NULL)
@@ -115,7 +124,7 @@ const BeefarmPage = () => {
 					</h3>
 
 					<SearchBar
-						placeholder="Search location"
+						placeholder="Search beefarm"
 						value={search}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
 							setSearch(e.target.value)
@@ -155,7 +164,7 @@ const BeefarmPage = () => {
 									}
 									farmName={farm.farmName}
 									location={farm.location}
-									miles={farm.miles ?? 0}
+									miles={farm.miles ?? undefined}
 								/>
 							</div>
 						))}

@@ -37,7 +37,7 @@ const YearFilter = ({
 				active ? "text-white" : "text-[#4A2F00]"
 			}`}>
 			<span
-				className={`absolute inset-0 bg-linear-to-r from-[#ffdb4f] to-[#eec572] transition-opacity duration-130 ease-in-out ${
+				className={`absolute inset-0 bg-linear-to-r from-[#ffdb4f] to-[#eec572] transition-opacity duration-150 ease-in-out ${
 					active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
 				}`}
 			/>
@@ -332,7 +332,7 @@ const History = () => {
 
 					{loading ? (
 						<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
-							{Array.from({ length: 3 }).map((_, i) => (
+							{Array.from({ length: 5 }).map((_, i) => (
 								<BQHistoryCardSkeleton key={i} />
 							))}
 						</div>

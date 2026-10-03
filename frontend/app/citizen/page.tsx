@@ -14,6 +14,7 @@ import { mediaSrc } from "@/services/profile";
 
 import bee_report from "@/public/assets/bee_report.png";
 import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
+import { getCitizenCoords } from "@/utils/geo";
 
 // Shape returned by GET /api/farms — see services/farm_service.py
 // (same type as app/citizen/beefarm/page.tsx).
@@ -29,29 +30,6 @@ type Farm = {
 
 // How many farms the Home page shows ("View All" opens the full list).
 const HOME_FARM_LIMIT = 9;
-// Don't hold the farm list back for long waiting on location permission.
-const LOCATION_TIMEOUT_MS = 5000;
-
-const getCitizenCoords = () =>
-	new Promise<{ lat: number; lng: number } | null>((resolve) => {
-		if (typeof navigator === "undefined" || !navigator.geolocation) {
-			resolve(null);
-			return;
-		}
-		navigator.geolocation.getCurrentPosition(
-			(pos) =>
-				resolve({
-					lat: pos.coords.latitude,
-					lng: pos.coords.longitude,
-				}),
-			() => resolve(null), // denied / unavailable -> still show farms, unsorted
-			{
-				enableHighAccuracy: false,
-				timeout: LOCATION_TIMEOUT_MS,
-				maximumAge: 5 * 60 * 1000,
-			},
-		);
-	});
 
 const Home = () => {
 	const router = useRouter();
@@ -148,7 +126,7 @@ const Home = () => {
 
 					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
 						{loading
-							? Array.from({ length: 3 }).map((_, i) => (
+							? Array.from({ length: 5 }).map((_, i) => (
 									<BeefarmSkeleton key={i} />
 								))
 							: shownFarms.map((farm) => (

@@ -1,3 +1,4 @@
+import { Icon } from "@iconify/react";
 import Image, { StaticImageData } from "next/image";
 import React from "react";
 
@@ -76,7 +77,7 @@ export const BeefarmContainer = ({
 	miles,
 }: BeeFarmProps) => {
 	return (
-		<div className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/40 transition-all duration-130 ease-in hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
+		<div className="p-1.5 flex flex-col rounded-2xl hover:bg-[#fff1ad]/40 transition-all duration-150 ease-in hover:scale-101 hover:shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)]">
 			<div className="w-full flex gap-3 cursor-pointer">
 				{/* BEEFARM PICTURE */}
 				<div className="border border-amber-100 w-20 aspect-square rounded-lg overflow-hidden shrink-0 self-start">
@@ -91,21 +92,16 @@ export const BeefarmContainer = ({
 							className="w-full h-full object-cover"
 						/>
 					) : (
-						<Image
-							src={image}
-							alt="nearby_beekeeper"
-							width={100}
-							height={100}
-							className="w-full h-full object-cover"
-							priority
-						/>
+						<div className="bg-[#ffdb4f]/50 w-full h-full flex items-center justify-center">
+							<Icon icon="lucide-lab:bee-hive" className="text-[#ffd426] text-5xl" />
+						</div>
 					)}
 				</div>
 
 				{/* BEEFARM NAME & LOCATION */}
 				<div className="w-full flex-1 flex flex-col justify-between">
 					<div>
-						<h3 className="Poppins-Bold text-lg line-clamp-2">
+						<h3 className="Poppins-Bold text-lg line-clamp-1">
 							{farmName}
 						</h3>
 						<p className="text-xs text-[#a6a3a3] font-bold line-clamp-1">

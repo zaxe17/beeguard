@@ -138,7 +138,7 @@ export const OfferSkeleton = () => (
 		className="w-full max-w-2xl rounded-xl border border-[#e2e2e6] p-3 flex flex-col gap-3 animate-pulse"
 		aria-hidden="true">
 		<Bar className="h-4 w-28" />
-		{Array.from({ length: 2 }).map((_, i) => (
+		{Array.from({ length: 5 }).map((_, i) => (
 			<div key={i} className="flex items-center gap-3">
 				<Bar className="w-12 h-12 rounded-full shrink-0" />
 				<div className="flex-1 flex flex-col gap-2">

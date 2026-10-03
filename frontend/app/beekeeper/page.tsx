@@ -396,7 +396,7 @@ const Beekeeper = () => {
 
 						{operationsLoading ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-hidden p-2">
-								{Array.from({ length: 3 }).map((_, i) => (
+								{Array.from({ length: 5 }).map((_, i) => (
 									<OperationSkeleton key={i} />
 								))}
 							</div>
@@ -455,7 +455,7 @@ const Beekeeper = () => {
 
 						{loading && recentAlerts.length === 0 ? (
 							<div className="w-full flex-1 flex flex-col gap-3 overflow-hidden p-2">
-								{Array.from({ length: 3 }).map((_, i) => (
+								{Array.from({ length: 5 }).map((_, i) => (
 									<PesticideAlertSkeleton key={i} />
 								))}
 							</div>

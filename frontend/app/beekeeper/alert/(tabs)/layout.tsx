@@ -78,7 +78,7 @@ const AlertHeader = () => {
 							<Link
 								key={i}
 								href={t.route}
-								className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-130 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "text-[#817b70] hover:bg-[#ffdb4f]/60"}`}>
+								className={`w-full cursor-pointer py-2 bg-[#e2e2e6] rounded-lg transition-all duration-150 ease-in  ${activeTab ? "bg-[#ffdb4f] text-[#704500]" : "text-[#817b70] hover:bg-[#ffdb4f]/60"}`}>
 								<li className="Poppins-SemiBold text-center lg:text-xl text-sm">
 									{t.label}
 								</li>

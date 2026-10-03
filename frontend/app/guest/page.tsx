@@ -7,8 +7,12 @@ import { Icon } from "@iconify/react";
 import { cvScanService } from "@/services/cvscan";
 import { useModal } from "@/context/ModalContext";
 import { Button } from "@/components/ui/Button";
-import { BeeIdentify, RETAKE_PHOTO_EVENT } from "@/components/modal/ReportModal";
+import {
+	BeeIdentify,
+	RETAKE_PHOTO_EVENT,
+} from "@/components/modal/ReportModal";
 import { SignupModal } from "@/components/modal/SignupModal";
+import { useRouter } from "next/navigation";
 
 /**
  * GUEST BEE IDENTIFICATION (no login). Scans are sent without a login
@@ -71,11 +75,17 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 				// Camera names/count are only visible after permission.
 				const devices = await navigator.mediaDevices.enumerateDevices();
 				if (mounted) {
-					setCanSwitch(devices.filter((d) => d.kind === "videoinput").length > 1);
+					setCanSwitch(
+						devices.filter((d) => d.kind === "videoinput").length >
+							1,
+					);
 				}
 			} catch (err) {
 				console.error("Camera access error:", err);
-				if (mounted) setError("Unable to access camera. You can upload a photo instead.");
+				if (mounted)
+					setError(
+						"Unable to access camera. You can upload a photo instead.",
+					);
 			} finally {
 				if (mounted) setSwitching(false);
 			}
@@ -111,7 +121,8 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 		}
 		const video = videoRef.current;
 		const canvas = canvasRef.current;
-		if (!video || !canvas || !streamRef.current || !video.videoWidth) return;
+		if (!video || !canvas || !streamRef.current || !video.videoWidth)
+			return;
 
 		canvas.width = video.videoWidth;
 		canvas.height = video.videoHeight;
@@ -168,7 +179,10 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 						onClick={onRetake}
 						aria-label="Retake photo"
 						className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
-						<Icon icon="mdi:camera-retake-outline" className="w-4 h-4" />
+						<Icon
+							icon="mdi:camera-retake-outline"
+							className="w-4 h-4"
+						/>
 						Retake
 					</button>
 				)}
@@ -195,7 +209,11 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 						title="Switch camera"
 						className="absolute top-3 right-3 z-10 w-11 h-11 p-2 rounded-full bg-black/40 hover:bg-black/55 backdrop-blur-sm flex items-center justify-center cursor-pointer disabled:opacity-50">
 						<Icon
-							icon={switching ? "svg-spinners:ring-resize" : "mdi:camera-flip-outline"}
+							icon={
+								switching
+									? "svg-spinners:ring-resize"
+									: "mdi:camera-flip-outline"
+							}
 							className="w-full h-full text-white"
 						/>
 					</button>
@@ -213,7 +231,10 @@ const Camera = ({ photo, busy, onPhoto, onRetake }: CameraProps) => {
 				<div
 					onClick={handleTakePhoto}
 					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-					<Icon icon="entypo:camera" className="w-full h-full text-white" />
+					<Icon
+						icon="entypo:camera"
+						className="w-full h-full text-white"
+					/>
 				</div>
 
 				{/* UPLOAD PHOTO BUTTON */}
@@ -259,6 +280,8 @@ const GuestIdentify = () => {
 		BeeIdentifyPayload
 	>();
 
+	const router = useRouter();
+
 	const [photo, setPhoto] = useState<string | null>(null);
 	const [file, setFile] = useState<File | null>(null);
 	const [scanning, setScanning] = useState(false);
@@ -279,7 +302,8 @@ const GuestIdentify = () => {
 	// "Retake Photo" in the result popup (no bee detected).
 	useEffect(() => {
 		window.addEventListener(RETAKE_PHOTO_EVENT, handleRetake);
-		return () => window.removeEventListener(RETAKE_PHOTO_EVENT, handleRetake);
+		return () =>
+			window.removeEventListener(RETAKE_PHOTO_EVENT, handleRetake);
 	}, [handleRetake]);
 
 	// Next -> identify the bee, then show the result popup.
@@ -311,12 +335,20 @@ const GuestIdentify = () => {
 					onRetake={handleRetake}
 				/>
 				{error && (
-					<p className="text-sm text-red-600 text-center mt-2">{error}</p>
+					<p className="text-sm text-red-600 text-center mt-2">
+						{error}
+					</p>
 				)}
 			</div>
 
 			{/* NEXT — only after a photo is taken/uploaded */}
-			<div className="w-full shrink-0 flex justify-center">
+			<div className="w-full shrink-0 flex justify-center gap-3">
+				<Button
+					width="50%"
+					bgNone
+					label="Back"
+					onClick={() => router.back()}
+				/>
 				<Button
 					width="50%"
 					label={scanning ? "Identifying..." : "Next"}

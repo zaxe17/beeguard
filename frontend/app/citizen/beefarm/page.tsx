@@ -14,6 +14,7 @@ import { api } from "@/services/api";
 import { mediaSrc } from "@/services/profile";
 import type { FarmMarker } from "@/components/ui/google-maps/Map";
 import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
+import { getCitizenCoords } from "@/utils/geo";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -65,30 +66,38 @@ const BeefarmPage = () => {
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 
+	const handleFarmClick = (beekeeperID: string) => {
+		openFarmParam(beekeeperID);
+	};
+
 	useEffect(() => {
 		let cancelled = false;
 
 		const loadFarms = async () => {
 			setLoading(true);
-			const query = search ? `?search=${encodeURIComponent(search)}` : "";
-			const res = await api.get<Farm[]>(`/farms${query}`);
-			if (!cancelled) {
-				if (res.success && res.data) setFarms(res.data);
-				setLoading(false);
+			const coords = await getCitizenCoords();
+			if (cancelled) return;
+
+			const params = new URLSearchParams();
+			if (search) params.set("search", search);
+			if (coords) {
+				params.set("lat", String(coords.lat));
+				params.set("lng", String(coords.lng));
 			}
+			const qs = params.toString();
+			const res = await api.get<Farm[]>(`/farms${qs ? `?${qs}` : ""}`);
+			if (cancelled) return;
+
+			if (res.success && res.data) setFarms(res.data);
+			setLoading(false);
 		};
 
-		// Debounce search typing so we don't fire a request per keystroke.
 		const t = setTimeout(loadFarms, search ? 300 : 0);
 		return () => {
 			cancelled = true;
 			clearTimeout(t);
 		};
 	}, [search]);
-
-	const handleFarmClick = (beekeeperID: string) => {
-		openFarmParam(beekeeperID);
-	};
 
 	// Only farms with a set location can be pinned — a beekeeper who
 	// never dropped a map pin (beekeepers.latitude/longitude NULL)
@@ -115,7 +124,7 @@ const BeefarmPage = () => {
 					</h3>
 
 					<SearchBar
-						placeholder="Search location"
+						placeholder="Search beefarm"
 						value={search}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
 							setSearch(e.target.value)
@@ -126,7 +135,7 @@ const BeefarmPage = () => {
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading &&
-						Array.from({ length: 6 }).map((_, i) => (
+						Array.from({ length: 5 }).map((_, i) => (
 							<BeefarmSkeleton key={i} />
 						))}
 
@@ -155,7 +164,7 @@ const BeefarmPage = () => {
 									}
 									farmName={farm.farmName}
 									location={farm.location}
-									miles={farm.miles ?? 0}
+									miles={farm.miles ?? undefined}
 								/>
 							</div>
 						))}
@@ -185,7 +194,7 @@ const BeefarmPage = () => {
 							// Back to the big map.
 							<button
 								onClick={closeFarmParam}
-								className="absolute top-3 right-3 z-1000 flex items-center gap-1.5 bg-white/95 hover:bg-white text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] transition-all duration-130 ease-in">
+								className="absolute top-3 right-3 z-1000 flex items-center gap-1.5 bg-white/95 hover:bg-white text-[#4a2f00] text-xs Poppins-SemiBold py-1.5 px-3 rounded-full shadow-[0px_2px_5px_-1px_rgba(50,50,93,0.25),0px_1px_3px_-1px_rgba(0,0,0,0.3)] transition-all duration-150 ease-in">
 								<Icon
 									icon="mdi:arrow-expand"
 									className="w-4 h-4"

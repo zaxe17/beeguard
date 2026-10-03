@@ -21,11 +21,18 @@ import {
 	filterAlerts,
 	useAlertFilter,
 } from "@/context/AlertFilterContext";
+import { PesticideAlertSkeleton } from "@/components/loading/SkeletonLoading";
+
+// How many placeholder cards to show while alerts are loading.
+const SKELETON_COUNT = 5;
 
 const toDisplayDate = (iso: string) => new Date(iso).toLocaleDateString();
 
 const toDisplayTime = (iso: string) =>
-	new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+	new Date(iso).toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 
 const AlertHistory = () => {
 	const router = useRouter();
@@ -75,11 +82,15 @@ const AlertHistory = () => {
 	return (
 		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
-				<p className="text-center text-sm text-[#817b70] p-4">
-					Loading alert history...
-				</p>
+				<>
+					{Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+						<PesticideAlertSkeleton key={i} />
+					))}
+				</>
 			) : errorMsg ? (
-				<p className="text-center text-sm text-red-600 p-4">{errorMsg}</p>
+				<p className="text-center text-sm text-red-600 p-4">
+					{errorMsg}
+				</p>
 			) : shown.length === 0 ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
 					{emptyMessage(filter, search, "No ended alerts yet.")}
@@ -92,9 +103,16 @@ const AlertHistory = () => {
 						location={getAlertLocation(a, resolvedLocations)}
 						date={toDisplayDate(a.scheduled_date)}
 						time={toDisplayTime(a.scheduled_date)}
-						status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
+						status={
+							a.risk_level.toLowerCase() as
+								| "high"
+								| "medium"
+								| "low"
+						}
 						onClick={() =>
-							router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
+							router.push(
+								`/beekeeper/alert/details?id=${a.alert_id}`,
+							)
 						}
 						approvalStatus={a.approval_status}
 					/>

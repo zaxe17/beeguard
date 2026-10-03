@@ -91,7 +91,6 @@ const Alert = () => {
 			className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3 lg:scrollbar-auto scrollbar-none">
 			{loading ? (
 				<>
-					<span className="sr-only">Loading alerts...</span>
 					{Array.from({ length: SKELETON_COUNT }).map((_, i) => (
 						<PesticideAlertSkeleton key={i} />
 					))}

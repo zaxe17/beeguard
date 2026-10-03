@@ -4,6 +4,7 @@
 import React from "react";
 import { Container } from "@/components/ui/Container";
 import { ModalProvider } from "@/context/ModalContext";
+import { BackButton } from "@/components/ui/Button";
 
 /**
  * GUEST BEE IDENTIFICATION — /guest (no login needed).
@@ -20,7 +21,7 @@ const GuestLayout = ({ children }: { children?: React.ReactNode }) => {
 				<Container width="lg:w-1/2 w-full" height="100%" scroll>
 					<div className="w-full h-full flex flex-col min-h-0">
 						{/* TITLE */}
-						<div className="shrink-0">
+						<div className="flex items-center shrink-0 gap-3">
 							<h2 className="Poppins-Bold lg:text-5xl text-2xl text-[#4a2f00]">
 								What Bee Is This?
 							</h2>

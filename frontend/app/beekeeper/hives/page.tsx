@@ -239,7 +239,7 @@ const HivesInner = () => {
 				{/* SCROLLABLE HIVE LIST */}
 				<div className="p-2 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading ? (
-						Array.from({ length: 4 }).map((_, i) => (
+						Array.from({ length: 5 }).map((_, i) => (
 							<HiveTabSkeleton key={i} />
 						))
 					) : filteredHives.length === 0 ? (
@@ -429,7 +429,7 @@ const Hives = () => {
 		<Suspense
 			fallback={
 				<div className="w-full p-2 flex flex-col gap-2">
-					{Array.from({ length: 4 }).map((_, i) => (
+					{Array.from({ length: 5 }).map((_, i) => (
 						<HiveTabSkeleton key={i} />
 					))}
 				</div>

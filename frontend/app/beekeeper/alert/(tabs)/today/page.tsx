@@ -14,6 +14,10 @@ import {
 	filterAlerts,
 	useAlertFilter,
 } from "@/context/AlertFilterContext";
+import { PesticideAlertSkeleton } from "@/components/loading/SkeletonLoading";
+
+// How many placeholder cards to show while alerts are loading.
+const SKELETON_COUNT = 5;
 
 function toDisplayDate(a: AlertRecord): string {
 	return new Date(a.scheduled_date).toLocaleDateString();
@@ -78,26 +82,31 @@ const TodayAlert = () => {
 		search,
 		(a) => getAlertLocation(a, resolvedLocations),
 		user?.id,
-	)
-		.sort(
-			(a, b) =>
-				new Date(a.scheduled_date).getTime() -
-				new Date(b.scheduled_date).getTime(),
-		);
+	).sort(
+		(a, b) =>
+			new Date(a.scheduled_date).getTime() -
+			new Date(b.scheduled_date).getTime(),
+	);
 
 	return (
 		<div className="w-full h-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 py-1 px-3">
 			{loading ? (
-				<p className="text-center text-sm text-[#817b70] p-4">
-					Loading alerts...
-				</p>
+				<>
+					{Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+						<PesticideAlertSkeleton key={i} />
+					))}
+				</>
 			) : errorMsg ? (
 				<p className="text-center text-sm text-red-600 p-4">
 					{errorMsg}
 				</p>
 			) : todayOnly.length === 0 ? (
 				<p className="text-center text-sm text-[#817b70] p-4">
-					{emptyMessage(filter, search, "No alerts scheduled for today.")}
+					{emptyMessage(
+						filter,
+						search,
+						"No alerts scheduled for today.",
+					)}
 				</p>
 			) : (
 				todayOnly.map((a) => (
@@ -106,9 +115,16 @@ const TodayAlert = () => {
 						location={getAlertLocation(a, resolvedLocations)}
 						date={toDisplayDate(a)}
 						time={toDisplayTime(a)}
-						status={a.risk_level.toLowerCase() as "high" | "medium" | "low"}
+						status={
+							a.risk_level.toLowerCase() as
+								| "high"
+								| "medium"
+								| "low"
+						}
 						onClick={() =>
-							router.push(`/beekeeper/alert/details?id=${a.alert_id}`)
+							router.push(
+								`/beekeeper/alert/details?id=${a.alert_id}`,
+							)
 						}
 						// Your own alert that the admin hasn't approved yet.
 						approvalStatus={a.approval_status}

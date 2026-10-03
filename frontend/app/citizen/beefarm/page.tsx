@@ -135,7 +135,7 @@ const BeefarmPage = () => {
 				{/* SCROLLABLE BEEFARM CARD */}
 				<div className="p-2 flex-1 flex flex-col overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{loading &&
-						Array.from({ length: 6 }).map((_, i) => (
+						Array.from({ length: 5 }).map((_, i) => (
 							<BeefarmSkeleton key={i} />
 						))}
 

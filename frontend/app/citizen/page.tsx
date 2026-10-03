@@ -126,7 +126,7 @@ const Home = () => {
 
 					<div className="w-full grid lg:grid-cols-3 grid-cols-1 gap-3">
 						{loading
-							? Array.from({ length: 3 }).map((_, i) => (
+							? Array.from({ length: 5 }).map((_, i) => (
 									<BeefarmSkeleton key={i} />
 								))
 							: shownFarms.map((farm) => (

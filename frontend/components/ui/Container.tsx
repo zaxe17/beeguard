@@ -38,7 +38,7 @@ export const FormContainer = ({
 				onSubmit?.();
 			}}
 			className={`${width} lg:p-4.75 lg:bg-white/20 bg-transparent rounded-3xl lg:backdrop-blur-md border border-white/30 flex flex-col min-h-0 lg:shadow-[0_8px_32px_0_rgba(31,38,135,0.15),inset_0_1px_0_0_rgba(255,255,255,0.4)]`}>
-			<div className="lg:p-4.75 py-5 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+			<div className="lg:p-4.75 py-5 px-2 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 				{children}
 			</div>
 		</form>

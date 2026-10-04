@@ -8,7 +8,7 @@ import Link from "next/link";
 import { ProfilePhoto } from "./ProfilePhoto";
 import { useAuth } from "@/context/AuthContext";
 
-import bee from "../public/assets/bee.png";
+import bee from "../public/assets/icons/icon-512.png";
 
 // Shared shape for every sidebar tab, so `verifiedOnly` is always
 // `boolean | undefined` (never `unknown`) no matter which list is active.

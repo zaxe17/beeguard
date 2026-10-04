@@ -4,7 +4,7 @@ import { FormContainer } from "../ui/Container";
 import { CheckBox } from "../ui/Input";
 
 import termCondContent from "@/data/termsCondition.json";
-import privacyPolicyContent from "@/data/privacyPolicy.json"
+import privacyPolicyContent from "@/data/privacyPolicy.json";
 import { useRouter } from "next/navigation";
 
 type TermsConditionPageProps = {
@@ -27,7 +27,7 @@ export const TermsConditionPage = ({
 	const router = useRouter();
 
 	return (
-		<FormContainer>
+		<FormContainer width="lg:w-1/3 w-full">
 			<div className="text-center lg:mb-7 mb-15">
 				<h1 className="Poppins-Bold text-[28px] text-[#ff9a00]">
 					Terms & Conditions
@@ -45,7 +45,9 @@ export const TermsConditionPage = ({
 								<li
 									key={ind}
 									className={`${
-										tc.listStyle ? "list-disc ml-4" : ""
+										tc.listStyle
+											? "list-disc ml-8"
+											: "indent-4 ml-4"
 									} text-xs whitespace-pre-line`}>
 									{cont}
 								</li>
@@ -112,7 +114,9 @@ export const PrivacyPolicyPage = () => {
 								<li
 									key={ind}
 									className={`${
-										tc.listStyle ? "list-disc ml-4" : ""
+										tc.listStyle
+											? "list-disc ml-8"
+											: "indent-4 ml-4"
 									} text-xs whitespace-pre-line`}>
 									{cont}
 								</li>

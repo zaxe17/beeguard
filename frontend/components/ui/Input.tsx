@@ -19,6 +19,7 @@ type InputProps = {
 	onCheckedChange?: (checked: boolean) => void;
 	error?: boolean;
 	capitalize?: boolean;
+	lowercase?: boolean;
 	disabled?: boolean; // NEW
 };
 
@@ -61,6 +62,7 @@ export const Input = ({
 	type,
 	error,
 	capitalize,
+	lowercase,
 	disabled,
 }: InputProps) => {
 	const [showPassword, setShowPassword] = useState(false);
@@ -70,16 +72,41 @@ export const Input = ({
 		type === "password" ||
 		(typeof label === "string" && label.toLowerCase().includes("password"));
 
+	const isUsernameField =
+		lowercase ||
+		[label, name, id].some(
+			(v) =>
+				typeof v === "string" && v.toLowerCase().includes("username"),
+		);
+
 	const resolvedType = isPasswordField
 		? showPassword
 			? "text"
 			: "password"
 		: type || "text";
 
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const el = e.target;
+		let next = el.value;
+
+		if (isUsernameField) next = next.toLowerCase();
+		else if (capitalize) next = capitalizeWords(next);
+
+		if (next !== el.value) {
+			const { selectionStart, selectionEnd } = el;
+			el.value = next;
+			try {
+				el.setSelectionRange(selectionStart, selectionEnd);
+			} catch {}
+		}
+
+		onChange?.(e);
+	};
+
 	return (
 		<div className="flex flex-col w-full gap-1">
 			<label
-				htmlFor=""
+				htmlFor={id}
 				className={`lg:text-base text-sm ${
 					error ? "text-red-600" : "text-[#4a2f00]"
 				}`}>
@@ -92,15 +119,9 @@ export const Input = ({
 					id={id}
 					placeholder={placeholder}
 					value={value}
-					onChange={onChange}
+					onChange={handleChange}
 					disabled={disabled}
-					onInput={(e) => {
-						if (capitalize) {
-							e.currentTarget.value = capitalizeWords(
-								e.currentTarget.value,
-							);
-						}
-					}}
+					autoCapitalize={isUsernameField ? "none" : undefined}
 					className={`text-sm w-full lg:h-8 h-10 p-2.5 ${
 						isPasswordField ? "pr-9" : ""
 					} border ${

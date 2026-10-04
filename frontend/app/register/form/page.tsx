@@ -477,6 +477,7 @@ const RegistrationForm = () => {
 									update("email", e.target.value)
 								}
 								error={!!errors.email}
+								lowercase
 							/>
 							<FieldError name="email" />
 						</div>

@@ -349,13 +349,14 @@ const RegistrationForm = () => {
 						<Input
 							label={
 								<>
-									Username{" "}
+									Username
 									<span className="text-[#ff0000]">*</span>
 								</>
 							}
 							height={30}
 							value={form.username}
 							onChange={(e) => update("username", e.target.value)}
+							lowercase
 							error={!!errors.username}
 						/>
 						<FieldError name="username" />

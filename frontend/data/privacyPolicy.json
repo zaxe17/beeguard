@@ -39,7 +39,7 @@
 			"You can manage notification preferences within the app",
 			"You may request account deletion through support"
 		],
-		"listStyle": false
+		"listStyle": true
 	},
 	{
 		"title": "Children's Privacy",

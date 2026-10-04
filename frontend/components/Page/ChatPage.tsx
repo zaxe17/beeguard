@@ -1061,7 +1061,7 @@ const ChatPage = () => {
 				borderNone
 				className="lg:w-[30%] w-full flex-1 lg:flex-none lg:h-full">
 				<div className="relative w-full px-2 flex flex-col items-center gap-4">
-					<div className="fixed left-2 top-4">
+					<div className="absolute left-0 top-0.5">
 						<BackButton route={profileRoute} />
 					</div>
 					<h3 className="relative Poppins-SemiBold text-xl text-[#020101]">
@@ -1131,23 +1131,20 @@ const ChatPage = () => {
 			{showMobileChat && selectedUser && (
 				<MobileOverlay>
 					<div
-						className="fixed inset-0 z-5000 bg-white flex flex-col overflow-hidden"
+						className="absolute inset-x-0 bg-white flex flex-col overflow-hidden"
 						style={
 							viewport
-								? {
-										top: viewport.top,
-										height: viewport.height,
-										bottom: "auto",
-									}
-								: { top: 0, height: "100dvh", bottom: "auto" }
+								? { top: viewport.top, height: viewport.height }
+								: { top: 0, height: "100dvh" }
 						}>
 						{/* Header */}
 						<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
 							{/* BACK BUTON */}
 							<button
 								type="button"
-								onClick={() => router.replace(messagesRoute)}
-								className="flex items-center shrink-0">
+								onClick={closeChat}
+								aria-label="Back to messages"
+								className="flex items-center justify-center shrink-0 w-10 h-10 -m-1">
 								<Icon
 									icon="bx:arrow-back"
 									className="text-2xl text-[#4a2f00]"

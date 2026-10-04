@@ -480,7 +480,7 @@ const Settings = ({
 			borderNone
 			className="lg:w-[35%] w-full h-full shrink-0">
 			<div className="sticky top-0 z-10 flex w-full items-center justify-center px-4 pt-4 pb-6">
-				<div className="fixed left-2">
+				<div className="absolute left-0">
 					<BackButton route={profileRoute} />
 				</div>
 				<span className="Poppins-Bold text-3xl text-[#4a2f00]">
@@ -532,7 +532,7 @@ const About = ({
 			borderNone
 			className="lg:w-[35%] w-full h-full shrink-0">
 			<div className="sticky top-0 z-10 flex w-full items-center justify-center px-4 pt-4 pb-6">
-				<div className="fixed left-2">
+				<div className="absolute left-0">
 					<BackButton route={profileRoute} />
 				</div>
 				<span className="Poppins-Bold text-3xl text-[#4a2f00]">

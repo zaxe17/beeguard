@@ -10,7 +10,7 @@ type LayoutProps = {
 const BeeGuardLayout = ({ content, modal, offlineBanner }: LayoutProps) => {
 	return (
 		<Suspense fallback={null}>
-			<div className="w-full h-svh flex lg:flex-row flex-col-reverse overflow-hidden">
+			<div className="w-full h-dvh flex lg:flex-row flex-col-reverse overflow-hidden">
 				<Sidebar />
 
 				<main className="w-full flex-1 min-h-0 flex flex-col relative overflow-y-auto">

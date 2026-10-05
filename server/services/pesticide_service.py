@@ -41,6 +41,24 @@ Risk level has two layers:
   severity. The global risk_level is only ever shown to admins, who
   have no single farm to compute a personal distance against.
 
+WHERE A BEEKEEPER IS (NEW)
+  A beekeeper's place = their farm pin (profile) AND every ACTIVE hive
+  with a map pin (Add / Edit Hive). Their distance to an alert is the
+  NEAREST of those points, so a hive right next to the spraying site
+  makes it High even if the farm pin is somewhere else.
+  It's the SAVED location — logging in from another place doesn't
+  change it.
+
+RISK IS WORKED OUT LIVE (NEW)
+  Beekeeper pages (list_active, list_for_beekeeper, get_alert_detail)
+  compute the risk every time from the beekeeper's CURRENT farm / hive
+  pins, so moving a pin or adding a hive updates old alerts too (before,
+  the level saved when the alert went out was shown forever).
+  Admin Alerts page: the admin's phone/computer sends its current GPS
+  (?lat=&lng=); each alert's risk_level is then the risk AT THE ADMIN'S
+  LOCATION (+ your_distance_km). highest_risk_level keeps the highest
+  risk any beekeeper faces. No GPS -> risk_level = highest, as before.
+
 Alert *detail* reads (get_alert_detail) are shaped with a `pydantic`
 schema (schemas/alert_schema.py) so numeric DB types (DECIMAL columns
 come back as Decimal/str depending on driver config) are normalized to
@@ -97,6 +115,70 @@ def _worst_risk(levels) -> str:
         if level and _RISK_ORDER.get(level, 0) > _RISK_ORDER[worst]:
             worst = level
     return worst
+
+
+def _points_by_beekeeper(conn=None) -> dict:
+    """
+    NEW — {beekeeper_id: [(lat, lng), ...]}: each beekeeper's farm pin
+    plus the pins of their ACTIVE hives. Beekeepers with no pin at all
+    are left out. If the hives table has no location columns yet
+    (migration 027 not run), only farm pins are used.
+    """
+    def run(sql):
+        if conn is not None:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                return cur.fetchall() or []
+        return Database.execute(sql, (), fetchall=True) or []
+
+    points: dict[str, list] = {}
+    for r in run(
+        "SELECT beekeeperID AS bk, latitude, longitude FROM beekeepers "
+        "WHERE deleted_at IS NULL AND latitude IS NOT NULL AND longitude IS NOT NULL"
+    ):
+        points.setdefault(r["bk"], []).append((float(r["latitude"]), float(r["longitude"])))
+    try:
+        for r in run(
+            "SELECT beekeeper_id AS bk, latitude, longitude FROM hives "
+            "WHERE hive_state = 'Active' AND latitude IS NOT NULL AND longitude IS NOT NULL"
+        ):
+            points.setdefault(r["bk"], []).append((float(r["latitude"]), float(r["longitude"])))
+    except Exception as e:  # hives.latitude missing (migration 027 not run)
+        print(f"[PESTICIDE] Hive pins not used: {e}")
+    return points
+
+
+def _points_for_beekeeper(beekeeper_id: str) -> list:
+    """NEW — farm pin + active hive pins of ONE beekeeper."""
+    return _points_by_beekeeper().get(beekeeper_id, [])
+
+
+def _nearest_km(alert_lat, alert_lng, points) -> float | None:
+    """NEW — distance from the alert to the NEAREST of the points (km)."""
+    if not points:
+        return None
+    origin = (float(alert_lat), float(alert_lng))
+    return min(geodesic(origin, p).km for p in points)
+
+
+def _personal_risk(alert_row: dict, points) -> tuple[float | None, str]:
+    """
+    NEW — (distance_km, risk) for whoever is at `points`, worked out NOW.
+    No location -> (None, "Low"). Outside the danger radius -> "Low".
+    """
+    d = _nearest_km(alert_row["latitude"], alert_row["longitude"], points)
+    if d is None:
+        return None, "Low"
+    return d, _risk_level_for_distance(d, float(alert_row["danger_radius_km"]))
+
+
+def _personalize_rows(rows: list, points) -> list:
+    """NEW — sets risk_level + your_distance_km on each alert row."""
+    for row in rows:
+        d, risk = _personal_risk(row, points)
+        row["risk_level"] = risk
+        row["your_distance_km"] = round(d, 2) if d is not None else None
+    return rows
 
 
 def _default_radius(pesticide_type: str | None) -> float:
@@ -169,19 +251,20 @@ class PesticideService:
             cur.execute(sql)
             rows = cur.fetchall()
 
-        origin = (float(lat), float(lng))
+        # NEW — farm pin + active hive pins; the NEAREST one counts.
+        points = _points_by_beekeeper(conn)
+
         matched, unlocated, other_ids = [], [], []
         for row in rows:
             bk_id = row["beekeeperID"]
             if exclude_beekeeper_id and bk_id == exclude_beekeeper_id:
                 continue
 
-            if row["latitude"] is None or row["longitude"] is None:
+            distance_km = _nearest_km(lat, lng, points.get(bk_id))
+            if distance_km is None:
                 unlocated.append(row)
                 continue
 
-            candidate = (float(row["latitude"]), float(row["longitude"]))
-            distance_km = geodesic(origin, candidate).km
             if distance_km <= radius_km:
                 row["distance_km"] = distance_km
                 matched.append(row)
@@ -307,24 +390,26 @@ class PesticideService:
 
     # ── ADMIN REVIEW (beekeeper-reported alerts) ──
     @staticmethod
-    def list_for_review(status: str | None = None):
+    def list_for_review(status: str | None = None,
+                        viewer_point: tuple[float, float] | None = None):
         """
         Admin Alerts page. Approved alerts already have their overall
         risk saved (highest risk among beekeepers — see _fan_out).
         Pending ones haven't been sent yet, so their risk is PREVIEWED
         here the same way: the highest risk any beekeeper would face
         (the reporter included) if the admin approves it.
+
+        NEW — viewer_point = the admin's current GPS (lat, lng):
+          risk_level         -> the risk AT THE ADMIN'S LOCATION
+          your_distance_km   -> admin's distance to the alert
+          highest_risk_level -> the highest beekeeper risk (as before)
+        Without viewer_point, risk_level stays the highest risk.
         """
         rows = AlertModel.list_for_review(status)
         pending = [r for r in rows if r.get("approval_status") == APPROVAL_PENDING]
         if pending:
-            beekeepers = Database.execute(
-                "SELECT latitude, longitude FROM beekeepers "
-                "WHERE deleted_at IS NULL AND latitude IS NOT NULL AND longitude IS NOT NULL",
-                (),
-                fetchall=True,
-            ) or []
-            farms = [(float(b["latitude"]), float(b["longitude"])) for b in beekeepers]
+            # Farm pins + active hive pins of every beekeeper.
+            farms = [p for pts in _points_by_beekeeper().values() for p in pts]
             for row in pending:
                 origin = (float(row["latitude"]), float(row["longitude"]))
                 radius = float(row["danger_radius_km"])
@@ -332,6 +417,12 @@ class PesticideService:
                 row["risk_level"] = _worst_risk(
                     _risk_level_for_distance(d, radius) for d in distances if d <= radius
                 )
+
+        for row in rows:
+            row["highest_risk_level"] = row.get("risk_level") or "Low"
+            row["your_distance_km"] = None
+        if viewer_point is not None:
+            _personalize_rows(rows, [viewer_point])
         return rows
 
     @staticmethod
@@ -580,14 +671,13 @@ class PesticideService:
             else:
                 detail = f"None of them are inside the {radius:.1f} km danger radius."
 
-            own_distance = None
+            # NEW — nearest of the reporter's farm pin + active hive pins.
+            own_distance = _nearest_km(
+                alert["latitude"], alert["longitude"],
+                _points_by_beekeeper(conn).get(reporter_id),
+            )
             own_risk = "Low"
-            reporter_lat = (reporter or {}).get("latitude")
-            reporter_lng = (reporter or {}).get("longitude")
-            if reporter_lat is not None and reporter_lng is not None:
-                origin = (float(alert["latitude"]), float(alert["longitude"]))
-                own_point = (float(reporter_lat), float(reporter_lng))
-                own_distance = geodesic(origin, own_point).km
+            if own_distance is not None:
                 own_risk = _risk_level_for_distance(own_distance, radius)
                 own_detail = (
                     f" Your own apiary is approx. {own_distance:.2f} km from the "
@@ -655,23 +745,30 @@ class PesticideService:
     @staticmethod
     def list_active(beekeeper_id: str | None = None, include_past: bool = False,
                     only_expired: bool = False):
-        return AlertModel.list_active(
+        rows = AlertModel.list_active(
             limit=300 if (include_past or only_expired) else 100,
             beekeeper_id=beekeeper_id,
             include_past=include_past,
             only_expired=only_expired,
         )
+        # NEW — beekeeper: risk worked out NOW from their farm + hive pins.
+        if beekeeper_id:
+            _personalize_rows(rows, _points_for_beekeeper(beekeeper_id))
+        return rows
 
     @staticmethod
     def list_for_beekeeper(beekeeper_id: str):
-        return AlertModel.list_for_beekeeper(beekeeper_id)
+        rows = AlertModel.list_for_beekeeper(beekeeper_id)
+        # NEW — same live risk as list_active.
+        return _personalize_rows(rows, _points_for_beekeeper(beekeeper_id))
 
     @staticmethod
     def recipients_for_alert(alert_id: str):
         return AlertRecipientModel.list_for_alert(alert_id)
 
     @staticmethod
-    def get_alert_detail(alert_id: str, actor_id: str, actor_role: str) -> dict:
+    def get_alert_detail(alert_id: str, actor_id: str, actor_role: str,
+                         viewer_point: tuple[float, float] | None = None) -> dict:
         """
         Powers the Alert Details page. Raises:
           LookupError    — no such alert (route maps this to 404)
@@ -694,6 +791,10 @@ class PesticideService:
             of the alert's global risk_level.
           - Admin viewer -> the alert's global risk_level (no single
             beekeeper's farm to compute a personal distance against).
+            NEW: with viewer_point (admin's GPS) -> the risk there.
+        NEW: a beekeeper's risk is worked out NOW from the nearest of
+        their farm pin + active hive pins (not the level saved when the
+        alert went out).
         """
         row = AlertModel.find_detail_by_id(alert_id)
         if not row:
@@ -709,10 +810,6 @@ class PesticideService:
         ):
             raise LookupError(alert_id)
 
-        recipient_row = None
-        if actor_role == "beekeeper":
-            recipient_row = AlertRecipientModel.get_for_beekeeper(alert_id, actor_id)
-
         is_beekeeper_authored = row["source"] == "beekeeper"
         if is_beekeeper_authored:
             issued_by = row.get("reporter_name") or "Fellow beekeeper"
@@ -725,14 +822,18 @@ class PesticideService:
         lng = float(row["longitude"])
         location = row.get("affected_area") or f"{lat:.4f}, {lng:.4f}"
 
+        your_distance_km = None
         if actor_role == "beekeeper":
-            effective_risk = recipient_row["risk_level"] if recipient_row else "Low"
+            # NEW — live: nearest of the beekeeper's farm + hive pins NOW.
+            d, effective_risk = _personal_risk(row, _points_for_beekeeper(actor_id))
+            if d is not None:
+                your_distance_km = round(d, 2)
+        elif viewer_point is not None:
+            # NEW — admin with GPS: the risk at the admin's location.
+            d, effective_risk = _personal_risk(row, [viewer_point])
+            your_distance_km = round(d, 2)
         else:
             effective_risk = row.get("risk_level") or "Medium"
-
-        your_distance_km = None
-        if recipient_row and recipient_row.get("distance_km") is not None:
-            your_distance_km = float(recipient_row["distance_km"])
 
         detail = AlertDetailOut(
             alert_id=row["alert_id"],

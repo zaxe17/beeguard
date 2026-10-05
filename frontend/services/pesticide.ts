@@ -57,6 +57,10 @@ export interface AlertRecord {
 	risk_level: RiskLevel;
 	// present only on /alerts/mine (joined from alert_recipients)
 	distance_km?: number;
+	// NEW — the viewer's distance to the alert (km), worked out now:
+	// beekeeper = nearest of their farm + hive pins; admin = their GPS.
+	// null when the viewer has no location.
+	your_distance_km?: number | null;
 	notified_at?: string;
 	source?: AlertSource;
 	reported_by_beekeeper_id?: string | null;
@@ -77,7 +81,15 @@ export interface AdminAlertRecord extends AlertRecord {
 	reporter_name: string | null;
 	reporter_contact: string | null;
 	reporter_farm: string | null;
+	// NEW — highest risk any beekeeper faces. When the admin's GPS was
+	// sent, risk_level is the risk AT THE ADMIN'S LOCATION instead.
+	highest_risk_level?: RiskLevel;
 }
+
+// NEW — the viewer's current GPS, sent as ?lat=&lng=.
+export type ViewerPoint = { lat: number; lng: number } | null | undefined;
+const pointQuery = (p: ViewerPoint, first = false) =>
+	p ? `${first ? "?" : "&"}lat=${p.lat}&lng=${p.lng}` : "";
 
 // GET /pesticide/alerts/<alert_id> — full detail for the Alert Details
 // page. Shape matches schemas/alert_schema.py::AlertDetailOut on the
@@ -143,17 +155,26 @@ export const pesticideService = {
 	// Alert Details page (?id=<alert_id>). Every beekeeper can open
 	// any alert now (used to be recipient-only), so notifications
 	// forwarded to non-recipients still land on a real detail page.
-	getAlertDetail: (alertId: string) =>
-		api.get<AlertDetail>(`/pesticide/alerts/${alertId}`),
+	// `viewer` (admin only, optional): their GPS -> risk at that spot.
+	getAlertDetail: (alertId: string, viewer?: ViewerPoint) =>
+		api.get<AlertDetail>(
+			`/pesticide/alerts/${alertId}${pointQuery(viewer, true)}`,
+		),
 
 	// Admin — who was matched for a given alert
 	listAlertRecipients: (alertId: string) =>
 		api.get<AlertRecipient[]>(`/pesticide/alerts/${alertId}/recipients`),
 
 	// Admin — every alert for review ("Pending" | "Approved" | "Rejected" | "all")
-	listForReview: (status: AlertApprovalStatus | "all" = "all") =>
+	// NEW — `viewer` = the admin's current GPS: each alert's risk_level is
+	// then the risk at the admin's location (highest_risk_level = highest
+	// beekeeper risk). Without it, risk_level = the highest risk.
+	listForReview: (
+		status: AlertApprovalStatus | "all" = "all",
+		viewer?: ViewerPoint,
+	) =>
 		api.get<AdminAlertRecord[]>(
-			`/pesticide/alerts/review?status=${encodeURIComponent(status)}`,
+			`/pesticide/alerts/review?status=${encodeURIComponent(status)}${pointQuery(viewer)}`,
 		),
 
 	// Admin — approve a beekeeper's alert (it's sent out to beekeepers)

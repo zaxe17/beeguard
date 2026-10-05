@@ -208,7 +208,7 @@ const BeefarmPage = () => {
 				{mobileSelected && (
 					<MobileOverlay>
 						<div className="flex flex-col h-full">
-							<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6] shrink-0">
+							<div className="sticky top-0 z-20 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6] shrink-0">
 								<button
 									type="button"
 									onClick={handleBack}
@@ -225,7 +225,7 @@ const BeefarmPage = () => {
 							</div>
 
 							<div className="flex-1 min-h-0 flex flex-col">
-								<div className="flex-1 min-h-0">
+								<div className="relative isolate flex-1 min-h-0 overflow-hidden">
 									<Map
 										markers={farmMarkers}
 										selectedMarkerId={selectedFarmParam}

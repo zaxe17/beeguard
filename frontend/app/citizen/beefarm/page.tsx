@@ -211,7 +211,7 @@ const BeefarmPage = () => {
 							<div className="sticky top-0 z-20 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6] shrink-0">
 								<button
 									type="button"
-									onClick={handleBack}
+									onClick={() => router.back()}
 									aria-label="Back"
 									className="absolute left-2 z-10 flex items-center justify-center w-10 h-10 shrink-0">
 									<Icon

@@ -55,6 +55,39 @@ const formatTime = (iso: string | null | undefined) =>
 			})
 		: "—";
 
+// NEW — the admin's CURRENT location (phone / computer GPS). Follows the
+// device, so the risk changes when the admin is somewhere else.
+// Rounded to ~11 m so small GPS jitter doesn't reload the list.
+type GeoState = "waiting" | "on" | "off";
+const useDeviceLocation = () => {
+	const [point, setPoint] = useState<{ lat: number; lng: number } | null>(
+		null,
+	);
+	const [state, setState] = useState<GeoState>("waiting");
+	useEffect(() => {
+		if (typeof navigator === "undefined" || !navigator.geolocation) {
+			setState("off");
+			return;
+		}
+		const id = navigator.geolocation.watchPosition(
+			(pos) => {
+				const lat = Math.round(pos.coords.latitude * 1e4) / 1e4;
+				const lng = Math.round(pos.coords.longitude * 1e4) / 1e4;
+				setPoint((prev) =>
+					prev && prev.lat === lat && prev.lng === lng
+						? prev
+						: { lat, lng },
+				);
+				setState("on");
+			},
+			() => setState("off"),
+			{ enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 },
+		);
+		return () => navigator.geolocation.clearWatch(id);
+	}, []);
+	return { point, state };
+};
+
 const isActive = (a: AdminAlertRecord) =>
 	!a.expiration_date || new Date(a.expiration_date).getTime() >= Date.now();
 
@@ -219,15 +252,28 @@ const ReviewPanel = ({
 						value={`${formatDate(alert.expiration_date)} • ${formatTime(alert.expiration_date)}`}
 					/>
 				)}
+				{/* NEW — risk at the admin's current location (GPS on). */}
+				{alert.your_distance_km != null && (
+					<>
+						<InfoRow
+							label="Risk at your location"
+							value={alert.risk_level}
+						/>
+						<InfoRow
+							label="Your distance"
+							value={`${Number(alert.your_distance_km).toFixed(2)} km`}
+						/>
+					</>
+				)}
 				{/* Highest risk any beekeeper faces (each beekeeper sees
-				    their own level based on their farm's distance). */}
+				    their own level based on their farm / hive distance). */}
 				<InfoRow
 					label={
 						isPending
 							? "Highest risk (if approved)"
 							: "Highest risk"
 					}
-					value={alert.risk_level}
+					value={alert.highest_risk_level ?? alert.risk_level}
 				/>
 				<InfoRow
 					label="Submitted"
@@ -344,9 +390,11 @@ const AlertInner = () => {
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
+	// NEW — admin's current location; High / Medium / Low = risk there.
+	const { point: myPoint, state: geoState } = useDeviceLocation();
 
 	const load = useCallback(async () => {
-		const res = await pesticideService.listForReview("all");
+		const res = await pesticideService.listForReview("all", myPoint);
 		if (res.success && res.data) {
 			setAlerts(res.data);
 			setErrorMsg(null);
@@ -354,7 +402,7 @@ const AlertInner = () => {
 			setErrorMsg(res.message || "Couldn't load alerts.");
 		}
 		setLoading(false);
-	}, []);
+	}, [myPoint]);
 
 	useEffect(() => {
 		load();
@@ -513,6 +561,16 @@ const AlertInner = () => {
 							</div>
 
 							<NavTab tabs={tabs} hasBg />
+
+							{/* NEW — no location: risk shown is the highest
+							    beekeeper risk, not the risk where you are. */}
+							{geoState === "off" && (
+								<p className="mx-2 mt-2 text-[11px] text-[#817b70]">
+									Turn on location to see the risk at your
+									location. Showing the highest risk for
+									beekeepers.
+								</p>
+							)}
 
 							{/* Beekeeper alerts waiting for review */}
 							{pending.length > 0 && activeTab !== "pending" && (

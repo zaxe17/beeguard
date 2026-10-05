@@ -25,6 +25,21 @@ UNVERIFIED_ALERT_MESSAGE = (
 )
 
 
+def _viewer_point():
+    """
+    NEW — the viewer's current GPS from ?lat=&lng= (admin Alerts page),
+    or None when missing / invalid.
+    """
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return None
+    if -90 <= lat <= 90 and -180 <= lng <= 180:
+        return (lat, lng)
+    return None
+
+
 def _beekeeper_is_verified(beekeeper_id: str) -> bool:
     row = Database.execute(
         "SELECT verification_status FROM beekeepers "
@@ -90,12 +105,18 @@ def list_admin_alerts():
 
 # ── ADMIN REVIEW — every alert, filter by approval status ─────
 #    GET /api/pesticide/alerts/review?status=Pending|Approved|Rejected|all
+#        &lat=..&lng=..  (NEW, optional) admin's current GPS -> risk_level
+#        is the risk at the admin's location (highest_risk_level = highest
+#        beekeeper risk).
 @pesticide_bp.route("/alerts/review", methods=["GET"])
 @token_required
 @role_required("admin")
 def list_alerts_for_review():
     status = (request.args.get("status") or "all").strip().capitalize()
-    alerts = PesticideService.list_for_review(None if status == "All" else status)
+    alerts = PesticideService.list_for_review(
+        None if status == "All" else status,
+        viewer_point=_viewer_point(),
+    )
     return success("OK", data=alerts, status=200)
 
 
@@ -183,7 +204,11 @@ def list_my_alerts():
 @role_required("admin", "beekeeper")
 def get_alert_detail(alert_id):
     try:
-        detail = PesticideService.get_alert_detail(alert_id, g.user_id, g.role)
+        detail = PesticideService.get_alert_detail(
+            alert_id, g.user_id, g.role,
+            # NEW — admin's GPS (?lat=&lng=); beekeepers use their saved pins.
+            viewer_point=_viewer_point() if g.role == "admin" else None,
+        )
     except LookupError:
         return error("Alert not found.", status=404)
     except Exception as e:

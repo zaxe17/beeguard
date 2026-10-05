@@ -1146,7 +1146,7 @@ const ChatPage = () => {
 							{/* BACK BUTON */}
 							<button
 								type="button"
-								onClick={() => router.back()}
+								onClick={() => router.replace(messagesRoute)}
 								aria-label="Back to messages"
 								className="flex items-center justify-center shrink-0 w-10 h-10 -m-1">
 								<Icon

@@ -1418,7 +1418,7 @@ const ProfileSettingsContent = () => {
 				<MobileOverlay>
 					<OverlayHeader
 						title="My Bee Farm"
-						onBack={() => setView("main")}
+						onBack={() => router.back()}
 					/>
 					<BeekeeperFarmView
 						onSelectDetail={setDetail}
@@ -1432,7 +1432,7 @@ const ProfileSettingsContent = () => {
 				<MobileOverlay>
 					<OverlayHeader
 						title={detailTitle}
-						onBack={() => setDetail(null)}
+						onBack={() => router.back()}
 					/>
 					<div className="flex flex-col items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
 						{renderDetailContent()}

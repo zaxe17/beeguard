@@ -1266,10 +1266,8 @@ const EditFarmButton = ({ onClick }: { onClick: () => void }) => (
 
 // VIEW PROFILE — the beekeeper's Bee Farm page. Shown on the RIGHT:
 // desktop = inline next to the menu, mobile = inside MobileOverlay.
-// FIXED — was <BeefarmView farmId="BKP-000001" />, so EVERY beekeeper saw
-// BKP-000001's ratings and followers. Now it's the logged-in beekeeper's
-// own farm (GET /api/farms/<their id> -> rating_avg, rating_count,
-// follower_count).
+// It's the logged-in beekeeper's own farm (GET /api/farms/<their id> ->
+// rating_avg, rating_count, follower_count).
 const BeekeeperFarmView = ({
 	onSelectDetail,
 	showTitle = true,
@@ -1321,7 +1319,7 @@ const OverlayHeader = ({
 			type="button"
 			onClick={onBack}
 			aria-label="Back"
-			className="absolute flex items-center shrink-0">
+			className="absolute left-2 z-10 flex items-center justify-center w-10 h-10 shrink-0">
 			<Icon icon="bx:arrow-back" className="text-2xl text-[#ffa004]" />
 		</button>
 		<span className="w-full Poppins-SemiBold text-sm text-[#4a2f00] text-center">
@@ -1353,6 +1351,19 @@ const ProfileSettingsContent = () => {
 		} else {
 			router.push(`${pathname}?view=${view}&detail=${d}`);
 		}
+	};
+
+	// Always go to the profile root (/citizen/profile or /beekeeper/profile).
+	// Never rely on browser history — after a reload or a deep link,
+	// router.back() lands on whatever URL was there before.
+	const goToProfileRoot = () => {
+		router.replace(pathname);
+	};
+
+	// Back from a detail page -> the list it was opened from
+	// (e.g. /citizen/profile?view=settings or ?view=about).
+	const goToView = () => {
+		router.replace(`${pathname}?view=${view}`);
 	};
 
 	const renderLeft = () => {
@@ -1418,7 +1429,7 @@ const ProfileSettingsContent = () => {
 				<MobileOverlay>
 					<OverlayHeader
 						title="My Bee Farm"
-						onBack={() => router.back()}
+						onBack={goToProfileRoot}
 					/>
 					<BeekeeperFarmView
 						onSelectDetail={setDetail}
@@ -1430,10 +1441,7 @@ const ProfileSettingsContent = () => {
 			{/* RIGHT SIDE — mobile: slide-up overlay, only after a tab is selected */}
 			{detail && (
 				<MobileOverlay>
-					<OverlayHeader
-						title={detailTitle}
-						onBack={() => router.back()}
-					/>
+					<OverlayHeader title={detailTitle} onBack={goToView} />
 					<div className="flex flex-col items-center py-6 px-4 w-full max-w-full overflow-x-hidden">
 						{renderDetailContent()}
 					</div>

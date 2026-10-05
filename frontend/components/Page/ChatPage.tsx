@@ -1131,11 +1131,15 @@ const ChatPage = () => {
 			{showMobileChat && selectedUser && (
 				<MobileOverlay>
 					<div
-						className="absolute inset-x-0 bg-white flex flex-col overflow-hidden"
+						className="fixed inset-0 z-5000 bg-white flex flex-col overflow-hidden"
 						style={
 							viewport
-								? { top: viewport.top, height: viewport.height }
-								: { top: 0, height: "100dvh" }
+								? {
+										top: viewport.top,
+										height: viewport.height,
+										bottom: "auto",
+									}
+								: { top: 0, height: "100dvh", bottom: "auto" }
 						}>
 						{/* Header */}
 						<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">

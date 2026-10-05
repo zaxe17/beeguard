@@ -322,7 +322,7 @@ const Verification = ({
 const FarmHives = ({ detail }: { detail: AdminUserDetail }) => {
 	const { user, hives } = detail;
 	return (
-		<Container width="lg:w-3/4 w-full">
+		<Container width="lg:w-3/4 w-full" height="h-full">
 			<div className="flex flex-col gap-3 h-full min-h-0">
 				<div className="w-full flex items-center justify-start">
 					<div className="lg:w-1/3 w-full">
@@ -374,7 +374,7 @@ const FarmHives = ({ detail }: { detail: AdminUserDetail }) => {
 const Activity = ({ detail }: { detail: AdminUserDetail }) => {
 	const isBeekeeper = detail.user.role === "beekeeper";
 	return (
-		<Container width="lg:w-1/2 w-full">
+		<Container width="lg:w-1/2 w-full" height="h-full">
 			<div className="flex flex-col gap-3 h-full min-h-0">
 				<div className="lg:p-2 p-0 flex-1 flex flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-0 lg:scrollbar-auto scrollbar-none">
 					{detail.activity.length === 0 && (

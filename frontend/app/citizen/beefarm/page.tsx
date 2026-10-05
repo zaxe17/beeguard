@@ -15,6 +15,7 @@ import { mediaSrc } from "@/services/profile";
 import type { FarmMarker } from "@/components/ui/google-maps/Map";
 import { BeefarmSkeleton } from "@/components/loading/SkeletonLoading";
 import { getCitizenCoords } from "@/utils/geo";
+import { useRouter } from "next/navigation";
 
 // Leaflet touches `window` at module-evaluation time, so it can't be
 // server-rendered — same fix already applied in AlertModal.tsx and
@@ -65,6 +66,8 @@ const BeefarmPage = () => {
 	const [farms, setFarms] = useState<Farm[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
+
+	const router = useRouter();
 
 	const handleFarmClick = (beekeeperID: string) => {
 		openFarmParam(beekeeperID);
@@ -232,7 +235,7 @@ const BeefarmPage = () => {
 							{/* BACK BUTTON */}
 							<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6] shrink-0">
 								<button
-									onClick={closeFarmParam}
+									onClick={() => router.back()}
 									className="absolute flex items-center shrink-0">
 									<Icon
 										icon="bx:arrow-back"

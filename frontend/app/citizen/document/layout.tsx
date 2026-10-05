@@ -20,6 +20,7 @@ import {
 	toUiStatus,
 } from "@/services/citizenReport";
 import { ReportCardSkeleton } from "@/components/loading/SkeletonLoading";
+import { useRouter } from "next/navigation";
 
 const tabs = [
 	{ label: "All", value: "all" },
@@ -38,6 +39,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 	// mismo ang gumagawa niyan internally, ayon sa dating code).
 	const { value: activeStatusParam } = useQueryParamState("tab");
 	const activeStatus = activeStatusParam || "all";
+	const router = useRouter();
 
 	// "?report=<id>" — set kapag pinili yung card, clear kapag
 	// bumalik sa mobile overlay.
@@ -163,7 +165,7 @@ const CitizenReportInner = ({ children }: { children: React.ReactNode }) => {
 						{/* BACK BUTTON */}
 						<div className="sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 							<button
-								onClick={closeReport}
+								onClick={() => router.back()}
 								className="absolute flex items-center shrink-0">
 								<Icon
 									icon="bx:arrow-back"

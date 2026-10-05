@@ -1142,7 +1142,7 @@ const ChatPage = () => {
 							{/* BACK BUTON */}
 							<button
 								type="button"
-								onClick={closeChat}
+								onClick={() => router.back()}
 								aria-label="Back to messages"
 								className="flex items-center justify-center shrink-0 w-10 h-10 -m-1">
 								<Icon

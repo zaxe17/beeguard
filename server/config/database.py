@@ -27,6 +27,10 @@ DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
 # Set SLOW_SQL_MS=0 in Railway Variables to turn the logging off.
 SLOW_SQL_MS = int(os.getenv("SLOW_SQL_MS", "150"))
 
+# Azure MySQL requires SSL (require_secure_transport=ON). Set DB_SSL=true in
+# Railway Variables. Leave it unset locally (XAMPP) so no SSL is used.
+DB_SSL = os.getenv("DB_SSL", "false").lower() == "true"
+
 
 class Database:
     """MySQL connection pool wrapper. All queries use parameterized statements."""
@@ -53,6 +57,8 @@ class Database:
                 init_command=_INIT_COMMAND,
                 # Don't hang forever if the database is unreachable.
                 connect_timeout=10,
+                # SSL for Azure MySQL (enabled via DB_SSL=true).
+                ssl={"ssl": {}} if DB_SSL else None,
             )
         return cls._pool
 

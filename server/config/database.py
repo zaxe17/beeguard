@@ -29,7 +29,7 @@ SLOW_SQL_MS = int(os.getenv("SLOW_SQL_MS", "150"))
 
 # Azure MySQL requires SSL (require_secure_transport=ON). Set DB_SSL=true in
 # Railway Variables. Leave it unset locally (XAMPP) so no SSL is used.
-DB_SSL = os.getenv("DB_SSL", "false").lower() == "true"
+DB_SSL = os.getenv("DB_SSL", "true").lower() == "true"
 
 
 class Database:

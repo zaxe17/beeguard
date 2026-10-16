@@ -108,7 +108,7 @@ const GraphContainer = ({ children, title, onClick }: GraphProps) => {
 					onClick();
 				}
 			}}
-			className={`lg:w-1/2 w-full border border-[#a6a3a3] rounded-2xl p-4 flex flex-col ${
+			className={`lg:w-1/2 w-full rounded-2xl p-4 flex flex-col ${
 				onClick
 					? "cursor-pointer hover:border-[#ffce1c] hover:bg-[#fff1ad]/30 transition-colors"
 					: ""
@@ -401,7 +401,7 @@ const Beekeeper = () => {
 								))}
 							</div>
 						) : operations.length > 0 ? (
-							<div className="w-full flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 p-2">
+							<div className="w-full flex-1 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0 p-2">
 								{operations.map((r) => (
 									<OperationItem
 										key={r.reportID}

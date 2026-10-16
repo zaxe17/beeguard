@@ -55,7 +55,7 @@ export const Modal = ({
 			className="fixed inset-0 w-full h-full bg-black/50 z-50 flex justify-center items-center backdrop-blur-xs"
 			onClick={handleBackdrop}>
 			<div
-				className="w-1/3 min-w-[320px] bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5"
+				className="w-1/3 min-w-[320px] bg-[#fefefd] rounded-3xl shadow-[0px_54px_55px_rgba(0,0,0,0.25),0px_-12px_30px_rgba(0,0,0,0.12),0px_4px_6px_rgba(0,0,0,0.12),0px_12px_13px_rgba(0,0,0,0.17),0px_-3px_5px_rgba(0,0,0,0.09)] p-5"
 				onClick={(e) => e.stopPropagation()}>
 				<div className="flex flex-col items-center text-center gap-5">
 					<h2 className="Poppins-Bold text-[#ffce1c] text-2xl">
@@ -113,7 +113,7 @@ export const ModalContainer = ({
 			onClick={onClose}>
 			{/* CONTAINER */}
 			<div
-				className={`${width} ${height} bg-[#fefefd] rounded-3xl border-2 border-[#a6a3a3] border-solid p-5 flex flex-col`}
+				className={`${width} ${height} bg-[#fefefd] rounded-3xl shadow-[0px_54px_55px_rgba(0,0,0,0.25),0px_-12px_30px_rgba(0,0,0,0.12),0px_4px_6px_rgba(0,0,0,0.12),0px_12px_13px_rgba(0,0,0,0.17),0px_-3px_5px_rgba(0,0,0,0.09)] p-5 flex flex-col`}
 				onClick={(e) => e.stopPropagation()}>
 				<div className="w-full flex-1 flex flex-col gap-3 min-h-0">
 					{/* HEADER */}

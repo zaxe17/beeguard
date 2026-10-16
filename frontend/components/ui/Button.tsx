@@ -42,7 +42,7 @@ export const Button = ({
 			onClick={handleClick}
 			type={buttonType}
 			disabled={disabled}
-			className={`${width} shadow-[0px_6px_12px_-2px_rgba(50,50,93,0.25),0px_3px_7px_-3px_rgba(0,0,0,0.3)] flex justify-center items-center py-1.5 px-3 ${!bgNone ? "bg-linear-to-r from-[#ffdb4f] to-[#eec572]" : "border-2 border-[#e2e2e6]"} rounded-xl ${textSize} text-[#4A2F00] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed`}
+			className={`${width} shadow-[0px_3px_6px_rgba(0,0,0,0.16),0px_3px_6px_rgba(0,0,0,0.23)] flex justify-center items-center py-1.5 px-3 ${!bgNone ? "bg-linear-to-r from-[#ffdb4f] to-[#eec572]" : "border-2 border-[#e2e2e6]"} rounded-xl ${textSize} text-[#4A2F00] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed`}
 			style={{
 				width: width || "100%",
 			}}>
@@ -65,7 +65,7 @@ export const CancelButton = ({
 			onClick={onClick}
 			type="button"
 			disabled={disabled}
-			className={`${width} flex justify-center items-center py-1.5 px-3 rounded-xl border border-[#a6a3a3] border-solid text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${BGcolor}`}
+			className={`${width} shadow-[0px_3px_6px_rgba(0,0,0,0.16),0px_3px_6px_rgba(0,0,0,0.23)] flex justify-center items-center py-1.5 px-3 rounded-xl text-base font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${BGcolor}`}
 			style={{
 				width: width || "100%",
 				color: textColor,

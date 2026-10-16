@@ -100,20 +100,32 @@ class ReportService:
         # Trim to seconds for the header
         gen_at_short = gen_at.replace("T", " ").split(".")[0]
 
+        # Hive scope shown by NAME (no database ids anywhere in the report).
+        scope_id = filters.get("hive_id")
+        scope = "All hives"
+        if scope_id:
+            match = next(
+                (h for h in (ds.get("hives") or []) if h.get("hive_id") == scope_id),
+                None,
+            )
+            scope = (match or {}).get("hive_name") or "Selected hive"
+
+        # NEW — no "Report id" (it was the beekeeper's database id + time).
         rows = [
             ["Beekeeper",  bk.get("name") or "—",     "Farm",         bk.get("farm_name") or "—"],
             ["Email",      bk.get("email") or "—",    "Apiary type",  bk.get("apiary_type") or "—"],
-            ["Generated",  gen_at_short + " UTC",     "Report id",    (bk.get("id") or "—") + "-" + dt.datetime.utcnow().strftime("%Y%m%d%H%M%S")],
-            ["Date range", f"{filters.get('date_from') or 'inception'} → {filters.get('date_to') or 'today'}",
-                           "Hive scope",   filters.get("hive_id") or "All hives"],
+            ["Generated",  gen_at_short + " UTC",     "Hive scope",   scope],
+            ["Date range", f"{filters.get('date_from') or 'inception'} to {filters.get('date_to') or 'today'}",
+                           "", ""],
         ]
         tbl = Table(rows, colWidths=[28*mm, 60*mm, 28*mm, 58*mm])
         tbl.setStyle(TableStyle([
             ("FONT",         (0,0), (-1,-1), "Helvetica", 9),
             ("BACKGROUND",   (0,0), (0,-1), colors.HexColor("#F8F4E1")),
-            ("BACKGROUND",   (2,0), (2,-1), colors.HexColor("#F8F4E1")),
+            ("BACKGROUND",   (2,0), (2,-2), colors.HexColor("#F8F4E1")),
             ("TEXTCOLOR",    (0,0), (0,-1), BEE_BROWN),
             ("TEXTCOLOR",    (2,0), (2,-1), BEE_BROWN),
+            ("SPAN",         (1,-1), (3,-1)),   # date range uses the whole row
             ("GRID",         (0,0), (-1,-1), 0.25, GRID_GREY),
             ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
         ]))
@@ -246,20 +258,21 @@ class ReportService:
 
     @staticmethod
     def _hive_card(h: dict) -> list:
+        # NEW — no hive id (HV-000001); the hive is shown by name only.
         header_rows = [
-            ["Hive",       h.get("hive_id") or "—", "Name",           h.get("hive_name") or "—"],
-            ["Species",    h.get("bee_species") or "—", "State",      h.get("hive_state") or "—"],
+            ["Name",       h.get("hive_name") or "—", "Species",     h.get("bee_species") or "—"],
+            ["State",      h.get("hive_state") or "—", "Health",     h.get("health_status") or "—"],
             ["Established",_fmt_date(h.get("date_established")),
                            "Queen installed", _fmt_date(h.get("queen_installed_date"))],
-            ["Health",     h.get("health_status") or "—",
-                           "Baseline",  f"{_fmt_kg(h.get('baseline_kg'))}"
-                                        f" ({h.get('baseline_year') or '—'})"],
+            ["Baseline",   f"{_fmt_kg(h.get('baseline_kg'))}"
+                           f" ({h.get('baseline_year') or '—'})", "", ""],
         ]
         htbl = Table(header_rows, colWidths=[22*mm, 52*mm, 26*mm, 74*mm])
         htbl.setStyle(TableStyle([
             ("FONT",       (0,0), (-1,-1), "Helvetica", 9),
             ("BACKGROUND", (0,0), (0,-1), colors.HexColor("#F8F4E1")),
-            ("BACKGROUND", (2,0), (2,-1), colors.HexColor("#F8F4E1")),
+            ("BACKGROUND", (2,0), (2,-2), colors.HexColor("#F8F4E1")),
+            ("SPAN",       (1,-1), (3,-1)),   # baseline uses the whole row
             ("GRID",       (0,0), (-1,-1), 0.25, GRID_GREY),
         ]))
 
@@ -334,7 +347,7 @@ class ReportService:
         ]))
 
         return [
-            Paragraph(f"Hive {h.get('hive_id')} — {h.get('hive_name') or ''}", STYLES["h2"]),
+            Paragraph(h.get("hive_name") or "Hive", STYLES["h2"]),
             htbl,
             Spacer(1, 4),
             Paragraph("Aggregate", STYLES["h2"]),

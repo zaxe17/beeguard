@@ -606,7 +606,8 @@ export const BeeIdentify = ({
 }: BeeIdentifyProps) => {
 	const { payload } = useModal<BeeIdentifyModalType, BeeIdentifyPayload>();
 	const species = payload?.species ?? null;
-	// Unidentified = may bee pero hindi cerana / mellifera / biroi -> retake din.
+	// Unidentified = may bee pero hindi cerana / mellifera / biroi ->
+	// Retake Photo OR Submit Photo (as an unidentified bee).
 	const isUnidentified = species === "Unidentified";
 	const confidencePercent = isUnidentified
 		? null
@@ -655,18 +656,42 @@ export const BeeIdentify = ({
 					</div>
 				</div>
 
-				{/* No bee / unidentified bee -> nothing to submit: offer a retake. */}
+				{/* No bee -> retake. Unidentified bee -> retake or submit. */}
 				{!hasMatch && (
 					<p className="text-xs text-[#817b70] text-center mt-3">
 						{isUnidentified
-							? "We couldn't identify this bee species. Try again with the bees clearly in view."
+							? "We couldn't identify this bee species. Retake the photo, or submit it as an unidentified bee."
 							: "We couldn't find a bee in this photo. Try again with the bees clearly in view."}
 					</p>
 				)}
 
 				<div className="w-full flex gap-3 mt-5">
-					<CancelButton onClick={onClose} />
-					{hasMatch ? (
+					{isUnidentified ? (
+						// Unidentified bee: Retake Photo OR Submit Photo.
+						<>
+							<Button
+								label="Retake Photo"
+								bgNone
+								onClick={() => {
+									onClose();
+									window.dispatchEvent(
+										new Event(RETAKE_PHOTO_EVENT),
+									);
+								}}
+								disabled={submitting}
+							/>
+							<Button
+								label={
+									submitting ? "Submitting..." : "Submit Photo"
+								}
+								onClick={onSubmit}
+								disabled={submitting}
+							/>
+						</>
+					) : (
+						<CancelButton onClick={onClose} />
+					)}
+					{isUnidentified ? null : hasMatch ? (
 						<Button
 							label={
 								submitting ? "Submitting..." : "Submit Photo"

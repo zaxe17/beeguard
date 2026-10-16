@@ -1,3 +1,5 @@
+import datetime as dt
+
 from flask import Blueprint, request, g, Response
 
 from middleware.auth_middleware import token_required, role_required
@@ -50,7 +52,8 @@ def yield_report_pdf():
         print(f"[REPORT-PDF] Unhandled error: {e}")
         return error("Failed to generate report. Please try again.", status=500)
 
-    filename = f"beeguard-yield-report-{beekeeper.get('beekeeperID')}.pdf"
+    # NEW — date instead of the beekeeper's database id in the file name.
+    filename = f"beeguard-yield-report-{dt.date.today().isoformat()}.pdf"
     return Response(
         pdf_bytes,
         mimetype="application/pdf",

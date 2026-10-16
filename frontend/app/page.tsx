@@ -59,7 +59,7 @@ const Login = () => {
 		setErrorMsg(null);
 
 		if (!username.trim() || !password) {
-			setErrorMsg("Please enter your username and password.");
+			setErrorMsg("Please enter your username or email and password.");
 			return;
 		}
 
@@ -138,7 +138,7 @@ const Login = () => {
 						{/* LOG IN INPUT */}
 						<div className="flex flex-col gap-6">
 							<Input
-								label="Username"
+								label="Username / Email"
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 							/>

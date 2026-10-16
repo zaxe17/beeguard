@@ -66,13 +66,17 @@ class AuthService:
     def check_unique(role: str, username: str | None,
                      email: str | None, contact_no: str | None) -> dict:
         taken: dict[str, bool] = {}
+        # NEW — admins too, since everyone logs in with username OR email
+        # from the same form (an identifier must belong to one account).
         if username:
             if CitizenModel.exists_username(username) or \
-               BeekeeperModel.exists_username(username):
+               BeekeeperModel.exists_username(username) or \
+               AdminModel.exists_username(username):
                 taken["username"] = True
         if email:
             if CitizenModel.exists_email(email) or \
-               BeekeeperModel.exists_email(email):
+               BeekeeperModel.exists_email(email) or \
+               AdminModel.exists_email(email):
                 taken["email"] = True
         if contact_no:
             if CitizenModel.exists_contact_no(contact_no) or \
@@ -333,9 +337,8 @@ class AuthService:
         This relies on username/email being enforced unique ACROSS the
         citizen and beekeeper tables already (see AuthService.check_unique,
         used at registration time), so a given identifier should only
-        ever belong to one account. Admin accounts are looked up by
-        email only, matching the existing admin lookup elsewhere in
-        this service.
+        ever belong to one account. NEW: admins can also use their
+        username OR email (migration 028 adds admins.username).
         """
         row = CitizenModel.find_by_username_or_email(identifier)
         if row:
@@ -345,7 +348,7 @@ class AuthService:
         if row:
             return "beekeeper", "beekeeperID", row
 
-        row = AdminModel.find_by_email(identifier)
+        row = AdminModel.find_by_username_or_email(identifier)
         if row:
             return "admin", "adminID", row
 
@@ -364,7 +367,7 @@ class AuthService:
                 row = BeekeeperModel.find_by_username_or_email(identifier)
                 id_field = "beekeeperID"
             elif role == "admin":
-                row = AdminModel.find_by_email(identifier)
+                row = AdminModel.find_by_username_or_email(identifier)
                 id_field = "adminID"
             else:
                 return False, "Invalid role.", None

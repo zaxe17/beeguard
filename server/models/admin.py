@@ -14,6 +14,38 @@ class AdminModel:
         """
         return Database.execute(sql, (email,), fetchone=True)
 
+    # NEW — login with username OR email (migration 028 adds username).
+    @staticmethod
+    def find_by_username_or_email(identifier: str):
+        sql = f"""
+            SELECT * FROM {AdminModel.TABLE}
+            WHERE (username = %s OR email = %s) AND deleted_at IS NULL
+            LIMIT 1
+        """
+        try:
+            return Database.execute(sql, (identifier, identifier), fetchone=True)
+        except Exception as e:
+            # admins.username missing (migration 028 not run yet) -> email only
+            if "username" not in str(e).lower():
+                raise
+            return AdminModel.find_by_email(identifier)
+
+    # NEW — so a citizen/beekeeper can't register an admin's username/email.
+    @staticmethod
+    def exists_username(username: str) -> bool:
+        sql = f"SELECT 1 FROM {AdminModel.TABLE} WHERE username = %s LIMIT 1"
+        try:
+            return Database.execute(sql, (username,), fetchone=True) is not None
+        except Exception as e:
+            if "username" not in str(e).lower():
+                raise
+            return False
+
+    @staticmethod
+    def exists_email(email: str) -> bool:
+        sql = f"SELECT 1 FROM {AdminModel.TABLE} WHERE email = %s LIMIT 1"
+        return Database.execute(sql, (email,), fetchone=True) is not None
+
     @staticmethod
     def find_by_id(admin_id: str):
         sql = f"SELECT * FROM {AdminModel.TABLE} WHERE adminID = %s LIMIT 1"

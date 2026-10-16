@@ -44,7 +44,7 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 	const location = useIsPage("/citizen/report/submitted") || !!submission;
 
 	return (
-		<div className="w-full h-full lg:p-5 p-3 flex items-start flex-col gap-3 min-h-0">
+		<div className="w-full h-full lg:p-5 p-0 flex items-start flex-col gap-3 min-h-0">
 			{/* CONTAINER */}
 			<Container width="100%" height="100%" scroll>
 				<div className="w-full h-full flex flex-col min-h-0">
@@ -64,7 +64,7 @@ const ReportLayout = ({ children }: { children?: React.ReactNode }) => {
 						<Steps />
 
 						{/* CONTENT */}
-						<div className="w-full flex-1 min-h-0 flex flex-col overflow-y-auto pt-3">
+						<div className="w-full flex-1 min-h-0 flex flex-col overflow-y-auto">
 							{children}
 						</div>
 

@@ -19,6 +19,7 @@ import {
 	reverseGeocode,
 	searchPlace,
 } from "@/services/geocode";
+import { PopupMenu, PopupMenuItem } from "@/components/popup/PopUp";
 
 type ModalType = "beeIdentify" | "swarmNotice";
 
@@ -102,6 +103,11 @@ const Camera = () => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const streamRef = useRef<MediaStream | null>(null);
+	const cameraInputRef = useRef<HTMLInputElement>(null);
+	const uploadBtnRef = useRef<HTMLDivElement>(null);
+	const [menu, setMenu] = useState<{ top: number; left: number } | null>(
+		null,
+	);
 
 	const [error, setError] = useState<string | null>(null);
 	const [photo, setPhoto] = useState<string | null>(null);
@@ -281,20 +287,39 @@ const Camera = () => {
 	};
 
 	const handleUploadClick = () => {
-		fileInputRef.current?.click();
+		const rect = uploadBtnRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setMenu({
+			top: rect.top - 8,
+			left: Math.max(
+				8,
+				Math.min(
+					rect.left + rect.width / 2 - 100,
+					window.innerWidth - 208,
+				),
+			),
+		});
 	};
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFileChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+		fromCamera = false,
+	) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 
 		setUploadedFile(file);
 		setScanError(null);
 		setCanProceed(true);
-		setLocation(null);
-		setLocationSource("manual");
-		setLocationError(null);
-		updateDetails({ locationText: "" });
+
+		if (fromCamera) {
+			captureLocationFromDevice();
+		} else {
+			setLocation(null);
+			setLocationSource("manual");
+			setLocationError(null);
+			updateDetails({ locationText: "" });
+		}
 
 		const reader = new FileReader();
 		reader.onload = () => {
@@ -302,6 +327,7 @@ const Camera = () => {
 			setPhotoPreview(reader.result as string);
 		};
 		reader.readAsDataURL(file);
+		e.target.value = "";
 	};
 
 	// Registered with the layout's Next button — this is the ONLY
@@ -346,106 +372,149 @@ const Camera = () => {
 	}, [uploadedFile]);
 
 	return (
-		<div className="lg:w-2/3 w-full h-full flex flex-col justify-center items-center gap-3">
-			{/* CAMERA */}
-			<div className="aspect-square border-5 border-[#e2e2e6] rounded-2xl overflow-hidden relative">
-				{photo ? (
-					// eslint-disable-next-line @next/next/no-img-element
-					<img
-						src={photo}
-						alt="Captured"
-						className="w-full h-full object-cover rounded-2xl"
-					/>
-				) : (
-					<video
-						ref={videoRef}
-						autoPlay
-						playsInline
-						muted
-						className="w-full h-full object-cover rounded-2xl"
-					/>
-				)}
-
-				{/* ROTATE CAMERA (front / back) — phones with 2+ cameras */}
-				{!photo && canSwitch && (
-					<button
-						type="button"
-						onClick={handleRotateCamera}
-						disabled={switching}
-						aria-label="Switch camera"
-						title="Switch camera"
-						className="absolute top-3 right-3 z-10 w-11 h-11 p-2 rounded-full bg-black/40 hover:bg-black/55 backdrop-blur-sm flex items-center justify-center cursor-pointer disabled:opacity-50">
-						<Icon
-							icon={
-								switching
-									? "svg-spinners:ring-resize"
-									: "mdi:camera-flip-outline"
-							}
-							className="w-full h-full text-white"
-						/>
-					</button>
-				)}
-
-				{/* RETAKE — on the photo, before pressing Next (no popup) */}
-				{photo && (
-					<button
-						type="button"
-						onClick={retakePhoto}
-						aria-label="Retake photo"
-						className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
-						<Icon
-							icon="mdi:camera-retake-outline"
-							className="w-4 h-4"
-						/>
-						Retake
-					</button>
-				)}
-
-				{error && !photo && (
-					<div className="absolute inset-0 flex items-center justify-center text-sm text-red-500 bg-white/70 rounded-2xl">
-						{error}
-					</div>
-				)}
-
-				<canvas ref={canvasRef} className="hidden" />
-			</div>
-
-			<div className="w-full flex justify-center gap-20">
-				<div
-					// A photo is showing -> the camera button retakes it.
-					onClick={photo ? retakePhoto : handleTakePhoto}
-					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-					<Icon
-						icon="entypo:camera"
-						className="w-full h-full text-white"
-					/>
-				</div>
-
-				<div
-					onClick={handleUploadClick}
-					className="w-15 h-15 p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
-					<Icon
-						icon="icon-park-outline:upload-picture"
-						className="w-full h-full text-white"
-					/>
-				</div>
-				<input
-					ref={fileInputRef}
-					type="file"
-					accept="image/*"
-					className="hidden"
-					onChange={handleFileChange}
+		<div className="w-full h-full min-h-64 relative rounded-2xl overflow-hidden bg-black">
+			{photo ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={photo}
+					alt="Captured"
+					className="absolute inset-0 w-full h-full object-cover"
 				/>
-			</div>
+			) : (
+				<video
+					ref={videoRef}
+					autoPlay
+					playsInline
+					muted
+					className="absolute inset-0 w-full h-full object-cover"
+				/>
+			)}
 
-			{scanError && (
-				<p className="text-red-500 text-sm text-center">{scanError}</p>
+			<div className="absolute top-5 left-5 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg pointer-events-none" />
+			<div className="absolute top-5 right-5 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg pointer-events-none" />
+			<div className="absolute bottom-5 left-5 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg pointer-events-none" />
+			<div className="absolute bottom-5 right-5 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg pointer-events-none" />
+
+			{/* ROTATE CAMERA (front / back) — phones with 2+ cameras */}
+			{!photo && canSwitch && (
+				<button
+					type="button"
+					onClick={handleRotateCamera}
+					disabled={switching}
+					aria-label="Switch camera"
+					title="Switch camera"
+					className="absolute top-3 right-3 z-10 w-11 h-11 p-2 rounded-full bg-black/40 hover:bg-black/55 backdrop-blur-sm flex items-center justify-center cursor-pointer disabled:opacity-50">
+					<Icon
+						icon={
+							switching
+								? "svg-spinners:ring-resize"
+								: "mdi:camera-flip-outline"
+						}
+						className="w-full h-full text-white"
+					/>
+				</button>
 			)}
-			{locationError && (
-				<p className="text-[#a6a3a3] text-xs text-center">
-					{locationError}
-				</p>
+
+			{/* RETAKE — on the photo, before pressing Next (no popup) */}
+			{photo && (
+				<button
+					type="button"
+					onClick={retakePhoto}
+					aria-label="Retake photo"
+					className="absolute top-3 right-3 z-10 flex items-center gap-1.5 py-2 px-3 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm text-white text-xs Poppins-SemiBold cursor-pointer">
+					<Icon
+						icon="mdi:camera-retake-outline"
+						className="w-4 h-4"
+					/>
+					Retake
+				</button>
 			)}
+
+			{error && !photo && (
+				<div className="absolute inset-0 flex items-center justify-center text-sm text-red-500 bg-white/70 rounded-2xl">
+					{error}
+				</div>
+			)}
+
+			<canvas ref={canvasRef} className="hidden" />
+
+			<div className="absolute bottom-0 inset-x-0 z-10 pb-6 pt-10 flex flex-col items-center gap-2 bg-linear-to-t from-black/60 to-transparent">
+				{scanError && (
+					<p className="text-red-400 text-sm text-center px-4">
+						{scanError}
+					</p>
+				)}
+				{locationError && (
+					<p className="text-white/70 text-xs text-center px-4">
+						{locationError}
+					</p>
+				)}
+
+				<div className="relative w-full flex justify-center items-center">
+					<div
+						ref={uploadBtnRef}
+						onClick={handleUploadClick}
+						className="absolute right-1/2 mr-25 w-12 h-12 p-3 rounded-full bg-[#ffce1c]/50 flex items-center justify-center cursor-pointer">
+						<Icon
+							icon="icon-park-outline:upload-picture"
+							className="text-5xl text-white"
+						/>
+					</div>
+
+					<div
+						// A photo is showing -> the camera button retakes it.
+						onClick={photo ? retakePhoto : handleTakePhoto}
+						className="w-17 h-17 border-2 border-[#ffce1c] border-solid rounded-full p-0.5 flex items-center justify-center">
+						<div className="w-full h-full p-3 rounded-full bg-[#ffce1c] flex items-center justify-center cursor-pointer">
+							<Icon
+								icon="entypo:camera"
+								className="text-5xl text-white"
+							/>
+						</div>
+					</div>
+
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept="image/*"
+						className="hidden"
+						onChange={(e) => handleFileChange(e)}
+					/>
+					<input
+						ref={cameraInputRef}
+						type="file"
+						accept="image/*"
+						capture="environment"
+						className="hidden"
+						onChange={(e) => handleFileChange(e, true)}
+					/>
+
+					{menu && (
+						<PopupMenu
+							top={menu.top}
+							left={menu.left}
+							translateY="-translate-y-full"
+							onClose={() => setMenu(null)}>
+							<PopupMenuItem
+								icon="icon-park-outline:upload-picture"
+								label="Upload Photo"
+								onClick={() => {
+									setMenu(null);
+									fileInputRef.current?.click();
+								}}
+							/>
+							<PopupMenuItem
+								icon="entypo:camera"
+								label="Take Photo"
+								onClick={() => {
+									setMenu(null);
+									cameraInputRef.current?.click();
+								}}
+							/>
+						</PopupMenu>
+					)}
+				</div>
+			</div>
 		</div>
 	);
 };

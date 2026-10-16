@@ -127,7 +127,7 @@ export const GenerateReportModal = ({ isOpen, onClose }: ReportModalProps) => {
 		<ModalContainer
 			open={isOpen}
 			width="lg:w-2/3 w-full"
-			height="h-5/6"
+			height="h-full"
 			header="Yield History Report"
 			onClose={onClose}>
 			<div className="w-full h-full flex-1 flex flex-col gap-3 min-h-0">

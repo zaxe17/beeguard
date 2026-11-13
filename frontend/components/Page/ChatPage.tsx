@@ -9,6 +9,7 @@ import {
 	BubbleChat,
 	DateTimeMessage,
 	type ChatMessage,
+	ChatNavBar,
 } from "../ui/Chat";
 import { Container } from "../ui/Container";
 import { SearchBar } from "../ui/Input";
@@ -25,10 +26,9 @@ import {
 } from "@/components/loading/SkeletonLoading";
 import { BackButton } from "../ui/Button";
 
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                    */
-/* -------------------------------------------------------------------------- */
+/* TYPES */
 
+// SHAPE OF EACH CHAT IN THE SIDEBAR LIST
 type ChatUser = {
 	chat_id: number;
 	name: string;
@@ -37,8 +37,10 @@ type ChatUser = {
 	photo?: string | null;
 	active?: boolean;
 	read?: boolean;
+	last_message_at?: string | null;
 };
 
+// SHAPE OF EACH CONVERSATION ITEM: BUBBLE GROUP OR TIME SEPARATOR
 type ChatEntry =
 	| {
 			type: "bubble";
@@ -52,31 +54,38 @@ type ChatEntry =
 			date: string;
 	  };
 
-/* -------------------------------------------------------------------------- */
-/*                                 Constants                                  */
-/* -------------------------------------------------------------------------- */
+/* CONSTANTS */
 
+// HOW OFTEN (MS) TO POLL NEW MESSAGES IN THE OPEN CHAT
 const MESSAGE_POLL_MS = 4000;
+// HOW OFTEN (MS) TO REFRESH THE CHAT LIST
 const LIST_POLL_MS = 8000;
+// NUMBER OF MESSAGES PER LOAD
 const PAGE_SIZE = 30;
+// DISTANCE FROM TOP BEFORE LOADING OLDER MESSAGES
 const LOAD_OLDER_AT_PX = 120;
+// HOW OFTEN (MS) TO UPDATE LIVE LOCATION
 const LIVE_UPDATE_MS = 10000;
 
+// 10-MINUTE GAP BEFORE THE TIME SEPARATOR SHOWS AGAIN
+const TIME_GAP_MS = 10 * 60 * 1000;
+
+// CUSTOM EVENT NAMES FOR COMPONENT COMMUNICATION
 const CHATS_CHANGED_EVENT = "beeguard:chats-changed";
 const SHARE_LOCATION_EVENT = "beeguard:share-location";
 const PICK_IMAGE_EVENT = "beeguard:pick-image";
 
-// Smaller photos upload faster (base64 JSON is ~33% bigger than the file).
+// IMAGE LIMITS FOR FASTER PHOTO UPLOADS
 const IMAGE_MAX_SIDE = 1280;
 const IMAGE_QUALITY = 0.7;
 const IMAGE_PICK_MAX_BYTES = 20 * 1024 * 1024;
 
+// MINIMUM HEIGHT DIFFERENCE TO DETECT AN OPEN KEYBOARD
 const KEYBOARD_MIN_PX = 120;
 
-/* -------------------------------------------------------------------------- */
-/*                                  Helpers                                   */
-/* -------------------------------------------------------------------------- */
+/* HELPERS */
 
+// RESIZES AND CONVERTS AN IMAGE FILE TO A JPEG DATA URL
 const fileToCompressedDataUrl = (file: File) =>
 	new Promise<string>((resolve, reject) => {
 		const url = URL.createObjectURL(file);
@@ -115,9 +124,15 @@ const fileToCompressedDataUrl = (file: File) =>
 		img.src = url;
 	});
 
+// CHECKS IF TWO DATES ARE ON THE SAME DAY
 const sameDay = (a: string, b: string) =>
 	new Date(a).toDateString() === new Date(b).toDateString();
 
+// CHECKS IF TWO MESSAGES ARE 10 MINUTES OR MORE APART
+const gapReached = (prev: string, next: string) =>
+	new Date(next).getTime() - new Date(prev).getTime() >= TIME_GAP_MS;
+
+// TURNS MESSAGES INTO A LIST OF BUBBLE GROUPS AND TIME SEPARATORS
 const buildEntries = (
 	messages: ChatMessage[],
 	myRole: "citizen" | "beekeeper",
@@ -129,6 +144,7 @@ const buildEntries = (
 	let runSender: "user" | "client" | null = null;
 	let runMessages: ChatMessage[] = [];
 
+	// PUSHES THE CURRENT RUN OF CONSECUTIVE MESSAGES INTO ENTRIES
 	const flushRun = (key: string) => {
 		if (runSender && runMessages.length) {
 			entries.push({
@@ -142,7 +158,12 @@ const buildEntries = (
 	};
 
 	messages.forEach((m, i) => {
-		if (!lastDate || !sameDay(lastDate, m.sent_at)) {
+		// ADDS A TIME SEPARATOR ON A NEW DAY OR A 10-MINUTE GAP
+		if (
+			!lastDate ||
+			!sameDay(lastDate, m.sent_at) ||
+			gapReached(lastDate, m.sent_at)
+		) {
 			flushRun(`flush-${i}`);
 			runSender = null;
 			entries.push({
@@ -157,6 +178,7 @@ const buildEntries = (
 		const sender: "user" | "client" =
 			m.sender_role === mySenderRole ? "user" : "client";
 
+		// STARTS A NEW BUBBLE GROUP WHEN THE SENDER CHANGES
 		if (sender !== runSender) {
 			flushRun(`flush-${i}`);
 			runSender = sender;
@@ -170,8 +192,26 @@ const buildEntries = (
 	return entries;
 };
 
+// SORT FUNCTION: OLDEST FIRST BY MESSAGE ID
 const byId = (a: ChatMessage, b: ChatMessage) => a.message_id - b.message_id;
 
+// GETS THE LAST MESSAGE TIME OF A CHAT: SERVER TIME OR LOCAL ACTIVITY, WHICHEVER IS NEWER
+const chatTime = (u: ChatUser, activity: Map<number, number>) => {
+	const server = u.last_message_at
+		? new Date(u.last_message_at).getTime()
+		: 0;
+
+	return Math.max(
+		Number.isNaN(server) ? 0 : server,
+		activity.get(u.chat_id) ?? 0,
+	);
+};
+
+// SORTS CHATS BY LAST MESSAGE TIME (NEWEST FIRST), TIES KEEP SERVER ORDER
+const sortByLatest = (list: ChatUser[], activity: Map<number, number>) =>
+	[...list].sort((a, b) => chatTime(b, activity) - chatTime(a, activity));
+
+// MERGES NEWLY FETCHED MESSAGES WITH SAVED ONES, KEEPING LOCAL PENDING MESSAGES
 const mergeLatest = (
 	prev: ChatMessage[],
 	latest: ChatMessage[],
@@ -189,8 +229,10 @@ const mergeLatest = (
 	return [...kept, ...latest].sort(byId).concat(local);
 };
 
+// COUNTER FOR TEMPORARY NEGATIVE IDS OF MESSAGES STILL BEING SENT
 const tempIdSeq = { n: -1 };
 
+// GETS THE USER'S CURRENT LOCATION USING BROWSER GEOLOCATION
 const getCurrentPosition = () =>
 	new Promise<GeolocationPosition>((resolve, reject) => {
 		if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -205,6 +247,7 @@ const getCurrentPosition = () =>
 		});
 	});
 
+// TURNS GEOLOCATION ERRORS INTO READABLE MESSAGES
 const geoErrorMessage = (err: unknown) => {
 	if (typeof window !== "undefined" && !window.isSecureContext) {
 		return "Location only works on https:// or localhost.";
@@ -227,10 +270,9 @@ const geoErrorMessage = (err: unknown) => {
 	return "Couldn't get your location. Try again.";
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                   Hooks                                    */
-/* -------------------------------------------------------------------------- */
+/* HOOKS */
 
+// TELLS IF THE SCREEN IS LARGE (DESKTOP) OR NOT
 const useIsLargeScreen = () => {
 	const [large, setLarge] = useState<boolean | null>(null);
 
@@ -247,15 +289,7 @@ const useIsLargeScreen = () => {
 	return large;
 };
 
-/**
- * Mobile viewport
- *
- * We do NOT subtract the bottom navigation anymore — the MobileOverlay
- * itself is responsible for sitting above the app navigation.
- *
- * When the keyboard opens, visualViewport.height becomes smaller and is
- * already the visible area above the keyboard.
- */
+// TRACKS THE VISIBLE AREA ON MOBILE SO THE KEYBOARD DOESN'T COVER THE CHAT
 const useVisibleViewport = (active: boolean) => {
 	const [box, setBox] = useState<{ height: number; top: number } | null>(
 		null,
@@ -300,15 +334,15 @@ const useVisibleViewport = (active: boolean) => {
 	return box;
 };
 
+// GETS THE BASE PROFILE ROUTE (BEEKEEPER OR CITIZEN)
 const useProfileRoute = () => {
 	const pathname = usePathname();
 	return pathname.startsWith("/beekeeper") ? "/beekeeper" : "/citizen";
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                 Component                                  */
-/* -------------------------------------------------------------------------- */
+/* COMPONENT */
 
+// MAIN CHAT PAGE: CHAT LIST AND CONVERSATION VIEW
 const ChatPage = () => {
 	const pathname = usePathname();
 	const role = pathname.split("/")[1] as "citizen" | "beekeeper";
@@ -321,22 +355,27 @@ const ChatPage = () => {
 
 	/* ------------------------------- State -------------------------------- */
 
+	// CHAT LIST, MESSAGES OF THE OPEN CHAT, AND TEXTBOX CONTENT
 	const [users, setUsers] = useState<ChatUser[]>([]);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [draft, setDraft] = useState("");
 
+	// LOADING STATES FOR THE CHAT LIST, FIRST LOAD, AND OLDER MESSAGES
 	const [chatsLoading, setChatsLoading] = useState(true);
 	const [loadingFirst, setLoadingFirst] = useState(false);
 	const [hasOlder, setHasOlder] = useState(false);
 	const [loadingOlder, setLoadingOlder] = useState(false);
 
+	// STATE FOR SENDING A PHOTO AND COMPOSER ERRORS
 	const [sendingImage, setSendingImage] = useState(false);
 	const [composerError, setComposerError] = useState<string | null>(null);
 
+	// STATE FOR THE LOCATION SHARING MODAL
 	const [locationModalOpen, setLocationModalOpen] = useState(false);
 	const [locationBusy, setLocationBusy] = useState(false);
 	const [locationError, setLocationError] = useState<string | null>(null);
 
+	// SEARCH TEXT FOR THE CHAT LIST
 	const [search, setSearch] = useState("");
 
 	/* -------------------------------- Refs -------------------------------- */
@@ -345,8 +384,11 @@ const ChatPage = () => {
 	const loadingOlderRef = useRef(false);
 	const lastPreviewRef = useRef<Map<number, string> | null>(null);
 	const newestSeenRef = useRef<number | null>(null);
+	// LOCAL TIME OF THE LAST MESSAGE PER CHAT, USED WHEN THE SERVER DOESN'T SEND last_message_at
+	const activityRef = useRef<Map<number, number>>(new Map());
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
+	// SETS THE REFERENCE TO THE MESSAGES SCROLL CONTAINER
 	const setScrollEl = useCallback((el: HTMLDivElement | null) => {
 		if (el) {
 			scrollRef.current = el;
@@ -355,6 +397,7 @@ const ChatPage = () => {
 
 	/* ----------------------------- Selection ------------------------------ */
 
+	// USES THE "chat" URL PARAM TO KNOW WHICH CHAT IS OPEN
 	const {
 		value: selectedIdParam,
 		setValue: setChatParam,
@@ -372,6 +415,7 @@ const ChatPage = () => {
 
 	/* ----------------------------- Chat list ------------------------------ */
 
+	// FETCHES THE CHAT LIST AND PLAYS A SOUND ON NEW MESSAGES
 	const loadChats = useCallback(async () => {
 		const res = await api.get<ChatUser[]>("/chats");
 
@@ -383,12 +427,13 @@ const ChatPage = () => {
 			for (const u of res.data) {
 				next.set(u.chat_id, u.message);
 
-				if (
-					prev &&
-					prev.get(u.chat_id) !== u.message &&
-					u.read === false
-				) {
-					newIncoming = true;
+				if (prev && prev.get(u.chat_id) !== u.message) {
+					// MARKS THE CHAT AS RECENTLY ACTIVE BECAUSE ITS LAST MESSAGE CHANGED
+					activityRef.current.set(u.chat_id, Date.now());
+
+					if (u.read === false) {
+						newIncoming = true;
+					}
 				}
 			}
 
@@ -397,14 +442,15 @@ const ChatPage = () => {
 			}
 
 			lastPreviewRef.current = next;
-			setUsers(res.data);
+
+			// SORTS THE CHAT LIST BY LAST MESSAGE TIME, NEWEST FIRST
+			setUsers(sortByLatest(res.data, activityRef.current));
 		}
 
 		setChatsLoading(false);
 	}, []);
 
-	// Polls the chat list. Skips the request while the tab is hidden and
-	// refreshes right away when the tab becomes visible again.
+	// REPEATEDLY REFRESHES THE CHAT LIST, PAUSES WHEN THE TAB IS HIDDEN
 	useEffect(() => {
 		loadChats();
 
@@ -423,6 +469,7 @@ const ChatPage = () => {
 		};
 	}, [loadChats]);
 
+	// LISTENS FOR CHANGES TO CHATS (E.G. A CHAT WAS DELETED)
 	useEffect(() => {
 		const handleChanged = (e: Event) => {
 			loadChats();
@@ -443,6 +490,7 @@ const ChatPage = () => {
 
 	/* ---------------------------- Menu events ----------------------------- */
 
+	// OPENS THE LOCATION MODAL WHEN SHARE LOCATION IS PICKED IN THE MENU
 	useEffect(() => {
 		const openLocationModal = () => {
 			setLocationError(null);
@@ -455,6 +503,7 @@ const ChatPage = () => {
 			window.removeEventListener(SHARE_LOCATION_EVENT, openLocationModal);
 	}, []);
 
+	// OPENS THE FILE PICKER WHEN SEND PHOTO IS PICKED IN THE MENU
 	useEffect(() => {
 		const openPicker = () => {
 			setComposerError(null);
@@ -466,12 +515,14 @@ const ChatPage = () => {
 		return () => window.removeEventListener(PICK_IMAGE_EVENT, openPicker);
 	}, []);
 
+	// CLEARS THE COMPOSER ERROR WHEN SWITCHING CHATS
 	useEffect(() => {
 		setComposerError(null);
 	}, [selectedId]);
 
 	/* ------------------------------ Messages ------------------------------ */
 
+	// SCROLLS TO THE LATEST MESSAGE
 	const scrollToLatest = useCallback(() => {
 		const el = scrollRef.current;
 		if (el) {
@@ -479,6 +530,7 @@ const ChatPage = () => {
 		}
 	}, []);
 
+	// LOADS AND POLLS MESSAGES FOR THE OPEN CHAT
 	useEffect(() => {
 		setMessages([]);
 		setHasOlder(false);
@@ -495,6 +547,7 @@ const ChatPage = () => {
 
 		setLoadingFirst(true);
 
+		// FETCHES THE LATEST BATCH OF MESSAGES
 		const loadLatest = async () => {
 			if (inFlight) return;
 			inFlight = true;
@@ -510,6 +563,7 @@ const ChatPage = () => {
 					const latest = [...res.data].sort(byId);
 					const newest = latest[latest.length - 1]?.message_id ?? 0;
 
+					// PLAYS A SOUND WHEN A NEW MESSAGE COMES FROM THE OTHER SIDE
 					if (newestSeenRef.current !== null && !res.offline) {
 						const seen = newestSeenRef.current;
 						const incoming = latest.some(
@@ -548,8 +602,7 @@ const ChatPage = () => {
 			}
 		};
 
-		// Polls the open conversation. Skips the request while the tab is
-		// hidden and refreshes right away when the tab becomes visible.
+		// REPEATED POLLING, PAUSES WHEN THE TAB IS HIDDEN
 		const tick = () => {
 			if (document.visibilityState === "visible") {
 				loadLatest();
@@ -567,6 +620,7 @@ const ChatPage = () => {
 		};
 	}, [selectedId, closeChat, mySenderRole, scrollToLatest]);
 
+	// LOADS OLDER MESSAGES WHEN SCROLLING UP
 	const loadOlder = useCallback(async () => {
 		if (!selectedId || loadingOlderRef.current || !hasOlder) {
 			return;
@@ -604,6 +658,7 @@ const ChatPage = () => {
 		}
 	}, [selectedId, hasOlder, messages]);
 
+	// CHECKS IF NEAR THE TOP OF THE SCROLL TO LOAD OLDER MESSAGES
 	const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		const fromTop =
@@ -616,6 +671,7 @@ const ChatPage = () => {
 
 	/* --------------------------- Live location ---------------------------- */
 
+	// LIST OF IDS OF MY OWN LIVE LOCATION MESSAGES THAT ARE STILL ACTIVE
 	const myLiveIdsKey = messages
 		.filter(
 			(m) =>
@@ -626,6 +682,7 @@ const ChatPage = () => {
 		.map((m) => m.message_id)
 		.join(",");
 
+	// KEEPS SENDING UPDATED LOCATION WHILE LIVE SHARE IS ACTIVE
 	useEffect(() => {
 		if (!myLiveIdsKey) return;
 		if (typeof navigator === "undefined" || !navigator.geolocation) return;
@@ -670,10 +727,12 @@ const ChatPage = () => {
 
 	/* ------------------------------ Handlers ------------------------------ */
 
+	// OPENS THE SELECTED CHAT
 	const handleSelectUser = (user: ChatUser) => {
 		setChatParam(String(user.chat_id));
 	};
 
+	// SENDS A TEXT MESSAGE TO THE SERVER AND REPLACES THE TEMP MESSAGE
 	const sendText = async (content: string, tempId: number) => {
 		if (!selectedId) return;
 
@@ -713,18 +772,21 @@ const ChatPage = () => {
 				return [...savedOnes, saved].sort(byId).concat(local);
 			});
 
-			// Update the sidebar preview locally instead of re-fetching the
-			// whole chat list (one less slow request per message). The next
-			// regular list poll corrects anything else.
+			// UPDATES THE SIDEBAR PREVIEW AND MOVES THE CHAT TO THE TOP WITHOUT REFETCHING
 			lastPreviewRef.current?.set(chatAtStart, content);
+			activityRef.current.set(chatAtStart, Date.now());
 			setUsers((prev) =>
-				prev.map((u) =>
-					u.chat_id === chatAtStart
-						? { ...u, message: content, read: true }
-						: u,
+				sortByLatest(
+					prev.map((u) =>
+						u.chat_id === chatAtStart
+							? { ...u, message: content, read: true }
+							: u,
+					),
+					activityRef.current,
 				),
 			);
 		} else {
+			// MARKS THE MESSAGE AS FAILED IF IT WASN'T SENT
 			setMessages((prev) =>
 				prev.map((m) =>
 					m.message_id === tempId
@@ -735,6 +797,7 @@ const ChatPage = () => {
 		}
 	};
 
+	// CREATES A TEMP MESSAGE INSTANTLY AND SENDS IT TO THE SERVER
 	const handleSend = () => {
 		const content = draft.trim();
 
@@ -769,6 +832,7 @@ const ChatPage = () => {
 		sendText(content, tempId);
 	};
 
+	// RESENDS A MESSAGE THAT FAILED
 	const handleRetry = (msg: ChatMessage) => {
 		setMessages((prev) =>
 			prev.map((m) =>
@@ -781,6 +845,7 @@ const ChatPage = () => {
 		sendText(msg.content, msg.message_id);
 	};
 
+	// PROCESSES THE PICKED IMAGE, COMPRESSES IT, AND SENDS IT
 	const handleImageSelected = async (
 		e: React.ChangeEvent<HTMLInputElement>,
 	) => {
@@ -842,6 +907,7 @@ const ChatPage = () => {
 		}
 	};
 
+	// MARKS A CHAT AS UNREAD
 	const handleMarkUnread = async (chatId: number) => {
 		if (chatId === selectedId) {
 			closeChat();
@@ -855,6 +921,7 @@ const ChatPage = () => {
 		if (!res.success) loadChats();
 	};
 
+	// GETS THE LOCATION AND SENDS IT (STATIC OR LIVE)
 	const handleShareLocation = async (liveMinutes: number) => {
 		if (!selectedId || locationBusy) {
 			return;
@@ -885,6 +952,7 @@ const ChatPage = () => {
 
 				requestAnimationFrame(scrollToLatest);
 
+				// TURNS OFF THE OLD LIVE LOCATION WHEN A NEW LIVE ONE STARTS
 				setMessages((prev) => [
 					...prev.map((m) =>
 						liveMinutes > 0 &&
@@ -910,6 +978,7 @@ const ChatPage = () => {
 		}
 	};
 
+	// STOPS LIVE LOCATION SHARING
 	const handleStopLive = async (messageId: number) => {
 		setMessages((prev) =>
 			prev.map((m) =>
@@ -922,6 +991,7 @@ const ChatPage = () => {
 		await api.post(`/chats/messages/${messageId}/location/stop`, {});
 	};
 
+	// FILTERS THE CHAT LIST BY SEARCH (NAME, LOCATION, MESSAGE)
 	const q = search.trim().toLowerCase();
 	const filteredUsers = q
 		? users.filter(
@@ -934,8 +1004,10 @@ const ChatPage = () => {
 
 	/* ------------------------------ Render -------------------------------- */
 
+	// LIST OF BUBBLES AND TIME SEPARATORS TO RENDER
 	const activeConversation = buildEntries(messages, apiRole);
 
+	// RENDERS THE CONVERSATION OR A SKELETON WHILE LOADING
 	const renderConversation = () =>
 		loadingFirst && messages.length === 0 ? (
 			<ChatMessagesSkeleton />
@@ -956,6 +1028,7 @@ const ChatPage = () => {
 			)
 		);
 
+	// SCROLLABLE MESSAGES AREA WITH THE "LOAD OLDER" BUTTON
 	const renderMessageArea = () => (
 		<div
 			ref={setScrollEl}
@@ -985,6 +1058,7 @@ const ChatPage = () => {
 		</div>
 	);
 
+	// TEXTBOX AND SEND BUTTON AT THE BOTTOM
 	const renderComposer = () => (
 		<div className="w-full px-2 py-2 flex flex-row items-center gap-1 shrink-0 bg-white">
 			<ChatOptionMenu />
@@ -1018,6 +1092,7 @@ const ChatPage = () => {
 		</div>
 	);
 
+	// SHOWS "SENDING PHOTO" OR AN ERROR ABOVE THE COMPOSER
 	const composerStatus =
 		sendingImage || composerError ? (
 			<div className="px-3 py-1 text-xs shrink-0 bg-white">
@@ -1035,18 +1110,11 @@ const ChatPage = () => {
 			</div>
 		) : null;
 
+	// FULL CONVERSATION VIEW: HEADER, MESSAGES, STATUS, COMPOSER
 	const conversationView = (
 		<>
-			<div className="flex items-center bg-[#ffdb4f] p-2 gap-3 shrink-0">
-				<div className="relative">
-					<div className="relative w-10 h-10">
-						<ProfilePhoto src={selectedUser?.photo} />
-					</div>
-					<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white" />
-				</div>
-
-				<h3 className="text-base">{selectedUser?.name}</h3>
-			</div>
+			{/* CHAT NAVBAR */}
+			<ChatNavBar photo={selectedUser?.photo} name={selectedUser?.name} />
 
 			{renderMessageArea()}
 			{composerStatus}
@@ -1056,7 +1124,7 @@ const ChatPage = () => {
 
 	return (
 		<div className="w-full h-full flex items-start lg:flex-row flex-col relative">
-			{/* LEFT SIDE — chat list */}
+			{/* LEFT: CHAT LIST */}
 			<Container
 				borderNone
 				className="lg:w-[30%] w-full flex-1 lg:flex-none lg:h-full">
@@ -1112,7 +1180,7 @@ const ChatPage = () => {
 				</div>
 			</Container>
 
-			{/* DESKTOP — conversation */}
+			{/* DESKTOP: CONVERSATION ON THE RIGHT */}
 			<div className="hidden lg:flex flex-col flex-1 w-full min-h-0 h-full">
 				{selectedUser && isDesktop ? (
 					conversationView
@@ -1127,7 +1195,7 @@ const ChatPage = () => {
 				)}
 			</div>
 
-			{/* MOBILE — conversation overlay */}
+			{/* MOBILE: FULL SCREEN CONVERSATION OVERLAY */}
 			{showMobileChat && selectedUser && (
 				<MobileOverlay>
 					<div
@@ -1141,29 +1209,8 @@ const ChatPage = () => {
 									}
 								: { top: 0, height: "100dvh", bottom: "auto" }
 						}>
-						{/* Header */}
-						<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
-							{/* BACK BUTON */}
-							<button
-								type="button"
-								onClick={() => router.back()}
-								aria-label="Back to messages"
-								className="flex items-center justify-center shrink-0 w-10 h-10 -m-1">
-								<Icon
-									icon="bx:arrow-back"
-									className="text-2xl text-[#4a2f00]"
-								/>
-							</button>
-
-							<div className="relative">
-								<div className="relative w-10 h-10">
-									<ProfilePhoto src={selectedUser.photo} />
-								</div>
-								<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white" />
-							</div>
-
-							<h3 className="text-base">{selectedUser.name}</h3>
-						</div>
+						{/* CHAT NAVBAR */}
+						<ChatNavBar photo={selectedUser?.photo} name={selectedUser?.name} />
 
 						{renderMessageArea()}
 						{composerStatus}
@@ -1172,6 +1219,7 @@ const ChatPage = () => {
 				</MobileOverlay>
 			)}
 
+			{/* HIDDEN FILE INPUT FOR PICKING A PHOTO */}
 			<input
 				ref={fileInputRef}
 				type="file"
@@ -1180,6 +1228,7 @@ const ChatPage = () => {
 				onChange={handleImageSelected}
 			/>
 
+			{/* MODAL FOR SHARING LOCATION */}
 			<LocationShareModal
 				open={locationModalOpen && Boolean(selectedId)}
 				busy={locationBusy}

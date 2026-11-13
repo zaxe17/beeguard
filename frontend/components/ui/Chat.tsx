@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { ProfilePhoto } from "../ProfilePhoto";
 import { MessagePopupMenu, MessageBottomSheet } from "../popup/MessagePopup";
 import { AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 // Leaflet needs `window`, so the map is only loaded in the browser.
 const LocationMap = dynamic(() => import("./LocationMap"), {
@@ -58,8 +59,14 @@ type BubbleChatProps = {
 	onRetry?: (message: ChatMessage) => void;
 };
 
+type ChatNavBarProps = {
+	photo?: string | null;
+	name?: string;
+}
+
 const LONG_PRESS_MS = 450;
 
+// USERS CARD MESSAGE LEFT SIDE OF THE CHAT
 export const UserMessageCard = ({
 	chatId,
 	read,
@@ -136,7 +143,7 @@ export const UserMessageCard = ({
 
 			<div className="w-full flex-1 flex flex-col justify-between">
 				<h3
-					className={`${read ? "Poppins-SemiBold text-[#494949]" : "Poppins-Bold"} text-sm`}>
+					className={`${read ? "Poppins-SemiBold text-[#494949]" : "Poppins-Bold"} text-sm text-nowrap`}>
 					{name}
 				</h3>
 				<span
@@ -193,12 +200,6 @@ export const UserMessageCard = ({
 	);
 };
 
-// FIXED — this always said "Sept 16 • 5:41 AM". Now it shows the real
-// day and time of the first message after it:
-//   today      -> "Today • 3:14 PM"
-//   yesterday  -> "Yesterday • 9:02 AM"
-//   this year  -> "Sep 16 • 5:41 AM"
-//   older      -> "Sep 16, 2025 • 5:41 AM"
 const formatChatDate = (iso?: string) => {
 	if (!iso) return "";
 	const d = new Date(iso);
@@ -231,8 +232,7 @@ export const DateTimeMessage = ({ date }: { date?: string }) => {
 	);
 };
 
-// ── LOCATION BUBBLE ─────────────────────────────
-
+// LOCATION BUBBLE
 const formatTimeLeft = (seconds: number) => {
 	if (seconds >= 3600) {
 		const h = Math.floor(seconds / 3600);
@@ -248,6 +248,7 @@ const formatAgo = (seconds: number) =>
 		? `${Math.max(1, Math.floor(seconds / 60))} min ago`
 		: `${Math.floor(seconds / 3600)} hr ago`;
 
+// LOCATION BUBBLE
 const LocationBubble = ({
 	message,
 	isUser,
@@ -334,7 +335,7 @@ const LocationBubble = ({
 	);
 };
 
-// ── IMAGE BUBBLE ────────────────────────────────
+// IMAGE BUBBLE
 const ImageBubble = ({ message }: { message: ChatMessage }) => (
 	<a
 		href={message.image_url as string}
@@ -351,6 +352,7 @@ const ImageBubble = ({ message }: { message: ChatMessage }) => (
 	</a>
 );
 
+// BUBBLE USERS MESSAGES
 export const BubbleChat = ({
 	sender,
 	messages,
@@ -413,6 +415,36 @@ export const BubbleChat = ({
 					),
 				)}
 			</div>
+		</div>
+	);
+};
+
+// CHAT NAV BAR
+export const ChatNavBar = ({ photo, name }: ChatNavBarProps) => {
+	const router = useRouter();
+
+	return (
+		<div className="bg-[#ffdb4f] w-full flex items-center gap-3 p-2 shrink-0">
+			{/* BACK BUTTON */}
+			<button
+				type="button"
+				onClick={() => router.back()}
+				aria-label="Back to messages"
+				className="lg:hidden flex items-center justify-center shrink-0 w-10 h-10 -m-1">
+				<Icon
+					icon="bx:arrow-back"
+					className="text-2xl text-[#4a2f00]"
+				/>
+			</button>
+
+			<div className="relative">
+				<div className="relative w-10 h-10">
+					<ProfilePhoto src={photo} />
+				</div>
+				<div className="absolute bottom-0 right-0 bg-[#8ac44f] w-4 h-4 rounded-full border-2 border-white" />
+			</div>
+
+			<h3 className="text-base line-clamp-1">{name}</h3>
 		</div>
 	);
 };

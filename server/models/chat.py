@@ -42,15 +42,23 @@ class ChatModel:
     # NOTE: `profile_photo` is the column that holds the profile picture
     # path ("/uploads/profile/..."). If your column has another name, change
     # it in the two queries below (bk.profile_photo / cz.profile_photo).
+    #
+    # LAST_MESSAGE_AT: TIME OF THE NEWEST MESSAGE IN THE CHAT (FALLS BACK TO
+    # THE CHAT'S created_at WHEN IT HAS NO MESSAGES). THE LIST IS SORTED BY IT,
+    # NEWEST FIRST, SO CHATS WITH NEW MESSAGES MOVE TO THE TOP.
     @staticmethod
     def list_for_citizen(citizen_id: str):
         sql = f"""
             SELECT c.*, bk.name AS other_name, bk.address AS other_location,
-                   bk.profile_photo AS other_photo
+                   bk.profile_photo AS other_photo,
+                   COALESCE(
+                       (SELECT MAX(m.sent_at) FROM messages m WHERE m.chat_id = c.chat_id),
+                       c.created_at
+                   ) AS last_message_at
             FROM {ChatModel.TABLE} c
             JOIN beekeepers bk ON bk.beekeeperID = c.beekeeperID
             WHERE c.citizenID = %s
-            ORDER BY c.created_at DESC
+            ORDER BY last_message_at DESC, c.chat_id DESC
         """
         return Database.execute(sql, (citizen_id,), fetchall=True) or []
 
@@ -58,11 +66,15 @@ class ChatModel:
     def list_for_beekeeper(beekeeper_id: str):
         sql = f"""
             SELECT c.*, cz.name AS other_name, cz.address AS other_location,
-                   cz.profile_photo AS other_photo
+                   cz.profile_photo AS other_photo,
+                   COALESCE(
+                       (SELECT MAX(m.sent_at) FROM messages m WHERE m.chat_id = c.chat_id),
+                       c.created_at
+                   ) AS last_message_at
             FROM {ChatModel.TABLE} c
             JOIN citizens cz ON cz.citizenID = c.citizenID
             WHERE c.beekeeperID = %s
-            ORDER BY c.created_at DESC
+            ORDER BY last_message_at DESC, c.chat_id DESC
         """
         return Database.execute(sql, (beekeeper_id,), fetchall=True) or []
 

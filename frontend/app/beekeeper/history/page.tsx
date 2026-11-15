@@ -2,12 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
-import { YieldSummaryChart, YieldSeries } from "@/components/graph/Line";
-import {
-	analyticsService,
-	DashboardSummary,
-	HiveYieldTrends,
-} from "@/services/analytics";
+import { YieldBarChart, YieldSeries } from "@/components/graph/Line";
+import { analyticsService, HiveYieldTrends } from "@/services/analytics";
 import { queenService, QueenHistoryRow } from "@/services/queen";
 import { HIVES_CHANGED_EVENT } from "@/components/modal/HivesModal";
 import { formatPeriod, periodYear } from "@/lib/harvestSeason";
@@ -17,8 +13,25 @@ import {
 	YieldChartSkeleton,
 } from "@/components/loading/SkeletonLoading";
 
-function formatKg(v: number | undefined | null) {
-	return `${(v ?? 0).toFixed(1)}kg`;
+const MONTH_NAMES = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+];
+
+function formatDay(raw: string) {
+	const m = /(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+	if (!m) return formatPeriod(raw);
+	return `${MONTH_NAMES[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
 }
 
 const YearFilter = ({
@@ -46,21 +59,6 @@ const YearFilter = ({
 	);
 };
 
-// ── BEE QUEEN REPLACEMENT HISTORY CARD ──────────────────────
-//
-// One card per hive owned by this beekeeper. Renders the latest
-// queen-replacement evaluation for the hive:
-//   - queen_installed_date: when the beekeeper last confirmed a
-//     queen was installed (this is the "replaced on" date).
-//   - level + reason: the current recommendation state (Normal /
-//     Monitor / Replace) from the latest evaluation.
-//   - replaced: true when the latest Monitor/Replace recommendation
-//     was actually acted on (queen_installed_date is on/after the
-//     recommendation's evaluated_at). Drawn as a green badge; an
-//     unresolved Monitor/Replace stays red/amber.
-//
-// This block replaces the earlier "asasd" placeholder that had no
-// data source wired up.
 type BQHistoryCardProps = {
 	row: QueenHistoryRow;
 };
@@ -110,10 +108,9 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				boxShadow:
 					"rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 2px 6px 2px",
 			}}>
-			{/* HEADER — hive name + current level badge */}
 			<div className="flex justify-between items-center">
 				<h3 className="Poppins-Bold text-[#4A2F00] text-base capitalize">
-					{row.hive_name || row.hive_id}
+					{row.hive_name}
 				</h3>
 				<span
 					className="Poppins-SemiBold text-[10px] py-1 px-2 rounded-md flex items-center gap-1"
@@ -123,7 +120,6 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				</span>
 			</div>
 
-			{/* QUEEN INSTALLED / REPLACED-ON DATE */}
 			<div className="flex justify-between items-center text-xs">
 				<span className="text-[#817b70]">Queen installed</span>
 				<span className="Poppins-SemiBold text-[#4A2F00]">
@@ -131,7 +127,6 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				</span>
 			</div>
 
-			{/* LAST EVALUATED */}
 			<div className="flex justify-between items-center text-xs">
 				<span className="text-[#817b70]">Last evaluated</span>
 				<span className="Poppins-SemiBold text-[#4A2F00]">
@@ -139,8 +134,6 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				</span>
 			</div>
 
-			{/* REPLACED-STATUS ROW — only meaningful when the most
-			    recent Monitor/Replace was actually addressed. */}
 			<div className="flex justify-between items-center text-xs">
 				<span className="text-[#817b70]">Status</span>
 				{row.replaced ? (
@@ -162,7 +155,6 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 				)}
 			</div>
 
-			{/* REASON — quick explanation of the current level */}
 			<p className="text-[11px] text-[#817b70] leading-snug border-t border-[#f0e6d2] pt-2 mt-1 normal-case">
 				{row.reason}
 			</p>
@@ -172,7 +164,6 @@ const BQHistoryCard = ({ row }: BQHistoryCardProps) => {
 
 const History = () => {
 	const [loading, setLoading] = useState(true);
-	const [summary, setSummary] = useState<DashboardSummary | null>(null);
 	const [trends, setTrends] = useState<HiveYieldTrends>({
 		categories: [],
 		series: [],
@@ -182,13 +173,10 @@ const History = () => {
 
 	const load = async () => {
 		setLoading(true);
-		const [summaryRes, trendsRes, queenRes] = await Promise.all([
-			analyticsService.dashboardSummary(),
-			// Wide lookback so multiple harvest seasons across years show up.
+		const [trendsRes, queenRes] = await Promise.all([
 			analyticsService.hiveYieldTrends(60),
 			queenService.historyForBeekeeper(),
 		]);
-		if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
 		if (trendsRes.success && trendsRes.data) setTrends(trendsRes.data);
 		if (queenRes.success && queenRes.data) setQueenHistory(queenRes.data);
 		setLoading(false);
@@ -198,16 +186,12 @@ const History = () => {
 		load();
 	}, []);
 
-	// Instant refresh whenever a harvest/hive/queen action happens
-	// anywhere in the app.
 	useEffect(() => {
 		const handler = () => load();
 		window.addEventListener(HIVES_CHANGED_EVENT, handler);
 		return () => window.removeEventListener(HIVES_CHANGED_EVENT, handler);
 	}, []);
 
-	// Years present in the data — filter buttons are generated from
-	// real harvest history instead of being hardcoded.
 	const availableYears = useMemo(() => {
 		const years = new Set(trends.categories.map(periodYear));
 		return Array.from(years)
@@ -215,10 +199,13 @@ const History = () => {
 			.map(String);
 	}, [trends.categories]);
 
-	// Filtering by year keeps every series aligned to the same
-	// filtered index positions, since categories + all series' data
-	// arrays share the same length/order from the backend.
-	const { labels, series } = useMemo(() => {
+	const hiveNameById = useMemo(() => {
+		const m = new Map<string, string>();
+		queenHistory.forEach((q) => m.set(q.hive_id, q.hive_name));
+		return m;
+	}, [queenHistory]);
+
+	const { labels, series, details } = useMemo(() => {
 		const idxs =
 			selectedYear === "All"
 				? trends.categories.map((_, i) => i)
@@ -229,21 +216,44 @@ const History = () => {
 						)
 						.map(({ i }) => i);
 
-		const labels = idxs.map((i) => formatPeriod(trends.categories[i]));
-		const series: YieldSeries[] = trends.series.map((s) => ({
-			hive_id: s.hive_id,
-			label: s.hive_name,
-			data: idxs.map((i) => s.data[i]),
-		}));
+		const months: string[] = [];
+		const monthIndex = new Map<string, number>();
+		idxs.forEach((i) => {
+			const m = formatPeriod(trends.categories[i]);
+			if (!monthIndex.has(m)) {
+				monthIndex.set(m, months.length);
+				months.push(m);
+			}
+		});
 
-		return { labels, series };
-	}, [trends, selectedYear]);
+		const series: YieldSeries[] = [];
+		const details: string[][][] = [];
 
-	// The chart itself should always render even when there is no
-	// harvest data yet — otherwise the whole line-graph panel is just
-	// a "No harvest history yet" line of text with no visual context.
-	// We fall back to an empty x-axis label + a single-series line at
-	// y=0 so the axes, grid and legend are all still visible.
+		trends.series.forEach((s) => {
+			const totals: (number | null)[] = months.map(() => null);
+			const days: string[][] = months.map(() => []);
+
+			idxs.forEach((i) => {
+				const v = s.data[i];
+				if (v === null || v === undefined || v === 0) return;
+				const m = monthIndex.get(formatPeriod(trends.categories[i]))!;
+				totals[m] = (totals[m] ?? 0) + v;
+				days[m].push(formatDay(trends.categories[i]));
+			});
+
+			if (totals.some((v) => v !== null)) {
+				series.push({
+					hive_id: s.hive_id,
+					label: hiveNameById.get(s.hive_id) ?? s.hive_name,
+					data: totals,
+				});
+				details.push(days);
+			}
+		});
+
+		return { labels: months, series, details };
+	}, [trends, selectedYear, hiveNameById]);
+
 	const chartHasRealData = series.some((s) => s.data.some((v) => v !== null));
 	const displayLabels = labels.length ? labels : ["No data"];
 	const displaySeries: YieldSeries[] =
@@ -261,9 +271,7 @@ const History = () => {
 	return (
 		<div className="h-full w-full min-h-0 flex justify-center items-center overflow-hidden">
 			<div className="flex flex-col h-full w-full min-h-0 overflow-y-auto lg:scrollbar-auto scrollbar-none">
-				{/* LINE GRAPH */}
 				<div className="h-2/3 w-full flex flex-col justify-center pt-10 p-5">
-					{/* FILTER BUTTON */}
 					<div className="flex justify-start gap-3 mb-6">
 						<YearFilter
 							year="All"
@@ -287,30 +295,18 @@ const History = () => {
 						)}
 					</div>
 
-					<div className="w-full h-screen relative">
+					<div className="w-full flex-1 min-h-80 relative">
 						{loading ? (
 							<YieldChartSkeleton showSummary={false} />
 						) : (
 							<>
-								<YieldSummaryChart
-									value={formatKg(
-										summary?.yield_totals.this_month
-											.total_kg,
-									)}
-									valueLabel="Yield This Month"
-									changeAmount={
-										summary?.yield_totals.change_amount ?? 0
-									}
-									changePercent={
-										summary?.yield_totals.change_percent ??
-										0
-									}
+								<YieldBarChart
 									categories={displayLabels}
 									series={displaySeries}
+									details={
+										series.length ? details : undefined
+									}
 								/>
-								{/* Empty-state overlay — the chart's axes still
-								    show, but we hint that there's nothing to
-								    trend yet. */}
 								{!chartHasRealData && (
 									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 										<div className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-md text-sm text-[#817b70] Poppins-SemiBold">
@@ -324,7 +320,6 @@ const History = () => {
 					</div>
 				</div>
 
-				{/* BEE QUEEN REPLACEMENT HISTORY — one card per hive */}
 				<div className="w-full px-5 py-4">
 					<h2 className="Poppins-Bold text-xl text-[#4A2F00] mb-3 capitalize">
 						Queen Replacement History

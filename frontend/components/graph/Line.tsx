@@ -1,48 +1,46 @@
-// components/graph/Line.tsx
 "use client";
 
 import { useIsPage } from "@/hooks/useIsPage";
+import { useEffect, useState } from "react";
 import {
 	Chart as ChartJS,
 	CategoryScale,
 	LinearScale,
 	PointElement,
 	LineElement,
+	BarElement,
 	Tooltip,
 	Legend,
 	ChartData,
 	ChartOptions,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Line, Bar } from "react-chartjs-2";
 
 ChartJS.register(
 	CategoryScale,
 	LinearScale,
 	PointElement,
 	LineElement,
+	BarElement,
 	Tooltip,
 	Legend,
 );
 
-// Distinct, colorblind-friendlier palette cycled by hive index when
-// a per-hive color isn't explicitly provided.
 const DEFAULT_PALETTE = [
-	"#FFC93F", // yellow (original single-line default)
-	"#38b6ff", // blue
-	"#ff6b6b", // red
-	"#00cc88", // green
-	"#a66bff", // purple
-	"#ff9f40", // orange
+	"#FFC93F",
+	"#38b6ff",
+	"#ff6b6b",
+	"#00cc88",
+	"#a66bff",
+	"#ff9f40",
 ];
 
 export type YieldSeries = {
 	hive_id?: string;
-	label: string; // hive_name — used in the legend
+	label: string;
 	data: (number | null)[];
 	color?: string;
 };
-
-// ---- Shared chart.js config, used by both YieldSummaryChart and ReportOverview ----
 
 function buildLineOptions(integerTicks = false): ChartOptions<"line"> {
 	return {
@@ -57,18 +55,6 @@ function buildLineOptions(integerTicks = false): ChartOptions<"line"> {
 			tooltip: { enabled: true },
 		},
 		animations: {
-			// NOTE: these delay callbacks used to stash a "have I
-			// already delayed this point" flag directly on the shared
-			// `context` object (context.xStarted / context.yStarted).
-			// That's mutable state living outside React/Chart.js's own
-			// lifecycle — if the chart unmounts (e.g. navigating to a
-			// different page) while an animation frame tied to that
-			// mutated context is still queued, the callback can fire
-			// afterward and reach into internal chart/scale objects
-			// that no longer exist, throwing "Cannot read properties
-			// of undefined (reading '_labels')". Removing the mutation
-			// (just re-computing the delay from dataIndex every time,
-			// which is cheap and stateless) avoids that failure mode.
 			x: {
 				type: "number" as const,
 				easing: "easeOutQuart" as const,
@@ -96,7 +82,6 @@ function buildLineOptions(integerTicks = false): ChartOptions<"line"> {
 			y: {
 				beginAtZero: true,
 				grid: { color: "#f0f0f0" },
-				// Counts (like reports) have no fractions — no "0.5" on the axis.
 				ticks: {
 					font: { size: 11 },
 					color: "#666",
@@ -118,10 +103,12 @@ function buildYieldDataset(
 	color: string,
 	label: string,
 	data: (number | null)[],
+	hideZero = false,
 ) {
 	return {
 		label,
-		data,
+		data: hideZero ? data.map((v) => (v === 0 ? null : v)) : data,
+		spanGaps: true,
 		borderColor: color,
 		backgroundColor: color,
 		pointBackgroundColor: color,
@@ -135,8 +122,6 @@ function buildYieldDataset(
 	};
 }
 
-// Small internal component so the <Line> render + wrapper markup
-// isn't duplicated between YieldSummaryChart and ReportOverview.
 function LineChartBase({
 	chartData,
 	integerTicks = false,
@@ -147,29 +132,27 @@ function LineChartBase({
 	return (
 		<div className="flex-1 flex flex-col">
 			<div className="flex-1 relative">
-				<Line data={chartData} options={buildLineOptions(integerTicks)} />
+				<Line
+					data={chartData}
+					options={buildLineOptions(integerTicks)}
+				/>
 			</div>
 		</div>
 	);
 }
 
-// ---- YieldSummaryChart ----
-
 type YieldSummaryChartProps = {
 	value: string;
 	valueLabel: string;
 	changeAmount: number;
-	// null = nothing to compare with (e.g. no harvest last month) -> no %
 	changePercent: number | null;
-	// Text under the change, e.g. "vs last month". Defaults to the old
-	// "vs last season" so other pages look the same.
 	changeLabel?: string;
-	categories: string[]; // supports multi-line "Harvest Season N\nMon YYYY"
-	data?: number[]; // single-line mode (Dashboard)
-	series?: YieldSeries[]; // multi-line mode (History, per hive)
+	categories: string[];
+	data?: number[];
+	series?: YieldSeries[];
 	lineColor?: string;
-	onClick?: () => void; // e.g. navigate Dashboard -> History
-	hideSummary?: boolean; // force-hide the value/change header row
+	onClick?: () => void;
+	hideSummary?: boolean;
 };
 
 export const YieldSummaryChart = ({
@@ -195,9 +178,10 @@ export const YieldSummaryChart = ({
 					s.color ?? DEFAULT_PALETTE[i % DEFAULT_PALETTE.length],
 					s.label,
 					s.data,
+					true,
 				),
 			)
-		: [buildYieldDataset(lineColor, "Total Yield (kg)", data ?? [])];
+		: [buildYieldDataset(lineColor, "Total Yield (kg)", data ?? [], true)];
 
 	const chartData: ChartData<"line"> = {
 		labels: categories.map((c) => c.split("\n")) as unknown as string[],
@@ -236,7 +220,6 @@ export const YieldSummaryChart = ({
 								<>
 									{isNegative ? "" : "+"}
 									{changeAmount} kg
-									{/* % only when there's something to compare with */}
 									{changePercent !== null &&
 										` (${isNegative ? "↓" : "↑"}${Math.abs(changePercent)}%)`}
 								</>
@@ -252,33 +235,176 @@ export const YieldSummaryChart = ({
 	);
 };
 
-// ---- ReportOverview ----
-// Previously referenced `chartData`/`options` that only existed inside
-// YieldSummaryChart's scope — that would throw at runtime. Give it its
-// own props/data so it's a real standalone component.
+type YieldBarChartProps = {
+	categories: string[];
+	series: YieldSeries[];
+	details?: string[][][];
+};
 
-// Same colors as the report status badges (components/ui/ReportCard.tsx).
+export const YieldBarChart = ({
+	categories,
+	series,
+	details,
+}: YieldBarChartProps) => {
+	const [isMobile, setIsMobile] = useState(false);
+
+	useEffect(() => {
+		const mq = window.matchMedia("(max-width: 767px)");
+		const update = () => setIsMobile(mq.matches);
+		update();
+		mq.addEventListener("change", update);
+		return () => mq.removeEventListener("change", update);
+	}, []);
+
+	const entries: { m: number; s: number }[] = [];
+	const spacers: number[] = [];
+	const midLabels = new Map<number, string>();
+
+	categories.forEach((label, m) => {
+		const bars = series
+			.map((s, si) => ({ si, v: s.data[m] }))
+			.filter((b) => b.v !== null && b.v !== undefined);
+		if (!bars.length) return;
+
+		if (entries.length) {
+			spacers.push(entries.length);
+			entries.push({ m: -1, s: -1 });
+		}
+
+		const start = entries.length;
+		bars.forEach((b) => entries.push({ m, s: b.si }));
+		midLabels.set(Math.floor((start + entries.length - 1) / 2), label);
+	});
+
+	const dividers = {
+		id: "monthDividers",
+		beforeDatasetsDraw(chart: any) {
+			const { ctx, chartArea, scales } = chart;
+			ctx.save();
+			ctx.strokeStyle = "#d9c9a0";
+			ctx.lineWidth = 1;
+			ctx.setLineDash([4, 4]);
+			spacers.forEach((i) => {
+				const px = scales.x.getPixelForValue(i);
+				ctx.beginPath();
+				ctx.moveTo(px, chartArea.top);
+				ctx.lineTo(px, chartArea.bottom);
+				ctx.stroke();
+			});
+			ctx.restore();
+		},
+	};
+
+	const chartData = {
+		labels: entries.map((_, i) => String(i)),
+		datasets: series.map((s, si) => ({
+			label: s.label,
+			data: entries.map((e) => (e.s === si ? s.data[e.m] : null)),
+			backgroundColor:
+				s.color ?? DEFAULT_PALETTE[si % DEFAULT_PALETTE.length],
+			borderWidth: 0,
+			borderRadius: 0,
+			barPercentage: 1,
+			categoryPercentage: 1,
+			inflateAmount: -3.5,
+		})),
+	} as unknown as ChartData<"bar">;
+
+	const rotation = isMobile ? 45 : 0;
+
+	const options: ChartOptions<"bar"> = {
+		responsive: true,
+		maintainAspectRatio: false,
+		layout: { padding: { bottom: 0 } },
+		plugins: {
+			legend: {
+				display: true,
+				position: "top",
+				labels: { boxWidth: 12, font: { size: 11 } },
+			},
+			tooltip: {
+				enabled: true,
+				filter: (item) => entries[item.dataIndex]?.m !== -1,
+				callbacks: {
+					title: (items) =>
+						categories[entries[items[0].dataIndex]?.m] ?? "",
+					label: (ctx) =>
+						`${ctx.dataset.label}: ${Math.round((ctx.parsed.y ?? 0) * 10) / 10} kg`,
+					afterLabel: (ctx) =>
+						details?.[ctx.datasetIndex]?.[
+							entries[ctx.dataIndex].m
+						] ?? [],
+				},
+			},
+			datalabels: {
+				anchor: "end",
+				align: "start",
+				offset: 4,
+				clamp: true,
+				color: "#4A2F00",
+				font: { size: 10, weight: "bold" },
+				formatter: (v: number | null) =>
+					v === null ? "" : Math.round(v * 10) / 10,
+			},
+		},
+		scales: {
+			y: {
+				stacked: true,
+				beginAtZero: true,
+				grid: { color: "#f0f0f0" },
+				ticks: { font: { size: 11 }, color: "#666" },
+			},
+			x: {
+				stacked: true,
+				grid: { display: false },
+				ticks: {
+					font: { size: 11, weight: "bold" as const },
+					color: "#333",
+					minRotation: rotation,
+					maxRotation: rotation,
+					autoSkip: false,
+					callback: (_v: any, index: number) =>
+						midLabels.get(index) ?? "",
+				},
+			},
+		},
+	};
+
+	return (
+		<div className="w-full h-full flex flex-col">
+			<div className="flex-1 relative w-full">
+				<Bar
+					key={isMobile ? "mobile" : "desktop"}
+					data={chartData}
+					options={options}
+					plugins={[dividers]}
+				/>
+			</div>
+		</div>
+	);
+};
+
 export const REPORT_STATUS_COLORS: Record<string, string> = {
 	pending: "#ffdb4f",
 	"in-progress": "#ff9a00",
 	resolved: "#1f6f5f",
 	rejected: "#ff0000",
-	cancelled: "#ff0000", // admin side shows "Cancelled" instead of "Rejected"
+	cancelled: "#ff0000",
 };
 
 export type ReportOverviewSeries = {
-	key: string; // "pending" | "in-progress" | "resolved" | "rejected"
-	label: string; // legend text
+	key: string;
+	label: string;
 	data: number[];
 	color?: string;
 };
 
 type ReportOverviewProps = {
 	categories: string[];
-	data?: number[]; // single line (used when no series is given)
-	series?: ReportOverviewSeries[]; // one line per report status
+	data?: number[];
+	series?: ReportOverviewSeries[];
 	lineColor?: string;
-	label?: string; // legend text for the single line
+	label?: string;
 };
 
 export const ReportOverview = ({

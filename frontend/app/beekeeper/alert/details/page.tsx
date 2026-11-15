@@ -476,7 +476,7 @@ const AlertDetailsInner = () => {
 	}
 
 	return (
-		<div className="w-full flex lg:flex-row flex-col gap-8 lg:gap-15 lg:py-15 lg:px-20 pb-5">
+		<div className="w-full flex lg:flex-row flex-col gap-8 lg:gap-15 lg:py-15 lg:px-20 pb-5 overflow-y-auto lg:scrollbar-auto scrollbar-none">
 			{/* BACK BUTTON HEADER — mobile only, sticky sa taas */}
 			<div className="lg:hidden sticky top-0 z-10 bg-white w-full flex items-center gap-2 p-4 border-b border-[#e2e2e6]">
 				<Link

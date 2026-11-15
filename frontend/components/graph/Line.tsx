@@ -35,6 +35,14 @@ const DEFAULT_PALETTE = [
 	"#ff9f40",
 ];
 
+function uniqueColor(index: number): string {
+	if (index < DEFAULT_PALETTE.length) return DEFAULT_PALETTE[index];
+	const n = index - DEFAULT_PALETTE.length + 1;
+	const hue = (n * 137.508) % 360;
+	const light = [50, 40, 60][n % 3];
+	return `hsl(${hue.toFixed(1)}, 72%, ${light}%)`;
+}
+
 export type YieldSeries = {
 	hive_id?: string;
 	label: string;
@@ -174,12 +182,7 @@ export const YieldSummaryChart = ({
 
 	const datasets = isMultiLine
 		? series!.map((s, i) =>
-				buildYieldDataset(
-					s.color ?? DEFAULT_PALETTE[i % DEFAULT_PALETTE.length],
-					s.label,
-					s.data,
-					true,
-				),
+				buildYieldDataset(s.color ?? uniqueColor(i), s.label, s.data, true),
 			)
 		: [buildYieldDataset(lineColor, "Total Yield (kg)", data ?? [], true)];
 
@@ -300,8 +303,7 @@ export const YieldBarChart = ({
 		datasets: series.map((s, si) => ({
 			label: s.label,
 			data: entries.map((e) => (e.s === si ? s.data[e.m] : null)),
-			backgroundColor:
-				s.color ?? DEFAULT_PALETTE[si % DEFAULT_PALETTE.length],
+			backgroundColor: s.color ?? uniqueColor(si),
 			borderWidth: 0,
 			borderRadius: 0,
 			barPercentage: 1,

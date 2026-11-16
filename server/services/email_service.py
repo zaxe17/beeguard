@@ -2,32 +2,38 @@
 Email sender (verification OTP, password reset OTP, ...). Stdlib only —
 no new packages needed.
 
-EMAIL_PROVIDER picks how mail is sent:
-    "smtp"   -> Gmail / any SMTP   (local computer, VPS, Railway Pro)
-    "brevo"  -> Brevo HTTP API     (works on Railway Free/Hobby; port 443)
-    "resend" -> Resend HTTP API    (needs your own verified domain)
+WHY THERE ARE TWO WAYS TO SEND
+  Railway blocks outgoing SMTP (ports 25/465/587) on the Free, Trial and
+  Hobby plans, so Gmail SMTP works on your computer but NOT on Railway.
+  An email API sends over normal HTTPS (port 443), which Railway allows.
 
-If EMAIL_PROVIDER isn't set: Brevo if BREVO_API_KEY is set, else Resend if
-RESEND_API_KEY is set, else SMTP.
-
-NOTE: Railway blocks outgoing SMTP (ports 25/465/587) on the Free, Trial and
-Hobby plans. SMTP works there only on Pro or on another host.
+  EMAIL_PROVIDER picks how mail is sent:
+    "brevo"  -> Brevo HTTP API     (free: 300 emails/day, no domain needed —
+                                    just verify your sender email in Brevo)
+    "resend" -> Resend HTTP API    (free, but needs your own verified domain
+                                    to send to other people's addresses)
+    "smtp"   -> Gmail / any SMTP   (local XAMPP / your computer)
+  If EMAIL_PROVIDER isn't set: Brevo if BREVO_API_KEY is set, else Resend if
+  RESEND_API_KEY is set, else SMTP. So locally nothing changes; on Railway
+  just add BREVO_API_KEY (and EMAIL_FROM_ADDRESS).
 
 ENV VARIABLES (.env locally / Railway -> Variables)
-  EMAIL_PROVIDER       optional: smtp | brevo | resend
-  SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD / SMTP_FROM / SMTP_USE_TLS
-  BREVO_API_KEY, RESEND_API_KEY, EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME
+  EMAIL_PROVIDER       optional: brevo | resend | smtp
+  BREVO_API_KEY        Brevo -> SMTP & API -> API Keys (starts with "xkeysib-")
+  RESEND_API_KEY       Resend -> API Keys (starts with "re_")
+  EMAIL_FROM_ADDRESS   sender address; for Brevo it must be a VERIFIED sender
+                       (Brevo -> Senders). Default: the address in SMTP_FROM.
+  EMAIL_FROM_NAME      sender name shown in the inbox. Default: "BeeGuard".
+  SMTP_*               unchanged (used only when sending via SMTP).
 """
 import json
 import os
 import smtplib
-import socket
-import ssl
 import urllib.error
 import urllib.request
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, formatdate, make_msgid, parseaddr
+from email.utils import formataddr, parseaddr
 
 from config.config import Config
 
@@ -119,52 +125,26 @@ def _send_smtp(to_email, subject, html_body, text_body) -> None:
     if not Config.SMTP_USER or not Config.SMTP_PASSWORD:
         raise RuntimeError(
             "SMTP credentials are not configured. "
-            "Set SMTP_USER and SMTP_PASSWORD (Gmail App Password) in your .env."
+            "Set SMTP_USER and SMTP_PASSWORD in your .env file "
+            "(or BREVO_API_KEY to send through Brevo instead)."
         )
-
-    host, port = Config.SMTP_HOST, Config.SMTP_PORT
-    from_name, from_addr = parseaddr(Config.SMTP_FROM)
-    from_addr = from_addr or Config.SMTP_USER
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = formataddr((from_name or "BeeGuard", from_addr))
+    msg["From"] = Config.SMTP_FROM
     msg["To"] = to_email
-    msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid(domain=from_addr.split("@")[-1])
 
     if text_body:
         msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    ctx = ssl.create_default_context()
-    try:
-        if port == 465:  # implicit SSL
-            server = smtplib.SMTP_SSL(host, port, timeout=15, context=ctx)
-        else:            # 587 + STARTTLS
-            server = smtplib.SMTP(host, port, timeout=15)
-
-        with server as s:
+    with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=15) as s:
+        s.ehlo()
+        if Config.SMTP_USE_TLS:
+            s.starttls()
             s.ehlo()
-            if port != 465 and Config.SMTP_USE_TLS:
-                s.starttls(context=ctx)
-                s.ehlo()
-            s.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
-            s.sendmail(from_addr, [to_email], msg.as_string())
-
-    except smtplib.SMTPAuthenticationError as e:
-        raise RuntimeError(
-            "SMTP login failed. For Gmail use a 16-character App Password "
-            "(not your normal password) and make sure 2-Step Verification is on."
-        ) from e
-    except smtplib.SMTPException as e:
-        raise RuntimeError(f"SMTP error: {e}") from e
-    except (socket.timeout, OSError) as e:
-        raise RuntimeError(
-            f"Couldn't connect to {host}:{port} ({e}). If this is on Railway "
-            "Free/Trial/Hobby, outgoing SMTP is blocked there; use Pro, another "
-            "host, or an email API."
-        ) from e
+        s.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
+        s.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
 
 
 _SENDERS = {"brevo": _send_brevo, "resend": _send_resend, "smtp": _send_smtp}
@@ -216,6 +196,7 @@ class EmailService:
         """
         EmailService.send(to_email, subject, html_body, text_body)
 
+    # NEW — Forgot Password (OTP purpose 'password_reset').
     @staticmethod
     def send_password_reset_otp(to_email: str, name: str, code: str,
                                 ttl_minutes: int) -> None:

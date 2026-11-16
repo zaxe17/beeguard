@@ -538,9 +538,14 @@ const FormDetails = () => {
 	const [lookup, setLookup] = useState<
 		"idle" | "searching" | "found" | "notFound"
 	>(location ? "found" : "idle");
-	// Set when the text was filled in by a map click, so it doesn't get
-	// looked up again (which could move the pin away from the click).
+	// Set when the text was filled in by a map click / "Use my current
+	// location", so it doesn't get looked up again (which could move the
+	// pin away from the spot).
 	const skipNextLookup = useRef(false);
+
+	// "Use my current location" button state.
+	const [locating, setLocating] = useState(false);
+	const [locateError, setLocateError] = useState<string | null>(null);
 
 	// ── Typed location -> pin on the map ─────────────
 	useEffect(() => {
@@ -586,6 +591,7 @@ const FormDetails = () => {
 
 	// ── Map click -> pin + place name in the Location box ─
 	const handleMapSelect = async (coords: { lat: number; lng: number }) => {
+		setLocateError(null);
 		setLocation(coords);
 		setLookup("found");
 		skipNextLookup.current = true;
@@ -595,6 +601,52 @@ const FormDetails = () => {
 			skipNextLookup.current = true;
 			updateDetails({ locationText: label });
 		}
+	};
+
+	// ── "Use my current location" -> pin + place name ─
+	// (named handleUseMyLocation so the react-hooks lint rule doesn't
+	// mistake it for a hook)
+	const handleUseMyLocation = () => {
+		if (locating) return;
+		if (!navigator.geolocation) {
+			setLocateError("Location isn't supported on this device.");
+			return;
+		}
+
+		setLocating(true);
+		setLocateError(null);
+
+		navigator.geolocation.getCurrentPosition(
+			async (pos) => {
+				const coords = {
+					lat: pos.coords.latitude,
+					lng: pos.coords.longitude,
+				};
+				setLocation(coords);
+				setLookup("found");
+				skipNextLookup.current = true;
+				updateDetails({
+					locationText: formatCoords(coords.lat, coords.lng),
+				});
+				setLocating(false);
+
+				const label = await reverseGeocode(coords.lat, coords.lng);
+				if (label) {
+					skipNextLookup.current = true;
+					updateDetails({ locationText: label });
+				}
+			},
+			(err) => {
+				console.error("Geolocation error:", err);
+				setLocating(false);
+				setLocateError(
+					err.code === err.PERMISSION_DENIED
+						? "Location permission is blocked. Allow it in your browser settings, or tap the map."
+						: "Couldn't get your location. Try again or tap the map.",
+				);
+			},
+			{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+		);
 	};
 
 	// ── Validation (mirrors validators/report_validator.py) ─
@@ -635,13 +687,15 @@ const FormDetails = () => {
 
 	const locationHint = isAutoLocation
 		? "Taken from your device's location."
-		: lookup === "searching"
-			? "Finding that place on the map…"
-			: lookup === "notFound"
-				? "Couldn't find that place. Try adding the city, or tap the map to drop a pin."
-				: lookup === "found"
-					? "Pin placed. Tap the map to adjust it."
-					: "Type a place (e.g. Payatas, Quezon City) or tap the map.";
+		: locateError
+			? locateError
+			: lookup === "searching"
+				? "Finding that place on the map…"
+				: lookup === "notFound"
+					? "Couldn't find that place. Try adding the city, or tap the map to drop a pin."
+					: lookup === "found"
+						? "Pin placed. Tap the map to adjust it."
+						: "Type a place (e.g. Payatas, Quezon City) or tap the map.";
 
 	const dangerOption = (value: "Yes" | "No") => (
 		<label className="w-full h-8 flex justify-center items-center rounded-lg p-2 group transition-all cursor-pointer border-2 border-[#e2e2e6] bg-white/70 has-[input:checked]:bg-[#ffdb4f]/70 has-[input:checked]:border-2 has-[input:checked]:border-[#ff9a00]">
@@ -666,13 +720,32 @@ const FormDetails = () => {
 	return (
 		<div className="w-7/8 lg:h-full h-auto flex lg:flex-row flex-col justify-between gap-4">
 			<div className="lg:w-1/2 w-full lg:h-full h-auto flex flex-col gap-3 lg:min-h-0 shrink-0">
-				<div className="lg:h-1/2 h-56 min-h-0 rounded-xl overflow-hidden shrink-0 isolate">
+				<div className="relative lg:h-1/2 h-56 min-h-0 rounded-xl overflow-hidden shrink-0 isolate">
 					<Map
 						markerPosition={location}
 						onLocationSelect={handleMapSelect}
 						readOnly={isAutoLocation}
 					/>
 				</div>
+
+				{/* BUTTON FOR USE MY CURRENT LOCATION */}
+				{!isAutoLocation && (
+					<button
+						type="button"
+						onClick={handleUseMyLocation}
+						disabled={locating}
+						className="Poppins-SemiBold w-fit text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1 disabled:opacity-60 flex items-center gap-1 cursor-pointer">
+						<Icon
+							icon={
+								locating
+									? "svg-spinners:ring-resize"
+									: "mdi:crosshairs-gps"
+							}
+							className="w-3.5 h-3.5"
+						/>
+						{locating ? "Locating…" : "Use my current location"}
+					</button>
+				)}
 
 				<div className="lg:h-1/2 h-auto lg:min-h-0 shrink-0">
 					<PhotoAndSpecies />
@@ -703,7 +776,7 @@ const FormDetails = () => {
 							}
 						/>
 						<span
-							className={`text-xs ${lookup === "notFound" ? "text-red-600" : "text-[#817b70]"}`}>
+							className={`text-xs ${lookup === "notFound" || locateError ? "text-red-600" : "text-[#817b70]"}`}>
 							{locationHint}
 						</span>
 					</div>

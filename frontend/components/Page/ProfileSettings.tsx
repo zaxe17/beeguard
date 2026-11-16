@@ -768,7 +768,7 @@ const PersonalInfo = () => {
 							type="button"
 							onClick={useMyLocation}
 							disabled={locating}
-							className="Poppins-SemiBold text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1 disabled:opacity-60 flex items-center gap-1">
+							className="Poppins-SemiBold text-xs text-[#704500] bg-[#ffdb4f]/50 hover:bg-[#ffdb4f] rounded-full px-3 py-1 disabled:opacity-60 flex items-center gap-1 cursor-pointer">
 							<Icon
 								icon="mdi:crosshairs-gps"
 								className="w-3.5 h-3.5"

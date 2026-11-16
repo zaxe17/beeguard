@@ -8,6 +8,7 @@ from config.database import Database
 from models.admin import AdminModel
 from models.beekeeper import BeekeeperModel
 from models.citizen import CitizenModel
+from models.pending_registration import PendingRegistrationModel  # NEW
 from services.otp_service import OtpService
 from utils.id_generator import next_user_id
 from utils.logger import audit
@@ -31,16 +32,6 @@ class AuthService:
     # ---------- JWT ----------
     @staticmethod
     def issue_token(user_id: str, role: str, remember: bool = False) -> str:
-        """
-        Standard session: Config.JWT_EXPIRES_HOURS (default 24h).
-        Remember Me:      Config.JWT_EXPIRES_HOURS_REMEMBER (default 30d).
-
-        Note: the JWT itself carries the extended expiry — no separate
-        refresh-token endpoint is introduced, which keeps the middleware
-        (`token_required`) unchanged. If you later need true refresh-token
-        rotation, add a `refresh_tokens` table + `/auth/refresh` route;
-        the `remember` flag here already flows through cleanly.
-        """
         now = dt.datetime.now(dt.timezone.utc)
         hours = (
             Config.JWT_EXPIRES_HOURS_REMEMBER if remember
@@ -51,7 +42,7 @@ class AuthService:
             "role": role,
             "iat": int(now.timestamp()),
             "exp": int((now + dt.timedelta(hours=hours)).timestamp()),
-            "rmb": bool(remember),   # informational; middleware ignores
+            "rmb": bool(remember),
         }
         return jwt.encode(payload, Config.JWT_SECRET, algorithm=Config.JWT_ALGORITHM)
 
@@ -62,12 +53,12 @@ class AuthService:
         )
 
     # ---------- uniqueness pre-check ----------
+    # Only checks REAL accounts. Pending (unverified) sign-ups live in
+    # pending_registrations and never block anyone.
     @staticmethod
     def check_unique(role: str, username: str | None,
                      email: str | None, contact_no: str | None) -> dict:
         taken: dict[str, bool] = {}
-        # NEW — admins too, since everyone logs in with username OR email
-        # from the same form (an identifier must belong to one account).
         if username:
             if CitizenModel.exists_username(username) or \
                BeekeeperModel.exists_username(username) or \
@@ -84,7 +75,19 @@ class AuthService:
                 taken["contact_no"] = True
         return taken
 
-    # ---------- register (unchanged) ----------
+    # NEW
+    @staticmethod
+    def _taken_message(taken: dict) -> tuple[str, list]:
+        if taken.get("email"):
+            return "This email address is already registered.", ["email"]
+        if taken.get("contact_no"):
+            return "This phone number is already registered.", ["contact_no"]
+        return "Username already taken.", ["username"]
+
+    # ---------- register ----------
+    # CHANGED: NOTHING is written to citizens/beekeepers here anymore.
+    # The sign-up is parked in pending_registrations (password already
+    # hashed) and only becomes a real account after the OTP is verified.
     @staticmethod
     def register(cleaned: dict) -> tuple[bool, str, dict | list]:
         role = cleaned["role"]
@@ -94,85 +97,110 @@ class AuthService:
 
         taken = AuthService.check_unique(role, username, email, contact_no)
         if taken:
-            if taken.get("email"):
-                return False, "This email address is already registered.", ["email"]
-            if taken.get("contact_no"):
-                return False, "This phone number is already registered.", ["contact_no"]
-            if taken.get("username"):
-                return False, "Username already taken.", ["username"]
+            msg, fields = AuthService._taken_message(taken)
+            return False, msg, fields
 
-        hashed_pw = AuthService.hash_password(cleaned["password"])
+        # Housekeeping: drop sign-ups nobody finished.
+        PendingRegistrationModel.purge_expired()
 
-        conn = Database.get_connection()
-        try:
-            user_id = next_user_id(conn, role)
-            if role == "citizen":
-                record = {
-                    "citizenID": user_id,
-                    "name": cleaned["name"],
-                    "citizenship": cleaned["citizenship"],
-                    "address": cleaned.get("address"),
-                    "latitude": cleaned.get("latitude"),
-                    "longitude": cleaned["longitude"],
-                    "username": username,
-                    "password": hashed_pw,
-                    "contact_no": contact_no,
-                    "email": email,
-                    "terms_accepted": cleaned["terms_accepted"],
-                }
-                CitizenModel.insert_with_conn(conn, record)
-            else:
-                record = {
-                    "beekeeperID": user_id,
-                    "name": cleaned["name"],
-                    "citizenship": cleaned["citizenship"],
-                    "address": cleaned.get("address"),
-                    "latitude": cleaned.get("latitude"),
-                    "longitude": cleaned["longitude"],
-                    "username": username,
-                    "password": hashed_pw,
-                    "contact_no": contact_no,
-                    "email": email,
-                    "farm_name": cleaned["farm_name"],
-                    "apiary_type": cleaned["apiary_type"],
-                    "terms_accepted": cleaned["terms_accepted"],
-                }
-                BeekeeperModel.insert_with_conn(conn, record)
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        # Never store the plain password, not even in the pending table.
+        pending_payload = dict(cleaned)
+        pending_payload["password"] = AuthService.hash_password(cleaned["password"])
+
+        # Same email signing up again (user left the verification page and
+        # came back) simply overwrites the old pending row.
+        PendingRegistrationModel.upsert(email, role, pending_payload)
 
         OtpService.issue_and_send(email=email, role=role, name=cleaned["name"])
 
-        return True, "Registration successful. Verification code sent.", {
-            "id": user_id, "role": role, "username": username, "email": email,
+        return True, "Verification code sent.", {
+            "id": None,  # no ID yet; it's assigned after verification
+            "role": role, "username": username, "email": email,
         }
 
     # ---------- verify OTP (auto-login WITHOUT remember-me) ----------
+    # CHANGED: the real account is created here, after the code is correct.
     @staticmethod
     def verify_registration_otp(email: str, role: str, code: str) -> tuple[bool, str, dict | None]:
         ok, msg = OtpService.verify(email, code)
         if not ok:
             return False, msg, None
 
-        if role == "citizen":
-            CitizenModel.mark_email_verified(email)
-            row = CitizenModel.find_by_email(email)
-            id_field = "citizenID"
+        pending = PendingRegistrationModel.find(email)
+
+        if pending:
+            if pending["role"] != role:
+                return False, "Registration not found. Please sign up again.", None
+
+            data = pending["payload"]
+
+            # Re-check: someone else may have taken the username/phone
+            # while this sign-up was waiting for verification.
+            taken = AuthService.check_unique(
+                role, data["username"], data["email"], data["contact_no"]
+            )
+            if taken:
+                PendingRegistrationModel.delete(email)
+                tmsg, _ = AuthService._taken_message(taken)
+                return False, tmsg + " Please sign up again.", None
+
+            conn = Database.get_connection()
+            try:
+                user_id = next_user_id(conn, role)
+                base = {
+                    "name": data["name"],
+                    "citizenship": data["citizenship"],
+                    "address": data.get("address"),
+                    "latitude": data.get("latitude"),
+                    "longitude": data["longitude"],
+                    "username": data["username"],
+                    "password": data["password"],   # already bcrypt-hashed
+                    "contact_no": data["contact_no"],
+                    "email": data["email"],
+                    "terms_accepted": data["terms_accepted"],
+                }
+                if role == "citizen":
+                    CitizenModel.insert_with_conn(
+                        conn, {"citizenID": user_id, **base}
+                    )
+                else:
+                    BeekeeperModel.insert_with_conn(
+                        conn,
+                        {
+                            "beekeeperID": user_id,
+                            **base,
+                            "farm_name": data["farm_name"],
+                            "apiary_type": data["apiary_type"],
+                        },
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
+
+            if role == "citizen":
+                CitizenModel.mark_email_verified(email)
+            else:
+                BeekeeperModel.mark_email_verified(email)
+            PendingRegistrationModel.delete(email)
         else:
-            BeekeeperModel.mark_email_verified(email)
-            row = BeekeeperModel.find_by_email(email)
-            id_field = "beekeeperID"
+            # Legacy path: accounts created BEFORE this fix that are
+            # sitting in the real table as unverified.
+            if role == "citizen":
+                CitizenModel.mark_email_verified(email)
+            else:
+                BeekeeperModel.mark_email_verified(email)
+
+        row = (CitizenModel.find_by_email(email) if role == "citizen"
+               else BeekeeperModel.find_by_email(email))
+        id_field = "citizenID" if role == "citizen" else "beekeeperID"
 
         if not row:
             return False, "Account not found after verification.", None
 
         user_id = row[id_field]
-        # Auto-login after verify uses the STANDARD session — the user
-        # never got the chance to tick "Remember me" on the OTP screen.
         token = AuthService.issue_token(user_id, role, remember=False)
         return True, "Email verified. You are now logged in.", {
             "token": token,
@@ -184,8 +212,17 @@ class AuthService:
             },
         }
 
+    # CHANGED: resend looks at pending sign-ups first.
     @staticmethod
     def resend_registration_otp(email: str, role: str) -> tuple[bool, str]:
+        pending = PendingRegistrationModel.find(email)
+        if pending and pending["role"] == role:
+            return OtpService.issue_and_send(
+                email=email, role=role,
+                name=pending["payload"].get("name", ""),
+            )
+
+        # Legacy accounts (already in the real table, unverified)
         row = (CitizenModel.find_by_email(email) if role == "citizen"
                else BeekeeperModel.find_by_email(email))
         if not row:
@@ -196,16 +233,7 @@ class AuthService:
             email=email, role=role, name=row.get("name", "")
         )
 
-    # ---------- forgot password (NEW) ----------
-    # Flow: forgot-password (email) -> verify-reset-code (email + 6-digit
-    # code, returns a short-lived reset_token) -> reset-password
-    # (reset_token + new password).
-    #
-    # The reset_token is a JWT signed with a DIFFERENT key than login
-    # tokens (JWT_SECRET + suffix), so it can never be used as a login
-    # token by the auth middleware. It also carries a fingerprint of the
-    # current password hash, so it stops working the moment the password
-    # changes — i.e. it can only be used once.
+    # ---------- forgot password (unchanged) ----------
     RESET_TOKEN_MINUTES = 15
     _RESET_KEY_SUFFIX = ":password_reset"
 
@@ -221,7 +249,6 @@ class AuthService:
 
     @staticmethod
     def _find_account_by_email(email: str):
-        """(role, row) for the account using this email, or (None, None)."""
         row = CitizenModel.find_by_email(email)
         if row:
             return "citizen", row
@@ -235,11 +262,6 @@ class AuthService:
 
     @staticmethod
     def request_password_reset(email: str) -> tuple[bool, str]:
-        """
-        Sends a password-reset code. For an email with no account we still
-        answer "sent" (so the form can't be used to find out which emails
-        are registered) — no email actually goes out in that case.
-        """
         generic = "If an account uses that email, a reset code has been sent."
         role, row = AuthService._find_account_by_email(email)
         if not row:
@@ -307,7 +329,6 @@ class AuthService:
         if not row or role != payload.get("role"):
             return False, "Account not found."
 
-        # Password already changed with this token (or another way) -> dead.
         if AuthService._password_fingerprint(row.get("password")) != payload.get("pwf"):
             return False, "This reset was already used. Please request a new code."
 
@@ -325,21 +346,9 @@ class AuthService:
 
         return True, "Password updated. You can now sign in with your new password."
 
-    # ---------- role auto-detection ----------
+    # ---------- role auto-detection (unchanged) ----------
     @staticmethod
     def _find_account_by_identifier(identifier: str):
-        """
-        Look up `identifier` (username or email) across all three role
-        tables, in order: citizen -> beekeeper -> admin. Returns the
-        first match as (role, id_field, row), or (None, None, None) if
-        no account exists under any role.
-
-        This relies on username/email being enforced unique ACROSS the
-        citizen and beekeeper tables already (see AuthService.check_unique,
-        used at registration time), so a given identifier should only
-        ever belong to one account. NEW: admins can also use their
-        username OR email (migration 028 adds admins.username).
-        """
         row = CitizenModel.find_by_username_or_email(identifier)
         if row:
             return "citizen", "citizenID", row
@@ -354,12 +363,11 @@ class AuthService:
 
         return None, None, None
 
-    # ---------- login (role optional — auto-detected if omitted) ----------
+    # ---------- login (unchanged) ----------
     @staticmethod
     def login(role: str | None, identifier: str, password: str,
               remember: bool = False) -> tuple[bool, str, dict | None]:
         if role:
-            # Explicit role given — look up only in that table.
             if role == "citizen":
                 row = CitizenModel.find_by_username_or_email(identifier)
                 id_field = "citizenID"
@@ -372,7 +380,6 @@ class AuthService:
             else:
                 return False, "Invalid role.", None
         else:
-            # No role given — auto-detect by searching all role tables.
             role, id_field, row = AuthService._find_account_by_identifier(identifier)
 
         if not row:
@@ -400,7 +407,7 @@ class AuthService:
             },
         }
 
-    # ---------- fetch current user ----------
+    # ---------- fetch current user (unchanged) ----------
     @staticmethod
     def get_user(role: str, user_id: str) -> dict | None:
         if role == "citizen":
@@ -418,26 +425,13 @@ class AuthService:
             "name": row.get("name") or row.get("admin_name"),
             "email": row["email"], "username": row.get("username"),
         }
-        # NEW — citizens and beekeepers may have a stored farm/home pin.
-        # Exposed here so the frontend (e.g. the Add Alert map) can
-        # auto-center on the user's own location instead of always
-        # defaulting to a fixed spot in Quezon City. `None` when the
-        # user never set a location (or only partially set it) —
-        # the frontend should fall back to its own default in that case.
         if role in ("citizen", "beekeeper"):
             lat = row.get("latitude")
             lng = row.get("longitude")
             user["latitude"] = float(lat) if lat is not None else None
             user["longitude"] = float(lng) if lng is not None else None
-            # NEW (Migration 019) — the user's own profile photo (URL path,
-            # or None = default picture).
             photo = row.get("profile_photo")
             user["profile_photo"] = f"/uploads/profile/{photo}" if photo else None
-        # NEW — beekeepers go through a verification step (document
-        # upload, admin review) before certain features unlock (e.g.
-        # the Report tab). Exposed here so the frontend can gate those
-        # features and show a "please verify" prompt. Citizens/admins
-        # have no such column — left unset for them.
         if role == "beekeeper":
             user["verification_status"] = row.get("verification_status")
         return user

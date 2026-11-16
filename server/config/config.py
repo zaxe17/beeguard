@@ -4,14 +4,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _env_bool(name: str, default: bool = True) -> bool:
-    """Accepts 1/true/yes/on (any case) as True."""
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in ("1", "true", "yes", "on")
-
-
 class Config:
     # Flask
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
@@ -41,13 +33,10 @@ class Config:
     # SMTP
     SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER = os.getenv("SMTP_USER", "").strip()
-    # Gmail shows App Passwords with spaces ("abcd efgh ijkl mnop"); strip them.
-    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
-    SMTP_FROM = os.getenv("SMTP_FROM") or (
-        f"BeeGuard <{SMTP_USER}>" if SMTP_USER else "BeeGuard <no-reply@beeguard.local>"
-    )
-    SMTP_USE_TLS = _env_bool("SMTP_USE_TLS", True)  # STARTTLS (port 587)
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER or "no-reply@beeguard.local")
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "1") == "1"
 
     # OTP (email verification / password reset)
     OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
@@ -61,6 +50,10 @@ class Config:
     )
 
     # ── Local YOLO model (bee/insect species identification — Feature: CV Scan) ──
+    # Replaces the old Roboflow-hosted-inference setup. Custom-trained weights
+    # (Apis cerana / Apis mellifera / Tetragonula biroi) live on disk inside
+    # the backend repo by default at backend/weights/best.pt; override with
+    # CV_SCAN_MODEL_PATH if you keep it somewhere else.
     CV_SCAN_MODEL_PATH = os.getenv(
         "CV_SCAN_MODEL_PATH",
         os.path.join(
@@ -69,12 +62,17 @@ class Config:
     )
     # Boxes below this confidence are dropped before majority-voting runs.
     CV_SCAN_CONF_THRESHOLD = float(os.getenv("CV_SCAN_CONF_THRESHOLD", "0.4"))
-    # "cpu", "cuda", "cuda:0", etc.
+    # "cpu", "cuda", "cuda:0", etc. — leave as "cpu" unless the server has a GPU.
     CV_SCAN_DEVICE = os.getenv("CV_SCAN_DEVICE", "cpu")
-    # Longest side the image is resized to before inference.
+    # Longest side the image is resized to before inference (YOLO handles this
+    # internally, this just controls the tradeoff between speed and accuracy).
     CV_SCAN_IMGSZ = int(os.getenv("CV_SCAN_IMGSZ", "1024"))
 
-    # CV Scan image storage (local disk for now)
+    # CV Scan image storage — saved to local disk for now (no cloud
+    # storage account set up yet). CV_SCAN_UPLOAD_FOLDER is a real
+    # filesystem path where uploaded images are written;
+    # CV_SCAN_URL_PREFIX is the URL path Flask serves that same folder
+    # under (see app.py's static route), stored in cv_scans.image_url.
     CV_SCAN_UPLOAD_FOLDER = os.getenv(
         "CV_SCAN_UPLOAD_FOLDER",
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "cv_scans"),

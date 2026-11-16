@@ -445,7 +445,12 @@ const RegistrationForm = () => {
 							}
 							height={30}
 							value={form.username}
-							onChange={(e) => update("username", e.target.value)}
+							onChange={(e) =>
+								update(
+									"username",
+									e.target.value.replace(/\s/g, ""),
+								)
+							}
 							lowercase
 							error={!!errors.username}
 						/>

@@ -26,11 +26,74 @@ const APIARY_TYPES = [
 
 type PsgcItem = { code: string; name: string };
 
+const PSGC_BASE = "https://psgc.cloud/api";
+const PSGC_V2 = "https://psgc.cloud/api/v2";
+
+// Safe JSON fetch: always returns an array.
+// Handles both plain arrays (v1) and { data: [...] } (v2).
+const getList = async (url: string): Promise<PsgcItem[]> => {
+	try {
+		const r = await fetch(url);
+		if (!r.ok) return [];
+		const json = await r.json();
+		const arr = Array.isArray(json)
+			? json
+			: Array.isArray(json?.data)
+				? json.data
+				: [];
+		return arr.map((x: { code: string; name: string }) => ({
+			code: String(x.code),
+			name: String(x.name ?? "").trim(),
+		}));
+	} catch {
+		return [];
+	}
+};
+
+const sortByName = (list: PsgcItem[]) =>
+	[...list].sort((a, b) =>
+		a.name.localeCompare(b.name, undefined, { numeric: true }),
+	);
+
+// Barangays of a city.
+// City of Manila returns nothing from the direct endpoints (its barangays sit
+// under districts), so we fall back to the region's barangays (v2) and keep
+// those that share the city's first 5 digits.
+const getBarangaysOfCity = async (
+	cityCode: string,
+	regionCode: string,
+): Promise<PsgcItem[]> => {
+	// 1) Normal cities / municipalities (v1)
+	const direct = await getList(
+		`${PSGC_BASE}/cities-municipalities/${cityCode}/barangays`,
+	);
+	if (direct.length > 0) return direct;
+
+	// 2) v2 direct endpoint
+	const v2Direct = await getList(
+		`${PSGC_V2}/cities-municipalities/${cityCode}/barangays`,
+	);
+	if (v2Direct.length > 0) return sortByName(v2Direct);
+
+	// 3) Fallback: barangays share the city's first 5 digits.
+	//    9-digit: Manila 133900000  -> "13390"
+	//    10-digit: Manila 1380600000 -> "13806"
+	if (regionCode) {
+		const prefix = cityCode.slice(0, 5);
+		const regionBrgys = await getList(
+			`${PSGC_V2}/regions/${regionCode}/barangays`,
+		);
+		return sortByName(regionBrgys.filter((b) => b.code.startsWith(prefix)));
+	}
+
+	return [];
+};
+
 const RegistrationForm = () => {
 	const router = useRouter();
 
 	// Regions — no generic on useFetch; cast the result instead.
-	const { data: regionsData } = useFetch("https://psgc.cloud/api/regions");
+	const { data: regionsData } = useFetch(`${PSGC_BASE}/regions`);
 	const regions = (regionsData as PsgcItem[] | null | undefined) ?? [];
 
 	const [role, setRole] = useState<"citizen" | "beekeeper">("citizen");
@@ -123,22 +186,19 @@ const RegistrationForm = () => {
 		}
 		let cancelled = false;
 		setLoadingCities(true);
-		fetch(
-			`https://psgc.cloud/api/regions/${form.region}/cities-municipalities`,
-		)
-			.then((r) => (r.ok ? r.json() : []))
-			.then((data: PsgcItem[]) => {
-				if (!cancelled) setCities(Array.isArray(data) ? data : []);
+		getList(`${PSGC_BASE}/regions/${form.region}/cities-municipalities`)
+			.then((data) => {
+				if (!cancelled) setCities(data);
 			})
-			.catch(() => {
-				if (!cancelled) setCities([]);
-			})
-			.finally(() => !cancelled && setLoadingCities(false));
+			.finally(() => {
+				if (!cancelled) setLoadingCities(false);
+			});
 		return () => {
 			cancelled = true;
 		};
 	}, [form.region]);
 
+	// Barangays (with v2 fallback for City of Manila)
 	useEffect(() => {
 		if (!form.city) {
 			setBarangays([]);
@@ -146,39 +206,65 @@ const RegistrationForm = () => {
 		}
 		let cancelled = false;
 		setLoadingBarangays(true);
-		fetch(
-			`https://psgc.cloud/api/cities-municipalities/${form.city}/barangays`,
-		)
-			.then((r) => (r.ok ? r.json() : []))
-			.then((data: PsgcItem[]) => {
-				if (!cancelled) setBarangays(Array.isArray(data) ? data : []);
+		getBarangaysOfCity(form.city, form.region)
+			.then((data) => {
+				if (!cancelled) setBarangays(data);
 			})
-			.catch(() => {
-				if (!cancelled) setBarangays([]);
-			})
-			.finally(() => !cancelled && setLoadingBarangays(false));
+			.finally(() => {
+				if (!cancelled) setLoadingBarangays(false);
+			});
 		return () => {
 			cancelled = true;
 		};
-	}, [form.city]);
+	}, [form.city, form.region]);
 
+	// ── Options (with placeholder as first option) ──────
 	const regionOptions = useMemo(
-		() => regions.map((r: PsgcItem) => ({ label: r.name, value: r.code })),
+		() => [
+			{ label: "Please select region", value: "" },
+			...regions.map((r: PsgcItem) => ({
+				label: r.name,
+				value: r.code,
+			})),
+		],
 		[regions],
 	);
-	const cityOptions = useMemo(
-		() => cities.map((c: PsgcItem) => ({ label: c.name, value: c.code })),
-		[cities],
-	);
-	const barangayOptions = useMemo(
-		() =>
-			barangays.map((b: PsgcItem) => ({ label: b.name, value: b.code })),
-		[barangays],
-	);
+
+	const cityOptions = useMemo(() => {
+		const placeholder = !form.region
+			? "Please select region first"
+			: loadingCities
+				? "Loading cities..."
+				: "Please select city";
+		return [
+			{ label: placeholder, value: "" },
+			...cities.map((c: PsgcItem) => ({
+				label: c.name,
+				value: c.code,
+			})),
+		];
+	}, [cities, form.region, loadingCities]);
+
+	const barangayOptions = useMemo(() => {
+		const placeholder = !form.city
+			? "Please select city first"
+			: loadingBarangays
+				? "Loading barangays..."
+				: "Please select barangay";
+		return [
+			{ label: placeholder, value: "" },
+			...barangays.map((b: PsgcItem) => ({
+				label: b.name,
+				value: b.code,
+			})),
+		];
+	}, [barangays, form.city, loadingBarangays]);
 
 	// ── Cascade handlers (store BOTH code and name) ─────
 	const onRegionChange = (code: string) => {
-		const name = regionOptions.find((r) => r.value === code)?.label || "";
+		const name = code
+			? regionOptions.find((r) => r.value === code)?.label || ""
+			: "";
 		setForm((f) => ({
 			...f,
 			region: code,
@@ -190,7 +276,9 @@ const RegistrationForm = () => {
 		}));
 	};
 	const onCityChange = (code: string) => {
-		const name = cityOptions.find((r) => r.value === code)?.label || "";
+		const name = code
+			? cityOptions.find((r) => r.value === code)?.label || ""
+			: "";
 		setForm((f) => ({
 			...f,
 			city: code,
@@ -200,7 +288,9 @@ const RegistrationForm = () => {
 		}));
 	};
 	const onBarangayChange = (code: string) => {
-		const name = barangayOptions.find((r) => r.value === code)?.label || "";
+		const name = code
+			? barangayOptions.find((r) => r.value === code)?.label || ""
+			: "";
 		setForm((f) => ({
 			...f,
 			barangay: code,
@@ -398,7 +488,6 @@ const RegistrationForm = () => {
 							onSelectChange={(e) => onCityChange(e.target.value)}
 							error={!!errors.city}
 							capitalize
-							disabled={!form.region || loadingCities}
 						/>
 						<FieldError name="city" />
 					</div>
@@ -418,7 +507,6 @@ const RegistrationForm = () => {
 							}
 							error={!!errors.barangay}
 							capitalize
-							disabled={!form.city || loadingBarangays}
 						/>
 						<FieldError name="barangay" />
 					</div>
